@@ -179,6 +179,12 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-failsafe-plugin</artifactId>
+				<configuration>
+					<systemPropertyVariables>
+						<!-- Tests drive the sync themselves; the periodic poll would race them -->
+						<wallet.sync.scheduler-enabled>false</wallet.sync.scheduler-enabled>
+					</systemPropertyVariables>
+				</configuration>
 				<executions>
 					<execution>
 						<goals>

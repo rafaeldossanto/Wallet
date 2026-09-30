@@ -38,6 +38,16 @@ openssl pkey -in wallet-jwt-private.pem -pubout -out wallet-jwt-public.pem
 Guarde os arquivos fora do repositório e aponte `WALLET_JWT_PRIVATE_KEY` e
 `WALLET_JWT_PUBLIC_KEY` para os caminhos. O BFF recebe só a pública.
 
+### Chave da criptografia de dados
+
+A descrição das transações é gravada criptografada (AES-256-GCM). Sem chave, o core usa uma
+temporária e avisa no log: o que for gravado fica ilegível depois de reiniciar. Gere uma
+vez e guarde em `WALLET_DATA_KEY`:
+
+```bash
+openssl rand -base64 32
+```
+
 ### Rodar
 
 ```bash

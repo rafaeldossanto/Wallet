@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, sync, pluggy]
-atualizado: 2026-09-29
+atualizado: 2026-09-30
 ---
 
 # Sincronização
@@ -11,29 +11,43 @@ Como os dados saem da Pluggy e chegam ao [[Modelo de Dados]].
 
 | Gatilho | Quando | Observação |
 |---|---|---|
+| `INITIAL` | Logo depois de vincular a conexão | Evento `ConnectionLinked`, em segundo plano e só depois do commit |
 | `SCHEDULED` | A cada 6 h (`wallet.sync.interval`) | Pula a conexão se a Pluggy não atualizou desde a última leitura |
-| `MANUAL` | Botão "Atualizar" no app | No máximo 1 a cada 15 min por conexão (`429 sync.too_soon`) |
+| `MANUAL` | Botão "Atualizar" no app | No máximo 1 a cada 15 min por conexão (`429 sync.too_soon`); responde `202` e roda em segundo plano |
 | `WEBHOOK` | Produção | Não funciona no dev: a Pluggy não alcança o localhost |
 
 ## Passo a passo de uma sincronização
 
-1. **Trava a conexão** com `pg_try_advisory_lock`. Se outra sincronização estiver
-   rodando, esta termina como `SKIPPED`.
-2. **Lê o item** (`GET /items/{id}`). Erro de login ou consentimento vencido deixa a
-   conexão em `NEEDS_ATTENTION` e para aqui.
+1. **Abre a rodada** em `sync_runs` com status `RUNNING`. Um índice único parcial
+   (`WHERE status = 'RUNNING'`) só deixa uma por conexão. A segunda rodada, de outra
+   thread ou de outra instância, não entra (`INSERT ... ON CONFLICT DO NOTHING`) e
+   termina como `SKIPPED` (ou `409 sync.in_progress` no botão). Uma rodada presa em
+   `RUNNING` há mais de 15 min é liberada como `FAILED sync.timed_out`.
+2. **Lê o item** (`GET /items/{id}`). Se o banco pede ação do usuário, a conexão vai
+   para `NEEDS_ATTENTION` e para aqui. Se a Pluggy ainda está coletando, termina como
+   `SKIPPED`.
 3. **Compara a data de atualização** do item com `provider_updated_at`. Sem novidade
-   num gatilho agendado, termina como `SKIPPED`.
-4. **Contas** (`GET /accounts?itemId=`): atualiza saldo e limite, grava o snapshot do
-   dia em `balance_snapshots`.
-5. **Transações por conta**, em janela: de `último booked_on - 7 dias` até hoje (na
-   primeira vez, 365 dias).
-   - Insere ou atualiza por `provider_transaction_id`.
-   - O que existe no Wallet dentro da janela e não veio da Pluggy recebe
-     `deleted_at`.
-6. **Faturas** de cada cartão (`GET /bills?accountId=`).
-7. **Investimentos** (`GET /investments?itemId=`): atualiza posições; o que sumiu
-   recebe `closed_at`.
-8. Grava `last_synced_at`, `provider_updated_at` e o resultado em `sync_runs`.
+   num gatilho agendado, termina como `SKIPPED sync.nothing_new`.
+4. **Lê tudo do provedor, fora de transação:**
+   - as contas;
+   - as transações de cada conta numa janela: de `último booked_on - 7 dias` até
+     hoje, e na primeira vez 365 dias;
+   - as faturas dos cartões;
+   - os investimentos.
+5. **Grava tudo numa transação só** (`SyncWriter`):
+   - contas e o snapshot de saldo do dia;
+   - transações: insere ou atualiza por `provider_transaction_id`, e o que existe na
+     janela e não veio recebe `deleted_at`;
+   - faturas;
+   - investimentos: o que sumiu ou foi resgatado recebe `closed_at`;
+   - `last_synced_at` e `provider_updated_at` da conexão.
+6. **Fecha a rodada** com o resultado e as contagens.
+
+> [!note] Por que ler antes e gravar depois
+> O banco nunca fica com uma transação aberta esperando a rede, e a gravação continua
+> sendo tudo ou nada. Foi isso que substituiu o `pg_try_advisory_lock` do desenho
+> original: um *advisory lock* de sessão fica preso a uma conexão do pool, e o índice
+> parcial resolve a concorrência sem isso.
 
 ## Por que a janela com remoção
 

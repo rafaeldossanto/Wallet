@@ -259,6 +259,24 @@ carga de 365 dias, carga incremental, transação que muda de ID (a antiga receb
 sincronizações ao mesmo tempo (a segunda vira `SKIPPED`) e falha no meio (nada
 gravado).
 
+**Feito em 2026-09-30:** 15 cenários em `SyncFlowIT` com o provedor simulado, verdes.
+Cobrem, além do pedido:
+- descrição cifrada no banco;
+- investimento que some é fechado;
+- rodada presa em `RUNNING` é liberada;
+- botão com `202`, `429` e `409`;
+- vincular dispara a primeira sincronização;
+- desvincular apaga tudo.
+
+Duas mudanças em relação ao desenho:
+1. **Concorrência:** índice único parcial em `sync_runs` em vez de
+   `pg_try_advisory_lock`.
+2. **Transação:** a leitura do provedor é feita fora dela e a gravação acontece numa
+   transação só, no `SyncWriter`.
+
+O agendador é desligado nos testes de integração pelo Failsafe
+(`wallet.sync.scheduler-enabled=false`).
+
 ### T09 — API de leitura
 
 **Objetivo:** os dados que o BFF vai compor nas telas. Rotas em [[Core]].

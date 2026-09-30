@@ -29,14 +29,20 @@ erDiagram
 `family_id`, `expires_at`, `rotated_at`, `revoked_at`, `created_at`. Ver
 [[Autenticação]].
 
-**connections** — `id`, `user_id`, `provider` (`PLUGGY`), `provider_item_id`
-(único), `institution_name`, `institution_image_url`, `status` (`ACTIVE`,
-`SYNCING`, `NEEDS_ATTENTION`, `DISCONNECTED`), `provider_updated_at`,
-`last_synced_at`, `consent_expires_at`, `created_at`.
+**connections** — `id`, `user_id` (FK `users`, cascata), `provider` (`PLUGGY`),
+`provider_item_id` (único por provedor), `institution_name`, `institution_image_url`,
+`status` (`ACTIVE`, `SYNCING`, `NEEDS_ATTENTION`), `provider_updated_at`,
+`last_synced_at`, `consent_expires_at`, `created_at`, `updated_at`. Desvincular
+apaga a linha, e a cascata leva tudo o que foi sincronizado.
 
-**accounts** — `id`, `connection_id`, `provider_account_id` (único), `kind`
-(`CHECKING`, `SAVINGS`, `CREDIT_CARD`, `OTHER`), `name`, `number_last_digits`,
-`currency_code`, `balance`, `credit_limit`, `available_credit`, `updated_at`.
+**accounts** — `id`, `connection_id` (FK, cascata), `user_id`,
+`provider_account_id` (único por conexão), `kind` (`CHECKING`, `SAVINGS`,
+`CREDIT_CARD`, `OTHER`), `name`, `number_last_digits`, `currency_code`, `balance`,
+`credit_limit`, `available_credit`, `created_at`, `updated_at`.
+
+> [!note] `user_id` repetido
+> Contas, transações e investimentos guardam `user_id`, mesmo alcançável pela conexão.
+> Toda leitura filtra pelo dono num índice, sem fazer join com a tabela de outro módulo.
 
 **balance_snapshots** — `account_id`, `snapshot_date`, `balance`. Chave
 (`account_id`, `snapshot_date`). Um por dia, gravado na sincronização. É o que permite
@@ -47,7 +53,9 @@ o gráfico de patrimônio, porque o Open Finance não devolve saldo de dias pass
 (sempre positivo), `direction` (`INFLOW`/`OUTFLOW`), `status`
 (`PENDING`/`POSTED`), `category`, `installment_number`, `installment_total`,
 `provider_bill_id`, `deleted_at`, `created_at`, `updated_at`. Único
-(`account_id`, `provider_transaction_id`). Índice (`account_id`, `booked_on`).
+(`account_id`, `provider_transaction_id`). Índices (`account_id`, `booked_on`) e
+(`user_id`, `booked_on`) só das não removidas. `description` é `VARCHAR(2000)`, porque
+o texto cifrado em base64 ocupa mais que o original.
 
 **credit_card_bills** — `id`, `account_id`, `provider_bill_id` (único), `due_date`,
 `total_amount`, `minimum_payment`, `currency_code`.
@@ -56,16 +64,23 @@ o gráfico de patrimônio, porque o Open Finance não devolve saldo de dias pass
 (`FIXED_INCOME`, `TREASURY`, `FUND`, `EQUITY`, `OTHER`), `name`, `balance`,
 `amount_invested`, `due_date`, `closed_at`, `updated_at`.
 
-**sync_runs** — `id`, `connection_id`, `trigger` (`SCHEDULED`, `MANUAL`, `WEBHOOK`),
-`status` (`RUNNING`, `SUCCEEDED`, `SKIPPED`, `FAILED`), `error_code`,
+**sync_runs** — `id`, `connection_id`, `trigger` (`INITIAL`, `SCHEDULED`, `MANUAL`,
+`WEBHOOK`), `status` (`RUNNING`, `SUCCEEDED`, `SKIPPED`, `FAILED`), `error_code`,
 `started_at`, `finished_at`, `accounts_count`, `transactions_upserted`,
-`transactions_deleted`.
+`transactions_deleted`. Índice único parcial: uma `RUNNING` por conexão. Ver
+[[Sincronização]].
+
+> [!warning] Validação do Hibernate
+> `ddl-auto: validate` recusa `CHAR(n)` e `TEXT` onde a entidade tem `String`, porque
+> espera `VARCHAR`. Por isso o schema usa `VARCHAR` em tudo, até em `currency_code`.
 
 ## Criptografia de coluna
 
-- `transactions.description` passa por um `AttributeConverter` com **AES-GCM**; a
-  chave vem de `WALLET_DATA_KEY`. O valor gravado leva um prefixo de versão da chave
-  para permitir rotação.
+- `transactions.description` passa por um `AttributeConverter` com **AES-256-GCM**;
+  a chave vem de `WALLET_DATA_KEY`. O valor gravado leva um prefixo de versão da chave
+  (`v1:`) para permitir rotação.
+- Sem chave configurada, o core usa uma temporária e avisa no log. Um valor que não
+  decifra (gravado com outra chave) volta como `null` em vez de derrubar a leitura.
 - Valor, data, direção e categoria ficam abertos: são o que as somas e os gráficos
   usam.
 - Consequência: a busca por texto no extrato não roda em SQL. O core filtra em

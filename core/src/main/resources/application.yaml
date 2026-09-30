@@ -38,6 +38,17 @@ wallet:
     lockout-duration: 15m
     # A device that lost the refresh response may retry the old token within this window.
     refresh-reuse-tolerance: 1m
+  crypto:
+    # base64 of 32 random bytes (openssl rand -base64 32). Empty = ephemeral, development only.
+    data-key: ${WALLET_DATA_KEY:}
+  sync:
+    interval: 6h
+    initial-delay: 1m
+    scheduler-enabled: ${WALLET_SYNC_SCHEDULER_ENABLED:true}
+    manual-cooldown: 15m
+    first-window: 365d
+    overlap: 7d
+    stale-run-after: 15m
   provider:
     # MEU_PLUGGY: items are pasted from the Meu Pluggy dashboard (development).
     # PLUGGY_CONNECT: items come from the widget and must belong to the user (production).
