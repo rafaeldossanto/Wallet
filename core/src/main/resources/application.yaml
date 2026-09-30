@@ -25,6 +25,20 @@ spring:
 server:
   port: 8081
 
+wallet:
+  jwt:
+    issuer: wallet-core
+    # PEM text or a path to a .pem file. Both empty = ephemeral key for local development only.
+    private-key: ${WALLET_JWT_PRIVATE_KEY:}
+    public-key: ${WALLET_JWT_PUBLIC_KEY:}
+    access-token-ttl: 15m
+    refresh-token-ttl: 30d
+  auth:
+    max-failed-logins: 5
+    lockout-duration: 15m
+    # A device that lost the refresh response may retry the old token within this window.
+    refresh-reuse-tolerance: 1m
+
 management:
   endpoints:
     web:

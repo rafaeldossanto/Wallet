@@ -10,6 +10,7 @@ public enum ErrorType {
     NOT_FOUND,
     CONFLICT,
     UNPROCESSABLE,
+    LOCKED,
     TOO_MANY_REQUESTS,
     UNAVAILABLE
 }

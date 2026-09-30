@@ -24,6 +24,20 @@ psql -U postgres -h localhost -v wallet_password=SUA_SENHA -f core/db/setup-loca
 
 Depois crie a variável de ambiente `WALLET_DB_PASSWORD` com a mesma senha.
 
+### Chaves do JWT
+
+Sem chave configurada, o core gera uma chave temporária a cada inicialização e avisa no log.
+Isso basta para desenvolver só o core, mas os tokens morrem quando ele reinicia e o BFF não
+consegue validá-los. Para ter chaves fixas:
+
+```bash
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out wallet-jwt-private.pem
+openssl pkey -in wallet-jwt-private.pem -pubout -out wallet-jwt-public.pem
+```
+
+Guarde os arquivos fora do repositório e aponte `WALLET_JWT_PRIVATE_KEY` e
+`WALLET_JWT_PUBLIC_KEY` para os caminhos. O BFF recebe só a pública.
+
 ### Rodar
 
 ```bash

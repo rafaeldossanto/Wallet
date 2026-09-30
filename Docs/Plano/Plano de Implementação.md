@@ -111,7 +111,7 @@ testes. Desenho em [[Core]].
 **Pronto quando:** `mvnw verify` verde (unitários e integração); a aplicação sobe
 contra o banco da T04; `/actuator/health` responde `UP`.
 
-**Feito em 2026-09-29**, ainda sem rodar o build (o Rafael valida).
+**Feito em 2026-09-29.** Validado: `mvnw verify` verde (o IT precisa do Docker ligado).
 
 ### T04 — Banco local (infra)
 
@@ -161,6 +161,10 @@ Todas as rotas do core ficam em `/internal` e só o BFF as chama.
 **Pronto quando:** testes de contrato HTTP cobrindo login, refresh (inclusive reuso e
 tolerância), logout, bloqueio e rota protegida sem token (401). MockMvc montado com
 `springSecurity()` na mão.
+
+**Feito em 2026-09-29:** 14 cenários em `AuthFlowIT` com relógio controlável
+(`MutableClock`), verdes. Sem chave configurada o core gera uma chave RS256 temporária
+e avisa no log. O usuário logado chega aos controllers por `@CurrentUserId UUID`.
 
 ### T06 — Adaptador da Pluggy
 
