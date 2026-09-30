@@ -1,3 +1,32 @@
 spring:
   application:
     name: core
+  threads:
+    virtual:
+      # The core spends most of its time waiting on the data provider and Postgres.
+      enabled: true
+  datasource:
+    # Secrets come from environment variables only; defaults point at the local dev database.
+    url: ${WALLET_DB_URL:jdbc:postgresql://localhost:5432/wallet_dev}
+    username: ${WALLET_DB_USERNAME:wallet}
+    password: ${WALLET_DB_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway owns the schema; Hibernate only checks that the entities match it.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    locations: classpath:db/migration
+
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

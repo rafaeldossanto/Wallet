@@ -85,17 +85,16 @@ testes. Desenho em [[Core]].
   `mvnw` usa o `JAVA_HOME`, que hoje vem vazio e o `java` do PATH é um JRE 8: apontar
   o `JAVA_HOME` para o JDK 25 antes de rodar.
 - Dependências no `pom.xml` (versões pelo parent do Spring Boot):
-  `spring-boot-starter-webmvc`, `-security`, `-oauth2-resource-server`,
-  `-validation`, `-data-jpa`, `-actuator`, `flyway-core` +
-  `flyway-database-postgresql`, driver `postgresql`, Lombok,
-  `spring-boot-configuration-processor`, **Spring Modulith** (importar o
-  `spring-modulith-bom` compatível com o Boot 4.1 em `dependencyManagement`), e para
-  teste `spring-boot-starter-webmvc-test`, `spring-security-test`,
-  `spring-boot-testcontainers`, Testcontainers PostgreSQL, WireMock,
-  `spring-modulith-starter-test`.
+  `spring-boot-starter-webmvc`, `-validation`, `-data-jpa`, `-flyway` +
+  `flyway-database-postgresql`, `-actuator`, driver `postgresql`, Lombok,
+  `spring-boot-configuration-processor`, **Spring Modulith 2.1.1** (BOM em
+  `dependencyManagement`), e para teste `spring-boot-starter-webmvc-test`,
+  `-data-jpa-test`, `spring-boot-testcontainers`, Testcontainers 2 (Postgres e
+  JUnit), `spring-modulith-starter-test`. Segurança entra na T05 e WireMock na T06,
+  cada uma com o que usa.
 - Testes separados pelo padrão do Maven: **Surefire** roda `*Test` no `mvn test`
   (unitário, sem Docker) e **Failsafe** roda `*IT` no `mvn verify` (Testcontainers
-  Postgres + WireMock).
+  Postgres).
 - Módulo `shared`: `Money` (wrapper de `BigDecimal` com escala 2 e
   `RoundingMode.HALF_EVEN`), `PageResponse<T>` (`items, page, pageSize, total,
   totalPages`; página fora do intervalo = 422 `page.invalid`), `DomainException`
@@ -104,21 +103,29 @@ testes. Desenho em [[Core]].
 - Jackson 3 configurado para serializar `BigDecimal` como string.
 - Virtual threads ligadas (`spring.threads.virtual.enabled=true`).
 - `ModularityTest` com `ApplicationModules.of(CoreApplication.class).verify()`.
-- Perfis: `local` (lê `application-local.yml`, fora do git) e `test`.
+- Segredos só em variável de ambiente (`WALLET_DB_PASSWORD` e as próximas); o
+  `application.yaml` versionado tem placeholders com padrões de dev.
+- `TestCoreApplication` para subir o core contra um Postgres descartável
+  (`./mvnw spring-boot:test-run`).
 
 **Pronto quando:** `mvnw verify` verde (unitários e integração); a aplicação sobe
-com o perfil `local` contra o banco da T04; `/actuator/health` responde `UP`.
+contra o banco da T04; `/actuator/health` responde `UP`.
+
+**Feito em 2026-09-29**, ainda sem rodar o build (o Rafael valida).
 
 ### T04 — Banco local (infra)
 
 **Objetivo:** base de desenvolvimento no Postgres 18 nativo da máquina (porta 5432).
 
-- Criar o usuário `wallet` e o banco `wallet_dev`, dono `wallet`. Senha só no
-  `application-local.yml`.
+- Script idempotente `core/db/setup-local.sql` cria o usuário `wallet` e o banco
+  `wallet_dev`. A senha vai na linha de comando (`psql -v wallet_password=...`), nunca
+  em arquivo, e depois na variável `WALLET_DB_PASSWORD`.
 - Flyway cria o schema; nada de `ddl-auto` além de `validate`.
 
-**Pronto quando:** o core sobe com o perfil `local` e o Flyway aplica a migration
-inicial. (Infra: pode ser executada por mim se o Rafael autorizar.)
+**Pronto quando:** o core sobe e o Flyway roda contra o `wallet_dev`. O script roda como
+superusuário `postgres`, cuja senha só o Rafael tem.
+
+**Script escrito em 2026-09-29**; falta o Rafael rodar.
 
 ---
 
@@ -140,6 +147,10 @@ Todas as rotas do core ficam em `/internal` e só o BFF as chama.
   tolerância de 1 min (mesma lógica do Storage).
 - `POST /internal/auth/logout` `{ refreshToken }`: revoga a família.
 - `GET /internal/me`.
+- Dependências novas: `spring-boot-starter-security`,
+  `spring-boot-starter-security-oauth2-resource-server` (o nome antigo
+  `-oauth2-resource-server` está depreciado no Boot 4.1) e, para teste,
+  `spring-boot-starter-security-test`. Liberar `/actuator/health`.
 - Access token **JWT RS256** de 15 min assinado com `WALLET_JWT_PRIVATE_KEY`.
   Gerar o par de chaves de dev localmente (arquivos `.pem` fora do git). Validação
   pelo resource server. Todas as rotas exigem autenticação, menos
@@ -156,6 +167,8 @@ tolerância), logout, bloqueio e rota protegida sem token (401). MockMvc montado
 **Objetivo:** o módulo `provider` com a porta e a implementação da Pluggy. Desenho
 em [[Core]].
 
+- Dependência nova, só de teste: `org.wiremock:wiremock-standalone` 3.13.2 (a 4.x
+  ainda é beta).
 - Records: `ProviderItem`, `ProviderAccount`, `ProviderTransaction`,
   `ProviderBill`, `ProviderInvestment`, já com valor positivo + `Direction`.
 - `PluggyFinancialDataProvider` com `RestClient`; base URL e credenciais por

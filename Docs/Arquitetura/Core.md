@@ -126,6 +126,8 @@ tokens no corpo. Cookie e CORS são assunto do [[BFF]].
 
 | Propriedade / variável | Para quê |
 |---|---|
+| `WALLET_DB_URL`, `WALLET_DB_USERNAME` | Banco. Padrão: `jdbc:postgresql://localhost:5432/wallet_dev` e `wallet` |
+| `WALLET_DB_PASSWORD` | Senha do banco. Só em variável de ambiente |
 | `PLUGGY_CLIENT_ID`, `PLUGGY_CLIENT_SECRET` | Credenciais do Meu Pluggy. **Só em variável de ambiente**, nunca no git |
 | `WALLET_JWT_PRIVATE_KEY` | Chave privada RS256 que assina os access tokens. Só o core tem |
 | `WALLET_DATA_KEY` | Chave AES da criptografia de coluna |
@@ -133,7 +135,9 @@ tokens no corpo. Cookie e CORS são assunto do [[BFF]].
 | `wallet.sync.interval` | Intervalo do polling (padrão 6 h) |
 | `wallet.sync.scheduler-enabled` | Liga o agendador nesta instância (padrão `true`) |
 
-Porta **8081**. Perfis: `local` (lê `application-local.yml`, fora do git) e `test`.
+Porta **8081**. Todo segredo vem de variável de ambiente; o `application.yaml`
+versionado só tem placeholders com padrões de desenvolvimento. Sem banco local, o core
+sobe contra um Postgres descartável com `./mvnw spring-boot:test-run`.
 
 ## Testes
 
