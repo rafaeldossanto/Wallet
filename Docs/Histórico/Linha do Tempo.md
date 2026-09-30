@@ -32,3 +32,18 @@ atualizado: 2026-09-29
 - **Decidido:** um [[BFF]] entre o app e o serviço principal, que passou a se chamar
   [[Core]] e ficou fora da internet. O plano foi para T01 a T18 (T10 e T11 são o BFF).
 - Pendências restantes, nenhuma bloqueando o desenvolvimento: [[Decisões Pendentes]].
+- Build decidido: **Maven** (não Gradle). O Rafael gerou o core no Initializr; veio como
+  War e foi convertido para Jar.
+- Repositório no GitHub (`rafaeldossanto/Wallet`); T01, T03 e T04 feitas.
+- O Rafael liberou rodar build e testes e tocar sozinho. T05 (identidade) verde.
+
+## 2026-09-30
+
+- T06 (adaptador da Pluggy, fixtures sintéticas do SDK oficial), T07 (conexões), T08
+  (sincronização) e T09 (API de leitura), todas verdes e publicadas: 47 testes unitários
+  e 53 de integração.
+- Mudanças em relação ao desenho: concorrência da sincronização por índice único parcial;
+  leitura do provedor fora de transação; `investment_snapshots` para o histórico de
+  patrimônio; somas em SQL. Detalhes em [[Sincronização]], [[Modelo de Dados]] e [[Core]].
+- BFF e Pluggy real adiados pelo Rafael. Próximos passos dependem dele: T02 (Meu Pluggy),
+  T10–T11 (BFF), T12+ (app).

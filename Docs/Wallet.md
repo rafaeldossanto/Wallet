@@ -12,7 +12,12 @@ conecta os bancos pelo Open Finance e vê num lugar só os saldos, extratos, car
 investimentos de todas as instituições. A mesma conta abre no celular e no navegador
 do computador.
 
-> [!info] Estado: arquitetura planejada, nenhuma linha de código
+> [!success] Estado em 2026-09-30: core pronto (T03 a T09), 100 testes verdes
+> Identidade, adaptador da Pluggy, conexões, sincronização e API de leitura no
+> GitHub. Falta: spike com dados reais (T02, depende do Meu Pluggy), BFF (T10–T11) e
+> app (T12–T18). Ver [[Plano de Implementação]].
+
+> [!info] Histórico do estado
 > Regulação pesquisada em 2026-09-28. Em 2026-09-29: Java 25 + Spring Boot 4.1 e
 > Flutter decididos ([[Java e Flutter]]), com [[BFF]] na frente do [[Core]].
 > Arquitetura desenhada e tarefas escritas em [[Plano de Implementação]]. Desenvolvimento com o Meu Pluggy
