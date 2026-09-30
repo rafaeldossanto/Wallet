@@ -16,6 +16,8 @@ public interface ConnectionRegistry {
     /** Connections the scheduler should look at: everything not waiting on the user. */
     List<LinkedConnection> findSchedulable();
 
+    List<LinkedConnection> findByUser(UUID userId);
+
     void markSyncing(UUID connectionId);
 
     void recordSyncSucceeded(UUID connectionId, Instant providerUpdatedAt, Instant syncedAt,

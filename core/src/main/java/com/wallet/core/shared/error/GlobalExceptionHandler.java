@@ -5,6 +5,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -41,6 +43,14 @@ public class GlobalExceptionHandler {
         log.warn("[EXCEPTION] request.malformed: {}", ex.getMessage());
         return ResponseEntity.badRequest()
                 .body(ErrorResponse.of("request.malformed", "Request body could not be read"));
+    }
+
+    /** A query parameter that does not parse ({@code ?month=setembro}) or that is missing. */
+    @ExceptionHandler({MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class})
+    public ResponseEntity<ErrorResponse> handleBadParameter(Exception ex) {
+        log.warn("[EXCEPTION] request.invalid_parameter: {}", ex.getMessage());
+        return ResponseEntity.badRequest()
+                .body(ErrorResponse.of("request.invalid_parameter", "A request parameter is missing or invalid"));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)

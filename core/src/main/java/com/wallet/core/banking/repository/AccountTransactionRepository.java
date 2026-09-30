@@ -2,6 +2,7 @@ package com.wallet.core.banking.repository;
 
 import com.wallet.core.banking.entity.AccountTransaction;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -10,7 +11,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface AccountTransactionRepository extends JpaRepository<AccountTransaction, UUID> {
+public interface AccountTransactionRepository
+        extends JpaRepository<AccountTransaction, UUID>, JpaSpecificationExecutor<AccountTransaction> {
 
     /** Includes soft-deleted rows: a transaction that comes back is revived, not duplicated. */
     List<AccountTransaction> findByAccountIdAndBookedOnBetween(UUID accountId, LocalDate from, LocalDate to);

@@ -42,6 +42,12 @@ class JpaConnectionRegistry implements ConnectionRegistry {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<LinkedConnection> findByUser(UUID userId) {
+        return repository.findByUserIdOrderByCreatedAtAsc(userId).stream().map(ConnectionMapper::toLinked).toList();
+    }
+
+    @Override
     @Transactional
     public void markSyncing(UUID connectionId) {
         update(connectionId, connection -> connection.setStatus(ConnectionStatus.SYNCING));

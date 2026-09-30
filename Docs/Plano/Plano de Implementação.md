@@ -295,6 +295,17 @@ O agendador é desligado nos testes de integração pelo Failsafe
 **Pronto quando:** testes de contrato para cada rota (formato, dinheiro como string,
 paginação, isolamento entre usuários) e testes unitários das somas.
 
+**Feito em 2026-09-30:** 13 cenários em `ReadApiIT`, verdes, sobre dados gravados por
+uma sincronização real com o provedor simulado.
+- **Módulo `insight`:** não guarda nada. Junta `BankingQueries`, `InvestmentQueries` e
+  `ConnectionRegistry`.
+- **`investment_snapshots` (V6):** criada para o patrimônio ter histórico de
+  investimentos também.
+- **Somas em SQL** (`JdbcTemplate`), porque `sum()` em JPQL sobre um atributo `Money`
+  convertido não tem tipo de resultado claro.
+- **`/internal/accounts` é uma lista plana:** agrupar por instituição fica com o BFF.
+- As regras dos números estão em [[Core]].
+
 ---
 
 ## Fase 2 · BFF

@@ -92,17 +92,32 @@ login, cadastro e refresh, exige o JWT do usuário, que o BFF repassa.
 | POST | `/internal/connections` | Vincula um item (`{ "providerItemId": "..." }`) |
 | DELETE | `/internal/connections/{id}` | Desvincula (em produção, revoga na Pluggy) |
 | POST | `/internal/connections/{id}/sync` | Pede sincronização agora (máx. 1 a cada 15 min) |
-| GET | `/internal/overview` | Patrimônio, saldo, fatura aberta, investimentos, entradas e saídas do mês |
-| GET | `/internal/accounts` | Contas com saldo, agrupadas por conexão |
-| GET | `/internal/transactions` | Extrato com filtros `from`, `to`, `accountId`, `direction`, `q`, paginado |
-| GET | `/internal/credit-cards` | Cartões com limite, disponível e fatura atual |
-| GET | `/internal/credit-cards/{accountId}/bills` | Faturas do cartão |
-| GET | `/internal/investments` | Posições e total por tipo |
-| GET | `/internal/insights/spending-by-category?month=` | Gasto por categoria no mês |
-| GET | `/internal/insights/net-worth?from=&to=` | Evolução do patrimônio (snapshots diários) |
+| GET | `/internal/overview` | Patrimônio, saldo, dívida do cartão, investimentos, entradas e saídas do mês, última sincronização |
+| GET | `/internal/accounts` | Contas com saldo, lista plana com `connectionId` (o BFF agrupa por instituição) |
+| GET | `/internal/transactions` | Extrato com filtros `from`, `to` (padrão: mês corrente, máx. 366 dias), `accountId`, `direction`, `q`, paginado |
+| GET | `/internal/credit-cards` | Cartões com limite, disponível e a próxima fatura a pagar |
+| GET | `/internal/credit-cards/{accountId}/bills` | Faturas do cartão, da mais recente para a mais antiga |
+| GET | `/internal/investments` | Posições abertas e total por tipo |
+| GET | `/internal/insights/spending-by-category?month=2026-09` | Gasto por categoria no mês (padrão: mês corrente) |
+| GET | `/internal/insights/net-worth?from=&to=` | Patrimônio dia a dia (padrão: últimos 30 dias, máx. 731) |
 
 O core **não sabe** se o usuário está no celular ou no navegador: sempre devolve os
 tokens no corpo. Cookie e CORS são assunto do [[BFF]].
+
+### Regras dos números
+
+- **Patrimônio** = saldo das contas + investimentos abertos − saldo dos cartões.
+- **Entradas e saídas do mês** contam só as contas bancárias. A compra no cartão entra
+  quando a fatura é paga; contar as duas coisas duplicaria o gasto.
+- **Gasto por categoria** soma as saídas de todas as contas, menos o pagamento de fatura
+  vindo da conta (categoria `Credit card payment` da Pluggy, a confirmar na T02).
+- **Histórico:** dia sem snapshot repete o último valor conhecido. Antes da primeira
+  sincronização o valor é zero.
+- **Busca por texto:** ignora maiúsculas e acentos e roda em memória, porque a
+  descrição fica cifrada. O limite de 366 dias do período é o que mantém isso barato.
+
+Erros de leitura: `period.invalid`, `period.too_long` e `page.invalid` (422),
+`request.invalid_parameter` (400) e `account.not_found` (404).
 
 ## Convenções (herdadas do Trilha)
 

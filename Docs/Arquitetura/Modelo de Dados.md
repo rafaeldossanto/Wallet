@@ -64,6 +64,11 @@ o texto cifrado em base64 ocupa mais que o original.
 (`FIXED_INCOME`, `TREASURY`, `FUND`, `EQUITY`, `OTHER`), `name`, `balance`,
 `amount_invested`, `due_date`, `closed_at`, `updated_at`.
 
+**investment_snapshots** — `investment_id`, `snapshot_date`, `balance`. Chave
+(`investment_id`, `snapshot_date`). Mesmo papel dos `balance_snapshots`, para o gráfico
+de patrimônio. Uma posição fechada ganha um snapshot zerado no dia em que fechou, senão
+seria carregada para a frente para sempre.
+
 **sync_runs** — `id`, `connection_id`, `trigger` (`INITIAL`, `SCHEDULED`, `MANUAL`,
 `WEBHOOK`), `status` (`RUNNING`, `SUCCEEDED`, `SKIPPED`, `FAILED`), `error_code`,
 `started_at`, `finished_at`, `accounts_count`, `transactions_upserted`,

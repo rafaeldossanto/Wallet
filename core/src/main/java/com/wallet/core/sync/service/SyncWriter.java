@@ -33,7 +33,7 @@ class SyncWriter {
     public BankingSyncResult write(LinkedConnection connection, ProviderItem item, LocalDate today,
                                    List<AccountSyncData> accounts, List<ProviderInvestment> investments) {
         BankingSyncResult result = bankingSync.apply(connection.id(), connection.userId(), today, accounts);
-        investmentSync.apply(connection.id(), connection.userId(), investments);
+        investmentSync.apply(connection.id(), connection.userId(), today, investments);
         registry.recordSyncSucceeded(connection.id(), item.lastUpdatedAt(), clock.instant(),
                 item.institutionName(), item.institutionImageUrl(), item.consentExpiresAt());
         return result;
