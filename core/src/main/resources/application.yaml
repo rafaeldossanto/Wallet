@@ -38,6 +38,10 @@ wallet:
     lockout-duration: 15m
     # A device that lost the refresh response may retry the old token within this window.
     refresh-reuse-tolerance: 1m
+  provider:
+    # MEU_PLUGGY: items are pasted from the Meu Pluggy dashboard (development).
+    # PLUGGY_CONNECT: items come from the widget and must belong to the user (production).
+    connection-mode: ${WALLET_CONNECTION_MODE:MEU_PLUGGY}
   pluggy:
     base-url: https://api.pluggy.ai
     # Empty = the core still starts; any call to the provider answers provider.not_configured.

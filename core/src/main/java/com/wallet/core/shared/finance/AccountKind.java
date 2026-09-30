@@ -7,6 +7,6 @@ public enum AccountKind {
     OTHER;
 
     public boolean isCreditCard() {
-        return this == CREDIT_CARD;
+        return CREDIT_CARD.equals(this);
     }
 }

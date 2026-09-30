@@ -225,6 +225,17 @@ de erro.
 **Pronto quando:** testes de integração cobrindo vincular, duplicado, item
 inexistente, desvincular e isolamento entre dois usuários.
 
+**Feito em 2026-09-30:**
+- 8 cenários no modo `MEU_PLUGGY` e 2 no `PLUGGY_CONNECT`, com o provedor simulado
+  (`@MockitoBean`), verdes.
+- O `ConnectionLinked` é publicado ao vincular, e a T08 reage com a primeira
+  sincronização.
+- O módulo expõe `ConnectionRegistry`, para a sync ler as conexões e registrar como foi
+  cada sincronização sem tocar na tabela.
+- `connections.user_id` tem FK para `users` com `ON DELETE CASCADE`, para a exclusão de
+  conta (LGPD).
+- O `itemId` só aceita letras, números e hífen.
+
 ### T08 — Sincronização
 
 **Objetivo:** o algoritmo inteiro da [[Sincronização]].
