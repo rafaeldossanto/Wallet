@@ -1,0 +1,30 @@
+# Segredos: nunca entram no git.
+# (Uma senha de app do Gmail já vazou num repositório do Trilha por falta disto.)
+**/application-local.yml
+**/application-local.yaml
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pem
+**/*.key
+**/secrets/
+
+# Build
+**/target/
+**/HELP.md
+app/build/
+app/.dart_tool/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Obsidian: estado de tela, sem valor versionado
+Docs/.obsidian/workspace.json
+Docs/.obsidian/workspace-mobile.json
+Docs/.trash/
+
+# Sistema
+Thumbs.db
+.DS_Store

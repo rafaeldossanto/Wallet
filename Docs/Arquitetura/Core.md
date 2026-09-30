@@ -1,0 +1,145 @@
+---
+tags: [arquitetura, backend, core]
+atualizado: 2026-09-29
+porta: 8081
+repo: Work/Wallet/core
+---
+
+# Core
+
+O serviço que **é dono dos dados e das regras**. Só o [[BFF]] conversa com ele; o
+core não fica exposto à internet.
+
+**Java 25 · Spring Boot 4.1 · Maven · PostgreSQL 18 · Flyway · Spring Modulith**
+
+## Módulos
+
+Monolito modular com **Spring Modulith**: cada subpacote de `com.wallet.core` é um
+módulo, e um teste (`ApplicationModules.of(...).verify()`) quebra o build se um
+módulo usar a parte interna de outro.
+
+| Módulo | Responsabilidade | Depende de |
+|---|---|---|
+| `identity` | Usuários, cadastro, login, emissão e rotação de tokens, bloqueio por tentativas | `shared` |
+| `connection` | Conexões com bancos (items da Pluggy), vincular, desvincular | `provider`, `shared` |
+| `banking` | Contas, saldos, transações, cartões e faturas | `shared` |
+| `investment` | Posições de investimento | `shared` |
+| `sync` | Orquestra a leitura do provedor e grava nos módulos de dados | `provider`, `connection`, `banking`, `investment` |
+| `provider` | Porta `FinancialDataProvider` e o adaptador da Pluggy | `shared` |
+| `insight` | Visão geral, patrimônio, gasto por categoria | `banking`, `investment` |
+| `shared` | Dinheiro, erros, paginação, criptografia de coluna, relógio | — |
+
+Dentro de cada módulo, o mesmo layout do Trilha: `controller`, `service`,
+`repository`, `entity`, `dto`, `mapper`.
+
+## Por que core + BFF, e não mais serviços
+
+- A carga do core é quase toda **espera de rede** (Pluggy e Postgres). Com **virtual
+  threads** do Java 25 (`spring.threads.virtual.enabled=true`), milhares de chamadas
+  esperando custam pouca memória.
+- Ordem de grandeza: 10 mil usuários com 2 conexões cada, sincronizando a cada 6 h,
+  dão perto de **1 sincronização por segundo**, de 5 a 10 chamadas HTTP cada. Um
+  processo numa VPS de 2 vCPU aguenta. O que cresce primeiro é a conta da Pluggy.
+- Separar sincronização e dados em serviços próprios exigiria mensageria entre eles e
+  dados que não batem por alguns instantes, sem ganho nessa escala.
+
+**Preparado para crescer sem reescrever:**
+
+1. **Sem estado:** JWT + refresh no banco. Dá para rodar 2 instâncias.
+2. **Agendador desligável** (`wallet.sync.scheduler-enabled`). Com 2 instâncias, só
+   uma agenda; o lock por conexão já impede sincronização duplicada.
+3. **Mesmo jar em dois papéis:** se a sincronização pesar, uma cópia roda só o
+   agendador e a outra só atende o BFF.
+4. **Fronteiras do Spring Modulith:** um módulo que precise virar serviço já não
+   depende do interior dos outros.
+
+## Porta do provedor
+
+```java
+public interface FinancialDataProvider {
+    ProviderItem findItem(String itemId);
+    List<ProviderAccount> listAccounts(String itemId);
+    List<ProviderTransaction> listTransactions(String accountId, LocalDate from, LocalDate to);
+    List<ProviderBill> listBills(String accountId);
+    List<ProviderInvestment> listInvestments(String itemId);
+}
+```
+
+- Os `Provider*` são records do Wallet, não da Pluggy. Os DTOs da Pluggy ficam em
+  `provider.pluggy` e não saem de lá.
+- `PluggyFinancialDataProvider` usa `RestClient`, faz `POST /auth` e guarda o
+  `apiKey` em memória (vale 2 h; renova com 10 min de folga, uma renovação por vez).
+- **Normalização do sinal** acontece aqui: o Wallet grava valor positivo + direção
+  (`INFLOW`/`OUTFLOW`). Na Pluggy o cartão tem sinal invertido em relação à conta.
+  Ver [[Sincronização]].
+- Paginação da Pluggy (máx. 500 por página) é resolvida dentro do adaptador.
+- Testado com **WireMock**, usando as respostas capturadas no spike (T02).
+
+## API interna
+
+Tudo em `/internal`, JSON em inglês, dinheiro como string (`"1234.56"`), datas
+ISO-8601. Paginação `{ items, page, pageSize, total, totalPages }`. Toda rota, menos
+login, cadastro e refresh, exige o JWT do usuário, que o BFF repassa.
+
+| Método | Rota | O que faz |
+|---|---|---|
+| POST | `/internal/auth/register` | Cria conta |
+| POST | `/internal/auth/login` | Devolve `{ accessToken, expiresIn, refreshToken }` |
+| POST | `/internal/auth/refresh` | Troca o refresh por um par novo |
+| POST | `/internal/auth/logout` | Revoga a família do refresh |
+| GET | `/internal/me` | Usuário logado |
+| GET | `/internal/connections` | Conexões do usuário e o estado de cada uma |
+| POST | `/internal/connections` | Vincula um item (`{ "providerItemId": "..." }`) |
+| DELETE | `/internal/connections/{id}` | Desvincula (em produção, revoga na Pluggy) |
+| POST | `/internal/connections/{id}/sync` | Pede sincronização agora (máx. 1 a cada 15 min) |
+| GET | `/internal/overview` | Patrimônio, saldo, fatura aberta, investimentos, entradas e saídas do mês |
+| GET | `/internal/accounts` | Contas com saldo, agrupadas por conexão |
+| GET | `/internal/transactions` | Extrato com filtros `from`, `to`, `accountId`, `direction`, `q`, paginado |
+| GET | `/internal/credit-cards` | Cartões com limite, disponível e fatura atual |
+| GET | `/internal/credit-cards/{accountId}/bills` | Faturas do cartão |
+| GET | `/internal/investments` | Posições e total por tipo |
+| GET | `/internal/insights/spending-by-category?month=` | Gasto por categoria no mês |
+| GET | `/internal/insights/net-worth?from=&to=` | Evolução do patrimônio (snapshots diários) |
+
+O core **não sabe** se o usuário está no celular ou no navegador: sempre devolve os
+tokens no corpo. Cookie e CORS são assunto do [[BFF]].
+
+## Convenções (herdadas do Trilha)
+
+- Controller devolve o **DTO direto**, nunca `ResponseEntity`; status diferente de
+  200 via `@ResponseStatus`.
+- `Objects.isNull/nonNull` com import estático; enum com `.equals()`.
+- IDs `UUID` gerados **no mapper**, nunca `@GeneratedValue`.
+- Mappers `@UtilityClass` com métodos estáticos.
+- Um `GlobalExceptionHandler`: o service lança exceção de domínio, o handler traduz
+  para HTTP com um **código de erro** estável (`connection.not_found`,
+  `sync.too_soon`, `auth.invalid_credentials`...). O BFF repassa o código e o app
+  traduz para português.
+- DTO de criação rígido (`@NotBlank`, `@Email`...).
+
+> [!warning] Armadilhas do Spring Boot 4
+> Jackson 3 (`tools.jackson.databind`), starters renomeados (`spring-boot-starter-webmvc`)
+> e `@AutoConfigureMockMvc` sem `springSecurity()` — montar o MockMvc na mão nos
+> testes de segurança.
+
+## Configuração
+
+| Propriedade / variável | Para quê |
+|---|---|
+| `PLUGGY_CLIENT_ID`, `PLUGGY_CLIENT_SECRET` | Credenciais do Meu Pluggy. **Só em variável de ambiente**, nunca no git |
+| `WALLET_JWT_PRIVATE_KEY` | Chave privada RS256 que assina os access tokens. Só o core tem |
+| `WALLET_DATA_KEY` | Chave AES da criptografia de coluna |
+| `wallet.provider.connection-mode` | `MEU_PLUGGY` (dev) ou `PLUGGY_CONNECT` |
+| `wallet.sync.interval` | Intervalo do polling (padrão 6 h) |
+| `wallet.sync.scheduler-enabled` | Liga o agendador nesta instância (padrão `true`) |
+
+Porta **8081**. Perfis: `local` (lê `application-local.yml`, fora do git) e `test`.
+
+## Testes
+
+- Unitário (`*Test`, pelo Surefire no `mvn test`): sem Docker (mappers, normalização de sinal, regras de sync).
+- Integração (`*IT`, pelo Failsafe no `mvn verify`): Testcontainers com Postgres + WireMock para a Pluggy.
+- Teste de modularidade do Spring Modulith.
+- Contrato HTTP das rotas (quem acessa o quê, códigos de erro).
+
+Modelo das tabelas em [[Modelo de Dados]].
