@@ -1,0 +1,39 @@
+{
+  "results": [
+    {
+      "id": "tx-1",
+      "accountId": "acc-checking",
+      "date": "2026-09-20T03:00:00.000Z",
+      "description": "PIX ENVIADO MERCADO BOM PRECO",
+      "descriptionRaw": null,
+      "type": "DEBIT",
+      "amount": -45.9,
+      "balance": 1477.57,
+      "currencyCode": "BRL",
+      "category": "Groceries",
+      "status": "POSTED",
+      "providerId": "of-tx-1",
+      "creditCardMetadata": null,
+      "createdAt": "2026-09-20T10:00:00.000Z",
+      "updatedAt": "2026-09-20T10:00:00.000Z"
+    },
+    {
+      "id": "tx-2",
+      "accountId": "acc-checking",
+      "date": "2026-09-05T03:00:00.000Z",
+      "description": "SALARIO EMPRESA FICTICIA",
+      "descriptionRaw": null,
+      "type": "CREDIT",
+      "amount": 3200,
+      "balance": 3200,
+      "currencyCode": "BRL",
+      "category": "Salary",
+      "status": "POSTED",
+      "providerId": "of-tx-2",
+      "creditCardMetadata": null,
+      "createdAt": "2026-09-05T10:00:00.000Z",
+      "updatedAt": "2026-09-05T10:00:00.000Z"
+    }
+  ],
+  "next": "/v2/transactions?accountId=acc-checking&dateFrom=2026-09-01&dateTo=2026-09-29&after=cursor%2B2%2F"
+}

@@ -1,0 +1,47 @@
+{
+  "results": [
+    {
+      "id": "tx-card-1",
+      "accountId": "acc-card",
+      "date": "2026-09-15T03:00:00.000Z",
+      "description": "LOJA DE ELETRONICOS 03/10",
+      "descriptionRaw": null,
+      "type": "DEBIT",
+      "amount": 120,
+      "balance": null,
+      "currencyCode": "BRL",
+      "category": "Electronics",
+      "status": "POSTED",
+      "providerId": "of-card-1",
+      "creditCardMetadata": {
+        "installmentNumber": 3,
+        "totalInstallments": 10,
+        "totalAmount": 1200,
+        "billId": "bill-1",
+        "cardNumber": "5162"
+      },
+      "createdAt": "2026-09-15T10:00:00.000Z",
+      "updatedAt": "2026-09-15T10:00:00.000Z"
+    },
+    {
+      "id": "tx-card-2",
+      "accountId": "acc-card",
+      "date": "2026-09-18T03:00:00.000Z",
+      "description": "ESTORNO STREAMING",
+      "descriptionRaw": null,
+      "type": "CREDIT",
+      "amount": -30,
+      "balance": null,
+      "currencyCode": "BRL",
+      "category": null,
+      "status": "POSTED",
+      "providerId": "of-card-2",
+      "creditCardMetadata": {
+        "billId": "bill-1"
+      },
+      "createdAt": "2026-09-18T10:00:00.000Z",
+      "updatedAt": "2026-09-18T10:00:00.000Z"
+    }
+  ],
+  "next": null
+}

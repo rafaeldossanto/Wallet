@@ -1,0 +1,34 @@
+{
+  "page": 1,
+  "total": 3,
+  "totalPages": 2,
+  "results": [
+    {
+      "id": "inv-cdb",
+      "itemId": "5b3f1c2e-7c1a-4c55-9d7e-1a2b3c4d5e6f",
+      "type": "FIXED_INCOME",
+      "subtype": "CDB",
+      "name": "CDB Banco Ficticio 110% CDI",
+      "currencyCode": "BRL",
+      "balance": 10512.33,
+      "amount": 10512.33,
+      "amountOriginal": 10000,
+      "dueDate": "2028-01-15T00:00:00.000Z",
+      "rateType": "CDI",
+      "rate": 110,
+      "status": "ACTIVE"
+    },
+    {
+      "id": "inv-tesouro",
+      "itemId": "5b3f1c2e-7c1a-4c55-9d7e-1a2b3c4d5e6f",
+      "type": "FIXED_INCOME",
+      "subtype": "TREASURY",
+      "name": "Tesouro Selic 2029",
+      "currencyCode": "BRL",
+      "balance": 2250.8,
+      "amountOriginal": 2000,
+      "dueDate": "2029-03-01T00:00:00.000Z",
+      "status": "ACTIVE"
+    }
+  ]
+}

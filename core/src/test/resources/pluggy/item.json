@@ -1,0 +1,22 @@
+{
+  "id": "5b3f1c2e-7c1a-4c55-9d7e-1a2b3c4d5e6f",
+  "connector": {
+    "id": 612,
+    "name": "Nubank",
+    "imageUrl": "https://cdn.pluggy.ai/assets/connector-icons/212.svg",
+    "primaryColor": "820ad1",
+    "isOpenFinance": true
+  },
+  "status": "UPDATED",
+  "statusDetail": null,
+  "error": null,
+  "executionStatus": "SUCCESS",
+  "createdAt": "2026-09-01T12:00:00.000Z",
+  "updatedAt": "2026-09-29T09:00:00.000Z",
+  "lastUpdatedAt": "2026-09-29T09:00:00.000Z",
+  "webhookUrl": null,
+  "clientUserId": null,
+  "consecutiveFailedLoginAttempts": 0,
+  "nextAutoSyncAt": null,
+  "consentExpiresAt": "2027-09-01T12:00:00.000Z"
+}

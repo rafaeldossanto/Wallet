@@ -1,0 +1,49 @@
+{
+  "page": 1,
+  "total": 2,
+  "totalPages": 1,
+  "results": [
+    {
+      "id": "acc-checking",
+      "itemId": "5b3f1c2e-7c1a-4c55-9d7e-1a2b3c4d5e6f",
+      "type": "BANK",
+      "subtype": "CHECKING_ACCOUNT",
+      "number": "0001/12345-6",
+      "balance": 1523.47,
+      "name": "Conta Corrente",
+      "marketingName": "Conta do Nubank",
+      "owner": "Pessoa Ficticia",
+      "taxNumber": "000.000.000-00",
+      "currencyCode": "BRL",
+      "bankData": {
+        "transferNumber": "0001/12345-6",
+        "closingBalance": 1523.47
+      },
+      "creditData": null
+    },
+    {
+      "id": "acc-card",
+      "itemId": "5b3f1c2e-7c1a-4c55-9d7e-1a2b3c4d5e6f",
+      "type": "CREDIT",
+      "subtype": "CREDIT_CARD",
+      "number": "5162",
+      "balance": 845.9,
+      "name": "Nubank Ultravioleta",
+      "marketingName": null,
+      "owner": "Pessoa Ficticia",
+      "taxNumber": null,
+      "currencyCode": "BRL",
+      "bankData": null,
+      "creditData": {
+        "level": "BLACK",
+        "brand": "MASTERCARD",
+        "balanceCloseDate": "2026-10-03T03:00:00.000Z",
+        "balanceDueDate": "2026-10-10T03:00:00.000Z",
+        "availableCreditLimit": 4154.1,
+        "creditLimit": 5000,
+        "minimumPayment": 126.88,
+        "status": "ACTIVE"
+      }
+    }
+  ]
+}

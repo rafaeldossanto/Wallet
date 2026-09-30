@@ -38,6 +38,13 @@ wallet:
     lockout-duration: 15m
     # A device that lost the refresh response may retry the old token within this window.
     refresh-reuse-tolerance: 1m
+  pluggy:
+    base-url: https://api.pluggy.ai
+    # Empty = the core still starts; any call to the provider answers provider.not_configured.
+    client-id: ${PLUGGY_CLIENT_ID:}
+    client-secret: ${PLUGGY_CLIENT_SECRET:}
+    timeout: 10s
+    api-key-ttl: 2h
 
 management:
   endpoints:

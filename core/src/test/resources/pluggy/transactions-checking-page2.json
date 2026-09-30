@@ -1,0 +1,22 @@
+{
+  "results": [
+    {
+      "id": "tx-3",
+      "accountId": "acc-checking",
+      "date": "2026-09-28T03:00:00.000Z",
+      "description": "COMPRA PADARIA",
+      "descriptionRaw": null,
+      "type": "DEBIT",
+      "amount": -12.5,
+      "balance": 1465.07,
+      "currencyCode": "BRL",
+      "category": null,
+      "status": "PENDING",
+      "providerId": null,
+      "creditCardMetadata": null,
+      "createdAt": "2026-09-28T10:00:00.000Z",
+      "updatedAt": "2026-09-28T10:00:00.000Z"
+    }
+  ],
+  "next": null
+}

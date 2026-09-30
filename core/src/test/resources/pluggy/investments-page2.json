@@ -1,0 +1,19 @@
+{
+  "page": 2,
+  "total": 3,
+  "totalPages": 2,
+  "results": [
+    {
+      "id": "inv-fund",
+      "itemId": "5b3f1c2e-7c1a-4c55-9d7e-1a2b3c4d5e6f",
+      "type": "MUTUAL_FUND",
+      "subtype": "MULTIMARKET_FUND",
+      "name": "Fundo Multimercado Ficticio",
+      "currencyCode": "BRL",
+      "balance": 0,
+      "amountOriginal": 3000,
+      "dueDate": null,
+      "status": "TOTAL_WITHDRAWAL"
+    }
+  ]
+}

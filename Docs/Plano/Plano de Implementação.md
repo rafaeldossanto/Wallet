@@ -189,6 +189,24 @@ em [[Core]].
 autenticação e cache do `apiKey`, paginação, sinal de cartão e de conta, cada código
 de erro.
 
+**Feito em 2026-09-29, antes da T02:**
+- 14 testes com WireMock e 4 do mapper, verdes.
+- As fixtures são **sintéticas**, montadas a partir dos tipos do SDK oficial
+  (`pluggyai/pluggy-node`, `src/types`). A T02 troca por respostas reais anonimizadas.
+- Transações pela `/v2/transactions` (cursor). A `/transactions` por página está
+  depreciada no SDK.
+- Header `X-API-KEY`; um 401 renova a chave e tenta de novo uma vez.
+- Códigos: `provider.not_configured`, `provider.auth_failed`, `provider.not_found`,
+  `provider.unavailable`. Sem credenciais o core sobe normalmente.
+- HTTP/1.1 fixo: o `HttpClient` do JDK tenta upgrade h2c em `http://`, e o WireMock
+  reseta a conexão.
+- Exigiu o `spring-boot-starter-restclient` (no Boot 4 o `RestClient.Builder` saiu do
+  starter web).
+- **Duas hipóteses para a T02 confirmar:**
+  1. Sinal do cartão: valor positivo é compra.
+  2. Datas: 00:00 UTC é uma data de calendário; qualquer outro horário é lido no fuso
+     de São Paulo.
+
 ### T07 — Conexões
 
 **Objetivo:** vincular um item da Pluggy a um usuário do Wallet.
