@@ -1,5 +1,6 @@
 package com.wallet.core.identity.config;
 
+import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
@@ -33,8 +34,6 @@ import static org.springframework.util.StringUtils.hasText;
 @Configuration(proxyBeanMethods = false)
 public class JwtKeyConfig {
 
-    private static final String KEY_ID = "wallet-core-1";
-
     @Bean
     RSAKey jwtSigningKey(JwtProperties properties) {
         boolean hasPrivate = hasText(properties.privateKey());
@@ -43,14 +42,27 @@ public class JwtKeyConfig {
             throw new IllegalStateException("Set both wallet.jwt.private-key and wallet.jwt.public-key, or neither");
         }
         if (!hasPrivate) {
-            log.warn("No JWT key configured: using an ephemeral RSA key. Tokens stop working on restart "
-                    + "and the BFF cannot validate them. Set WALLET_JWT_PRIVATE_KEY and WALLET_JWT_PUBLIC_KEY.");
+            log.warn("No JWT key configured: using an ephemeral RSA key. Sessions end on every restart. "
+                    + "Set WALLET_JWT_PRIVATE_KEY and WALLET_JWT_PUBLIC_KEY to keep them.");
             return ephemeralKey();
         }
-        return new RSAKey.Builder(PemKeys.readPublicKey(properties.publicKey()))
-                .privateKey(PemKeys.readPrivateKey(properties.privateKey()))
-                .keyID(KEY_ID)
-                .build();
+        return signingKey(PemKeys.readPublicKey(properties.publicKey()), PemKeys.readPrivateKey(properties.privateKey()));
+    }
+
+    /**
+     * The key id is the key's own thumbprint (RFC 7638), so a new key always brings a new id. The
+     * BFF caches the JWKS and only fetches it again when a token names a key id it has not seen:
+     * a fixed id would leave it checking new tokens against the old key after a restart.
+     */
+    static RSAKey signingKey(RSAPublicKey publicKey, RSAPrivateKey privateKey) {
+        try {
+            return new RSAKey.Builder(publicKey)
+                    .privateKey(privateKey)
+                    .keyIDFromThumbprint()
+                    .build();
+        } catch (JOSEException ex) {
+            throw new IllegalStateException("Could not compute the JWT key id", ex);
+        }
     }
 
     @Bean
@@ -74,10 +86,7 @@ public class JwtKeyConfig {
             KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
             generator.initialize(2048);
             KeyPair keyPair = generator.generateKeyPair();
-            return new RSAKey.Builder((RSAPublicKey) keyPair.getPublic())
-                    .privateKey((RSAPrivateKey) keyPair.getPrivate())
-                    .keyID(KEY_ID)
-                    .build();
+            return signingKey((RSAPublicKey) keyPair.getPublic(), (RSAPrivateKey) keyPair.getPrivate());
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("RSA is not available in this JVM", ex);
         }

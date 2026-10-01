@@ -1,6 +1,6 @@
 ---
 tags: [moc, wallet]
-atualizado: 2026-09-28
+atualizado: 2026-10-01
 ---
 
 # Wallet
@@ -12,16 +12,17 @@ conecta os bancos pelo Open Finance e vê num lugar só os saldos, extratos, car
 investimentos de todas as instituições. A mesma conta abre no celular e no navegador
 do computador.
 
-> [!success] Estado em 2026-09-30: core pronto (T03 a T09), 100 testes verdes
-> Identidade, adaptador da Pluggy, conexões, sincronização e API de leitura no
-> GitHub. Falta: spike com dados reais (T02, depende do Meu Pluggy), BFF (T10–T11) e
-> app (T12–T18). Ver [[Plano de Implementação]].
+> [!success] Estado em 2026-10-01: backend pronto (T03 a T11), 136 testes verdes
+> Core (identidade, Pluggy, conexões, sincronização, API de leitura) e BFF (sessão
+> por plataforma, rotas por tela, cache, limites) no GitHub. Falta: spike com dados
+> reais (T02, depende do Meu Pluggy) e o app (T12–T18). Ver [[Plano de Implementação]].
 
 > [!info] Histórico do estado
 > Regulação pesquisada em 2026-09-28. Em 2026-09-29: Java 25 + Spring Boot 4.1 e
 > Flutter decididos ([[Java e Flutter]]), com [[BFF]] na frente do [[Core]].
 > Arquitetura desenhada e tarefas escritas em [[Plano de Implementação]]. Desenvolvimento com o Meu Pluggy
-> ([[Meu Pluggy no Desenvolvimento]]).
+> ([[Meu Pluggy no Desenvolvimento]]). Core pronto em 2026-09-30 e BFF em 2026-10-01
+> ([[Linha do Tempo]]).
 
 > [!warning] O Wallet não se conecta direto aos bancos
 > Só instituição autorizada pelo Banco Central participa do Open Finance. O Wallet

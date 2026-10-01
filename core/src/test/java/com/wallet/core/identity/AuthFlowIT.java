@@ -212,7 +212,7 @@ class AuthFlowIT {
         mockMvc.perform(get("/internal/.well-known/jwks.json"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.keys[0].kty").value("RSA"))
-                .andExpect(jsonPath("$.keys[0].kid").value("wallet-core-1"))
+                .andExpect(jsonPath("$.keys[0].kid").isNotEmpty())
                 .andExpect(jsonPath("$.keys[0].n").isNotEmpty())
                 .andExpect(jsonPath("$.keys[0].d").doesNotExist())
                 .andExpect(jsonPath("$.keys[0].p").doesNotExist());

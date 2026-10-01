@@ -1,6 +1,6 @@
 ---
 tags: [plano, tarefas]
-atualizado: 2026-09-29
+atualizado: 2026-10-01
 ---
 
 # Plano de Implementação
@@ -325,8 +325,8 @@ uma sincronização real com o provedor simulado.
 - `config/`: `RestClientConfig` com o `CoreClient` apontando para `WALLET_CORE_URL`
   (timeout 5 s), `BearerPropagationInterceptor` e `TraceIdPropagationInterceptor`
   (como no Trilha), `CacheConfig` com TTL de `wallet.cache.screen-ttl`.
-- `auth/SecurityConfig`: resource server com a chave pública RS256
-  (`WALLET_JWT_PUBLIC_KEY`); `/api/auth/**` e `/actuator/health` abertos.
+- `auth/SecurityConfig`: resource server com a chave pública RS256 (no fim, buscada
+  no JWKS do core; ver a nota de feito); `/api/auth/**` e `/actuator/health` abertos.
 - CORS de `wallet.web.allowed-origins` com credenciais; cabeçalhos de segurança.
 - `ratelimit/`: login por IP, demais rotas por usuário.
 - `exception/GlobalExceptionHandler`: erro do core passa com o mesmo status e
@@ -336,6 +336,19 @@ uma sincronização real com o provedor simulado.
 **Pronto quando:** o BFF sobe na 8080 com o core na 8081; `/actuator/health` `UP`;
 teste com WireMock provando que o Bearer e o `X-Trace-Id` chegam ao core e que um erro
 do core passa intacto.
+
+**Feito em 2026-10-01:** 13 testes verdes (`BffEdgeTest`, `RateLimitTest`,
+`ScreenCacheTest`). Mudanças em relação ao texto acima:
+- **Sem `WALLET_JWT_PUBLIC_KEY`:** o core publica a chave em
+  `/internal/.well-known/jwks.json` e o BFF busca de lá. Funciona também com a chave
+  temporária do core, e o BFF não tem nenhum segredo.
+- **Initializr veio como War:** convertido para Jar, como no core.
+- **Sem `-cache`:** Caffeine direto no `ScreenCache`, porque a chave precisa do
+  usuário e a decisão de guardar depende da resposta (home parcial não entra).
+- **Circuit breaker:** conta só falha de rede (`ResourceAccessException`); um 4xx/5xx
+  do core é resposta, não indisponibilidade.
+- **HTTP/1.1 fixo no cliente:** o `HttpClient` do JDK tenta h2c e o WireMock derruba a
+  conexão (mesma armadilha do core com a Pluggy).
 
 ### T11 — Rotas do BFF
 
@@ -360,6 +373,23 @@ do core passa intacto.
 token por plataforma, composição da home (inclusive uma parte falhando), cache
 (segunda chamada não chega ao core; sincronização limpa) e isolamento entre usuários
 no cache.
+
+**Feito em 2026-10-01:** 18 cenários em `BffRoutesTest`, mais o login por IP no
+`RateLimitTest` e o `CoreKeyRotationTest`. 33 testes no BFF, verdes. Detalhes em
+[[BFF]].
+- **Dois furos achados nos testes e corrigidos:** (1) um Bearer vencido no refresh era
+  recusado pelo Spring antes de chegar à rota, e o app manda refresh justamente com o
+  token vencido; as rotas de auth passaram a ignorar o Bearer. (2) O `kid` fixo da chave
+  do core fazia o BFF continuar com a chave velha depois de um reinício; o `kid` passou a
+  ser o thumbprint da chave (mudança no core, com `JwtKeyConfigTest`).
+- **Refresh recusado no web apaga o cookie**, para o navegador parar de mandar um token
+  morto. Logout no web sempre apaga o cookie.
+- **Home:** 401 em qualquer parte derruba a tela inteira; se as cinco partes falham, o
+  erro sobe como veio. As partes indisponíveis vão em `unavailable` pelo nome.
+- **Filtros do extrato passam como texto:** o core valida e responde com os próprios
+  códigos, então BFF e core não têm como discordar sobre um filtro.
+- **`/api/connections` (GET) não usa cache:** é a tela de gerenciar conexões e precisa
+  do status atual.
 
 ---
 

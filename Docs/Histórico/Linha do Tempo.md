@@ -1,6 +1,6 @@
 ---
 tags: [historico]
-atualizado: 2026-09-29
+atualizado: 2026-10-01
 ---
 
 # Linha do Tempo
@@ -47,3 +47,15 @@ atualizado: 2026-09-29
   patrimônio; somas em SQL. Detalhes em [[Sincronização]], [[Modelo de Dados]] e [[Core]].
 - BFF e Pluggy real adiados pelo Rafael. Próximos passos dependem dele: T02 (Meu Pluggy),
   T10–T11 (BFF), T12+ (app).
+
+## 2026-10-01
+
+- O Rafael criou o `bff/` no Initializr e liberou o BFF. T10 (porta pública: JWT,
+  CORS, limite de requisições, circuit breaker, trace) e T11 (rotas do app), verdes e
+  publicadas: 33 testes no BFF.
+- O core passou a publicar a chave pública como JWKS; o BFF busca de lá e não tem
+  nenhum segredo. `WALLET_JWT_PUBLIC_KEY` saiu do BFF.
+- Dois furos achados pelos testes e corrigidos: Bearer vencido barrando o refresh, e
+  `kid` fixo deixando o BFF com a chave velha depois de um reinício do core (o `kid`
+  virou o thumbprint da chave). Detalhes em [[BFF]] e [[Autenticação]].
+- Próximos passos dependem do Rafael: T02 (Meu Pluggy) e T12+ (app).
