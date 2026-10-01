@@ -1,0 +1,41 @@
+spring:
+  application:
+    name: bff
+  threads:
+    virtual:
+      # The BFF mostly waits on the core.
+      enabled: true
+
+server:
+  port: 8080
+  # In production the BFF sits behind a reverse proxy: trust X-Forwarded-* so the rate limit
+  # sees the client's IP, not the proxy's.
+  forward-headers-strategy: framework
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+wallet:
+  core:
+    url: ${WALLET_CORE_URL:http://localhost:8081}
+    connect-timeout: 2s
+    read-timeout: 5s
+  jwt:
+    issuer: wallet-core
+  web:
+    # Flutter web in development: flutter run -d chrome --web-port 5000
+    allowed-origins: ${WALLET_WEB_ALLOWED_ORIGINS:http://localhost:5000}
+    # Browsers accept Secure cookies on http://localhost, so this can stay on in development.
+    cookie-secure: true
+  cache:
+    screen-ttl: 60s
+  rate-limit:
+    enabled: true
+    window: 1m
+    # Per IP on /api/auth: brute force protection on top of the core's per-account lockout.
+    auth-limit: 20
+    # Per user (or per IP when anonymous) on everything else.
+    default-limit: 300
