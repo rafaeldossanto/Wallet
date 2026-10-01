@@ -17,8 +17,12 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
+import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -36,6 +40,7 @@ import java.util.List;
 public class SecurityConfig {
 
     public static final String CLIENT_HEADER = "X-Wallet-Client";
+    private static final String AUTH_ROUTES = "/api/auth/**";
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, JsonSecurityErrorHandler errorHandler,
@@ -45,9 +50,10 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/actuator/health", "/error").permitAll()
+                        .requestMatchers(AUTH_ROUTES, "/actuator/health", "/error").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(resourceServer -> resourceServer
+                        .bearerTokenResolver(ignoringAuthRoutes())
                         .jwt(Customizer.withDefaults())
                         .authenticationEntryPoint(errorHandler)
                         .accessDeniedHandler(errorHandler))
@@ -56,6 +62,16 @@ public class SecurityConfig {
                         .accessDeniedHandler(errorHandler))
                 .addFilterAfter(new RateLimitFilter(rateLimiter, rateLimits), BearerTokenAuthenticationFilter.class)
                 .build();
+    }
+
+    /**
+     * The auth routes do not look at the Bearer: the app refreshes exactly when its access token
+     * has expired, and Spring would reject that stale header before the request reached refresh.
+     */
+    private static BearerTokenResolver ignoringAuthRoutes() {
+        RequestMatcher authRoutes = PathPatternRequestMatcher.withDefaults().matcher(AUTH_ROUTES);
+        DefaultBearerTokenResolver resolver = new DefaultBearerTokenResolver();
+        return request -> authRoutes.matches(request) ? null : resolver.resolve(request);
     }
 
     /**
