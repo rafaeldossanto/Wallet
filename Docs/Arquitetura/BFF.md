@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, backend, bff]
-atualizado: 2026-10-01
+atualizado: 2026-10-02
 porta: 8080
 repo: Work/Wallet/bff
 ---
@@ -20,7 +20,7 @@ do BFF do Trilha. Construído em 2026-10-01 (T10 e T11 do [[Plano de Implementa�
 | **Porta de entrada** | Só ele fica na internet (atrás do HTTPS). O core fica numa rede interna, como na rede segmentada do Trilha |
 | **Sessão por plataforma** | Recebe os tokens do core e decide a entrega: no celular, no corpo; no navegador, refresh em cookie `HttpOnly`. Ver [[Autenticação]] |
 | **Rotas por tela** | Monta a resposta de uma tela juntando várias chamadas ao core em paralelo. O celular faz 1 requisição em vez de 5 |
-| **Cache curto** | Caffeine por usuário, 60 s nas telas agregadas. Limpa na hora quando o usuário pede sincronização ou mexe em conexões |
+| **Cache curto** | Caffeine por usuário, 60 s nas telas agregadas. Limpa na hora quando o usuário pede sincronização, mexe em conexões ou quando uma sincronização termina no fundo (ver abaixo) |
 | **Proteção** | CORS só para a origem do app web, limite de requisições por IP (auth) e por usuário (resto) |
 | **Resiliência** | Timeout de 5 s para o core e circuit breaker; core fora do ar vira `503 bff.core_unavailable` |
 
@@ -56,6 +56,7 @@ bff/src/main/java/com/wallet/bff/
 | GET | `/api/me` | `/internal/me` |
 | GET | `/api/home` | `overview` + `accounts` + `credit-cards` + últimas 5 `transactions` (30 dias) + `connections`, em paralelo |
 | GET | `/api/transactions` | `/internal/transactions` (mesmos filtros, repassados sem interpretar) |
+| GET | `/api/accounts` | `/internal/accounts` (o filtro de conta do extrato; com cache) |
 | GET | `/api/cards` | `/internal/credit-cards` |
 | GET | `/api/cards/{accountId}/bills` | `/internal/credit-cards/{accountId}/bills` |
 | GET | `/api/investments` | `/internal/investments` |
@@ -117,6 +118,20 @@ Porta **8080**. É o endereço que o app usa.
 > O limite de requisições e o cache ficam na memória do BFF. Com mais de uma instância,
 > os dois iriam para o Redis.
 
+### Cache e sincronização no fundo
+
+A sincronização termina no core, fora da vista do BFF. Achado rodando o app contra a Pluggy
+de demonstração: a home montada logo depois de vincular (antes da primeira sincronização)
+entrava no cache e ficava vazia por um minuto. Desde 2026-10-02:
+
+- Toda vez que o BFF vê as conexões do usuário (`GET /api/connections`, que o app consulta
+  enquanto espera a sincronização, e a própria home), ele guarda o estado delas (ids, última
+  sincronização, status). Se mudou desde a última vez, descarta as telas em cache daquele
+  usuário.
+- Uma home com conexão sincronizando ou que nunca sincronizou não entra no cache.
+- Sincronização agendada (a cada 6 h) com o app fechado: no pior caso, a tela fica até 60 s
+  velha.
+
 ## Custo que o BFF traz
 
 - Uma mudança que chega ao app passa por dois serviços (DTO no core e no BFF). É o
@@ -125,15 +140,16 @@ Porta **8080**. É o endereço que o app usa.
 
 ## Testes
 
-33 testes, todos com o core simulado no **WireMock** e tokens assinados de verdade:
+36 testes, todos com o core simulado no **WireMock** e tokens assinados de verdade:
 
 - `BffEdgeTest`: token ausente, vencido, de outra chave ou de outro emissor; Bearer e
   trace chegando ao core; erro do core intacto; core fora do ar e circuito aberto; CORS.
 - `BffRoutesTest`: entrega por plataforma (atributos do cookie, refresh rotacionando o
   cookie, refresh recusado apagando o cookie, Bearer vencido no refresh), composição da
   home (completa, com parte falhando, 401), cache por usuário limpo pela sincronização,
-  home parcial fora do cache, filtros do extrato com `&` e `+`, insights, cartões e
-  conexões.
+  home parcial fora do cache, home durante a primeira sincronização fora do cache,
+  sincronização no fundo descartando o cache, filtros do extrato com `&` e `+`, insights,
+  cartões, contas e conexões.
 - `RateLimitTest`: orçamento por usuário e login por IP.
 - `CoreKeyRotationTest`: chave nova no core é aceita sem reiniciar o BFF.
 

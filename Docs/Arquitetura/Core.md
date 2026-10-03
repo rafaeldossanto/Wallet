@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, backend, core]
-atualizado: 2026-09-29
+atualizado: 2026-10-02
 porta: 8081
 repo: Work/Wallet/core
 ---
@@ -153,6 +153,14 @@ Erros de leitura: `period.invalid`, `period.too_long` e `page.invalid` (422),
 Porta **8081**. Todo segredo vem de variável de ambiente; o `application.yaml`
 versionado só tem placeholders com padrões de desenvolvimento. Sem banco local, o core
 sobe contra um Postgres descartável com `./mvnw spring-boot:test-run`.
+
+**Pluggy de demonstração (desde 2026-10-02):** sem `PLUGGY_CLIENT_ID`, o `test-run` também
+sobe um servidor HTTP pequeno (`DemoPluggy`, no código de teste) que responde como a Pluggy:
+`demo-banco` (conta corrente, poupança e cartão com faturas e parcelas) e `demo-corretora`
+(cinco investimentos). Os dados nascem da data de hoje, com uma semente por dia, então os
+ids e valores se repetem a cada sincronização. Serve para ver o app inteiro funcionando
+antes da T02. `DemoPluggyCompatibilityTest` lê a demo pelo adaptador de verdade: se o
+adaptador mudar o que espera, quebra ali primeiro.
 
 ## Testes
 

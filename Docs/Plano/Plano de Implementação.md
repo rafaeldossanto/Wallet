@@ -1,6 +1,6 @@
 ---
 tags: [plano, tarefas]
-atualizado: 2026-10-01
+atualizado: 2026-10-02
 ---
 
 # Plano de Implementação
@@ -416,6 +416,17 @@ O app só conhece o BFF (`http://localhost:8080` no dev; no emulador Android,
 chrome`) com a navegação trocando de formato ao redimensionar a janela; testes
 unitários do `Money`.
 
+**Feito em 2026-10-02** (T12 a T18 de uma vez, commit `69e4d28`; 40 testes no app).
+Desvios desta tarefa:
+- **Flutter 3.47.6, Material no pacote `material_ui`:** o 3.47 tirou o Material do
+  framework. O `go_router` 18 já usa; o `fl_chart` ainda não, mas os gráficos usados não
+  leem o tema dele.
+- **Sete destinos:** no celular, quatro na barra mais "Mais" (Gastos, Conexões,
+  Ajustes). "Investimentos" vira "Investir" na barra, porque não cabe em 78 px.
+- **Pluggy de demonstração no core** (`spring-boot:test-run` sem `PLUGGY_CLIENT_ID`), para
+  ver o app inteiro com dados antes da T02. Ver [[Core]].
+- **Rota nova no BFF:** `GET /api/accounts`, para o filtro de conta do extrato.
+
 ### T13 — Login no app
 
 - Telas de login e cadastro, erros vindos dos códigos do BFF.
@@ -430,6 +441,18 @@ unitários do `Money`.
 renovando sozinha, logout; tudo no emulador e no Chrome. Teste do interceptor com
 duas chamadas simultâneas gerando um refresh só.
 
+**Feito em 2026-10-02:** login, cadastro, reabrir sem senha e logout conferidos no
+emulador e no Chrome; o teste das duas chamadas gerando um refresh só passa.
+- **`SessionStore` escolhido por `kIsWeb`**, não por import condicional. O import
+  condicional ficou para o adaptador HTTP do navegador (`withCredentials`), que não compila
+  no celular.
+- **Restaurar sem rede não apaga o token guardado:** só um 401 apaga; a tela inicial
+  oferece "Tentar de novo".
+- **Saída voluntária volta para a home** no próximo login; sessão expirada ou link aberto
+  deslogado voltam para onde estavam.
+- **Biometria testada pela lógica** (relógio controlado e autenticação simulada), não com
+  digital cadastrada no emulador.
+
 ### T14 — Conexões no app
 
 - Lista de conexões com instituição, status e "atualizado há X".
@@ -439,6 +462,15 @@ duas chamadas simultâneas gerando um refresh só.
 - Desvincular com confirmação na própria tela.
 - Status `NEEDS_ATTENTION` com aviso claro do que fazer.
 
+**Feito em 2026-10-02:** vincular `demo-banco` e `demo-corretora` conferido no Chrome.
+- **Acompanhamento da sincronização:** a lista é consultada a cada 3 s enquanto alguma
+  conexão sincroniza e por 30 s depois de vincular ou pedir atualização (o core pode
+  ainda não ter começado). Quando o `lastSyncedAt` muda, as outras telas se atualizam.
+- **O "Vincular conexão" aparece sempre:** só existe o modo `MEU_PLUGGY` hoje; o widget da
+  Pluggy é backlog.
+- **Achado no teste de ponta a ponta:** o BFF guardava em cache a home montada antes da
+  primeira sincronização. Corrigido no BFF (ver [[BFF]], "Cache e sincronização no fundo").
+
 ### T15 — Visão geral
 
 - Uma chamada a `GET /api/home`: patrimônio total, saldo em conta, fatura aberta,
@@ -447,6 +479,11 @@ duas chamadas simultâneas gerando um refresh só.
 - Parte indisponível mostra aviso só naquele bloco.
 - Puxar para atualizar no celular. No PC, os blocos lado a lado.
 
+**Feito em 2026-10-02.** Conexão só com investimentos (a corretora) fica fora do bloco
+"Contas". Fatura cujo vencimento passou diz "Venceu em" e "Última fatura": a Pluggy de
+demonstração só entrega faturas fechadas, então entre o vencimento e o próximo fechamento
+a fatura "atual" do core é a que já venceu. A conferir com dados reais na T02.
+
 ### T16 — Extrato
 
 - Lista por dia com entrada em verde e saída neutra, seletor de mês, filtro por
@@ -454,10 +491,19 @@ duas chamadas simultâneas gerando um refresh só.
 - Paginação com rolagem infinita.
 - Parcela "3/10" quando vier da Pluggy.
 
+**Feito em 2026-10-02.** Busca com 400 ms de espera; uma resposta para filtros já
+abandonados é descartada. Saída aparece com `-` na cor normal e entrada em verde com `+`. A
+lista de contas do filtro recarrega junto com as transações quando uma conexão muda (achado
+no Chrome: o extrato aberto antes de vincular nunca oferecia as contas).
+
 ### T17 — Cartões e investimentos
 
 - Cartões: limite, disponível, fatura atual e faturas anteriores.
 - Investimentos: total por tipo e lista de posições com vencimento.
+
+**Feito em 2026-10-02.** Cartão tem atalhos para as faturas e para as compras (o extrato
+filtrado pelo cartão). Investimentos mostram uma barra de alocação por tipo e, em cada
+posição, o ganho sobre o valor aplicado, quando a Pluggy informa quanto foi aplicado.
 
 ### T18 — Gastos e patrimônio
 
@@ -466,6 +512,12 @@ duas chamadas simultâneas gerando um refresh só.
   categorização própria.
 - Gráfico da evolução do patrimônio a partir dos snapshots diários (começa vazio e
   cresce a cada dia de uso).
+
+**Feito em 2026-10-02.** Rosca com as cinco maiores categorias e "Outras categorias";
+nomes da Pluggy traduzidos no app (`Categories`), `UNCATEGORIZED` vira "Sem categoria". O
+core manda um ponto por dia do período e preenche com zero os dias antes do primeiro
+snapshot; desenhado assim, parecia uma fortuna feita da noite para o dia. O app corta os
+dias sem dado e, com menos de dois pontos, explica que o gráfico cresce a cada dia.
 
 ---
 

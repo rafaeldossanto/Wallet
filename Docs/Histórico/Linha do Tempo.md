@@ -1,6 +1,6 @@
 ---
 tags: [historico]
-atualizado: 2026-10-01
+atualizado: 2026-10-02
 ---
 
 # Linha do Tempo
@@ -59,3 +59,18 @@ atualizado: 2026-10-01
   `kid` fixo deixando o BFF com a chave velha depois de um reinício do core (o `kid`
   virou o thumbprint da chave). Detalhes em [[BFF]] e [[Autenticação]].
 - Próximos passos dependem do Rafael: T02 (Meu Pluggy) e T12+ (app).
+
+## 2026-10-02
+
+- O Rafael liberou T12 a T18. O app Flutter ficou pronto para Android, iOS e navegador: 40
+  testes, conferido no Chrome e no emulador Android contra o core e o BFF de verdade. Ver
+  [[App Flutter]].
+- Flutter atualizado de 3.44.2 para 3.47.6 (vale também para o app do Trilha). O Material
+  passou a vir do pacote `material_ui`.
+- O core ganhou uma **Pluggy de demonstração** no `spring-boot:test-run`: dá para usar o
+  app com dados sintéticos sem conta na Pluggy. Ver [[Core]].
+- O teste de ponta a ponta achou furos que os testes isolados não pegavam: o BFF
+  guardava em cache a home de antes da primeira sincronização; o extrato não recarregava as
+  contas; o gráfico de patrimônio desenhava seis meses de zeros. Todos corrigidos e com
+  teste. Ver [[BFF]] e [[Plano de Implementação]].
+- Próximo passo depende do Rafael: T02 (Meu Pluggy com dados reais). Depois, o backlog.

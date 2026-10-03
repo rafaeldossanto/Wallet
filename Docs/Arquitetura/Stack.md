@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, stack]
-atualizado: 2026-09-29
+atualizado: 2026-10-02
 ---
 
 # Stack
@@ -10,7 +10,7 @@ atualizado: 2026-09-29
 
 | Camada | Escolha | Por quê |
 |---|---|---|
-| App | **Flutter** (Dart) para Android, iOS **e Web** | Um código só para celular e navegador do PC. Ambiente já instalado (Flutter, Android SDK, AVD) e experiência do app do Trilha. Atualizar o 3.44.2 para a estável atual |
+| App | **Flutter** (Dart) para Android, iOS **e Web** | Um código só para celular e navegador do PC. Ambiente já instalado (Flutter, Android SDK, AVD) e experiência do app do Trilha. Atualizado para o 3.47.6 em 2026-10-02; o Material agora vem do pacote `material_ui` |
 | Backend | **Java 25 + Spring Boot 4.1**, em dois serviços: [[BFF]] (porta pública) e [[Core]] (dados e regras) | Stack que o Rafael domina. Ruby on Rails foi considerado; a comparação ficou abaixo. BFF decidido em 2026-09-29 |
 | Arquitetura | **Monolito modular** | Uma pessoa no projeto. Módulos por domínio (conexões, contas, cartões, investimentos, usuários) com o provedor isolado |
 | Banco | **PostgreSQL** | Dado financeiro é relacional e precisa de `NUMERIC`, transações e constraints |
