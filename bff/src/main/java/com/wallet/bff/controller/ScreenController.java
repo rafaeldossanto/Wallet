@@ -5,9 +5,11 @@ import com.wallet.bff.model.dto.response.AccountResponse;
 import com.wallet.bff.model.dto.response.BillResponse;
 import com.wallet.bff.model.dto.response.CreditCardResponse;
 import com.wallet.bff.model.dto.response.InsightsResponse;
+import com.wallet.bff.model.dto.response.InvestmentHistoryResponse;
 import com.wallet.bff.model.dto.response.PageResponse;
 import com.wallet.bff.model.dto.response.PortfolioResponse;
 import com.wallet.bff.model.dto.response.TransactionResponse;
+import com.wallet.bff.service.InvestmentPeriod;
 import com.wallet.bff.service.ScreenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -64,6 +66,13 @@ public class ScreenController {
     @GetMapping("/api/investments")
     public PortfolioResponse investments(@CurrentUserId UUID userId) {
         return screenService.investments(userId);
+    }
+
+    /** {@code period}: 1M, 3M, 6M (default), 1A or TUDO. */
+    @GetMapping("/api/investments/history")
+    public InvestmentHistoryResponse investmentHistory(@CurrentUserId UUID userId,
+                                                       @RequestParam(required = false) String period) {
+        return screenService.investmentHistory(userId, InvestmentPeriod.parse(period));
     }
 
     @GetMapping("/api/insights")

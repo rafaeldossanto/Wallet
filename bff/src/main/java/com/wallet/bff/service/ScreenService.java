@@ -8,6 +8,7 @@ import com.wallet.bff.model.dto.response.AccountResponse;
 import com.wallet.bff.model.dto.response.BillResponse;
 import com.wallet.bff.model.dto.response.CreditCardResponse;
 import com.wallet.bff.model.dto.response.InsightsResponse;
+import com.wallet.bff.model.dto.response.InvestmentHistoryResponse;
 import com.wallet.bff.model.dto.response.NetWorthResponse;
 import com.wallet.bff.model.dto.response.PageResponse;
 import com.wallet.bff.model.dto.response.PortfolioResponse;
@@ -57,6 +58,21 @@ public class ScreenService {
 
     public PortfolioResponse investments(UUID userId) {
         return cache.get(userId, "investments", "", coreApi::investments);
+    }
+
+    /**
+     * How the invested total moved over the chosen period, day by day, taken from the core's net
+     * worth history. Days before the first sync come as zero; the app starts the line at the first
+     * day with data.
+     */
+    public InvestmentHistoryResponse investmentHistory(UUID userId, InvestmentPeriod period) {
+        return cache.get(userId, "investment-history", period.code(), () -> {
+            LocalDate today = ClockConfig.today(clock);
+            LocalDate from = today.minusDays(period.days() - 1L);
+            return new InvestmentHistoryResponse(period.code(), from, today, coreApi.netWorth(from, today).points().stream()
+                    .map(point -> new InvestmentHistoryResponse.Point(point.date(), point.investments()))
+                    .toList());
+        });
     }
 
     /** The month's spending and six months of net worth, fetched side by side. */

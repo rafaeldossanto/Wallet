@@ -42,6 +42,9 @@ abstract final class Dates {
   /// `Outubro`.
   static String monthName(DateTime month) => _capitalize(DateFormat.MMMM(locale).format(month));
 
+  /// `out./26`, for chart axes over long spans.
+  static String monthShortYear(DateTime month) => DateFormat('MMM/yy', locale).format(month);
+
   /// `out.`, for chart axes.
   static String monthAbbreviation(DateTime month) => DateFormat.MMM(locale).format(month);
 

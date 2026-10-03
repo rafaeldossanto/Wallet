@@ -11,6 +11,7 @@ import '../../../core/state/loadable.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/loadable_view.dart';
+import '../../../core/widgets/money_line_chart.dart';
 import '../data/insights_api.dart';
 
 class InsightsController extends LoadController<Insights> {
@@ -184,7 +185,6 @@ class _NetWorthCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
-    final color = theme.colorScheme.primary;
     return SectionCard(
       title: l10n.insightsNetWorth,
       child: Column(
@@ -195,90 +195,11 @@ class _NetWorthCard extends StatelessWidget {
           if (points.length < 2)
             Text(l10n.insightsNetWorthGrowing, style: theme.textTheme.bodyMedium)
           else
-            SizedBox(
-              height: 220,
-              child: LineChart(LineChartData(
-                gridData: FlGridData(
-                  drawVerticalLine: false,
-                  getDrawingHorizontalLine: (_) => FlLine(color: theme.colorScheme.outlineVariant, strokeWidth: 0.5),
-                ),
-                borderData: FlBorderData(show: false),
-                titlesData: FlTitlesData(
-                  topTitles: const AxisTitles(),
-                  rightTitles: const AxisTitles(),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 72,
-                      minIncluded: false,
-                      maxIncluded: false,
-                      getTitlesWidget: (value, meta) => SideTitleWidget(
-                        meta: meta,
-                        child: Text(Money.parse(value.toStringAsFixed(2)).formatCompact(), style: theme.textTheme.labelSmall),
-                      ),
-                    ),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 28,
-                      // Over a few days each day gets its label, ends included; over months the
-                      // ends would collide with the nearest regular label.
-                      minIncluded: _fewDays(points),
-                      maxIncluded: _fewDays(points),
-                      interval: _dayInterval(points),
-                      getTitlesWidget: (value, meta) => SideTitleWidget(
-                        meta: meta,
-                        child: Text(Dates.dayMonth(_dateAt(value)), style: theme.textTheme.labelSmall),
-                      ),
-                    ),
-                  ),
-                ),
-                lineTouchData: LineTouchData(
-                  touchTooltipData: LineTouchTooltipData(
-                    getTooltipColor: (_) => theme.colorScheme.surfaceContainerHighest,
-                    getTooltipItems: (spots) => [
-                      for (final spot in spots)
-                        LineTooltipItem(
-                          '${Dates.short(_dateAt(spot.x))}\n${Money.parse(spot.y.toStringAsFixed(2)).format()}',
-                          theme.textTheme.bodySmall!,
-                        ),
-                    ],
-                  ),
-                ),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: [for (final point in points) FlSpot(_dayOf(point.date), point.netWorth.toChartValue())],
-                    isCurved: true,
-                    preventCurveOverShooting: true,
-                    color: color,
-                    barWidth: 2.5,
-                    dotData: const FlDotData(show: false),
-                    belowBarData: BarAreaData(show: true, color: color.withValues(alpha: 0.12)),
-                  ),
-                ],
-              )),
-            ),
+            MoneyLineChart(points: [for (final point in points) ChartPoint(point.date, point.netWorth)]),
         ],
       ),
     );
   }
-
-  /// The x axis counts days since the epoch, so gaps between snapshots keep their width.
-  static double _dayOf(DateTime date) => DateTime.utc(date.year, date.month, date.day).millisecondsSinceEpoch / Duration.millisecondsPerDay;
-
-  static DateTime _dateAt(double day) {
-    final utc = DateTime.fromMillisecondsSinceEpoch((day * Duration.millisecondsPerDay).round(), isUtc: true);
-    return DateTime(utc.year, utc.month, utc.day);
-  }
-
-  /// About four labels along the axis, whatever the span.
-  static double _dayInterval(List<NetWorthPoint> points) =>
-      _fewDays(points) ? 1 : (_span(points) / 4).ceilToDouble();
-
-  static bool _fewDays(List<NetWorthPoint> points) => _span(points) <= 4;
-
-  static double _span(List<NetWorthPoint> points) => _dayOf(points.last.date) - _dayOf(points.first.date);
 }
 
 /// Built by the router for the insights branch.

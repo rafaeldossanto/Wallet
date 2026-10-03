@@ -463,6 +463,34 @@ class BffRoutesTest extends BffTestSupport {
                 .andExpect(jsonPath("$.code").value("request.invalid_parameter"));
     }
 
+    @Test
+    void theInvestmentChartAsksTheCoreForThePeriodPickedAndCachesEach() throws Exception {
+        CORE.stubFor(WireMock.get(urlPathEqualTo("/internal/insights/net-worth")).willReturn(okJson(
+                "{\"points\":[{\"date\":\"2026-10-01\",\"netWorth\":\"9000.00\",\"cash\":\"1000.00\","
+                        + "\"investments\":\"8500.00\",\"creditCardDebt\":\"500.00\"}]}")));
+        String rafael = bearer(UUID.randomUUID());
+        LocalDate today = ClockConfig.today(Clock.systemUTC());
+
+        for (int call = 0; call < 2; call++) {
+            mockMvc.perform(get("/api/investments/history").queryParam("period", "1A").header(HttpHeaders.AUTHORIZATION, rafael))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.period").value("1A"))
+                    .andExpect(jsonPath("$.points[0].total").value("8500.00"));
+        }
+        mockMvc.perform(get("/api/investments/history").header(HttpHeaders.AUTHORIZATION, rafael))
+                .andExpect(jsonPath("$.period").value("6M"));
+
+        CORE.verify(1, getRequestedFor(urlPathEqualTo("/internal/insights/net-worth"))
+                .withQueryParam("from", equalTo(today.minusDays(364).toString()))
+                .withQueryParam("to", equalTo(today.toString())));
+        CORE.verify(1, getRequestedFor(urlPathEqualTo("/internal/insights/net-worth"))
+                .withQueryParam("from", equalTo(today.minusDays(181).toString())));
+
+        mockMvc.perform(get("/api/investments/history").queryParam("period", "5 anos").header(HttpHeaders.AUTHORIZATION, rafael))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("request.invalid_parameter"));
+    }
+
     /** The statement's account filter: every account, cards included, cached like the other screens. */
     @Test
     void accountsAreRelayedAndCachedPerUser() throws Exception {
