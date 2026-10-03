@@ -105,3 +105,6 @@ atualizado: 2026-10-03
   e os **logos reais dos bancos** no lugar das iniciais (o SVG que a Pluggy serve, com as
   classes CSS passadas para os elementos, porque o `flutter_svg` não lê `<style>`). Ver
   [[App Flutter]].
+- CI no GitHub Actions: um workflow por parte (core, BFF, app), cada um rodando só quando a
+  pasta dele muda. A primeira execução passou nos três (core em 1min36s, com Postgres no Docker
+  do runner; BFF em 53s; app em 2min05s). Ver o README.
