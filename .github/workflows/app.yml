@@ -1,0 +1,48 @@
+name: App
+
+on:
+  push:
+    branches: [master]
+    paths: ['app/**', '.github/workflows/app.yml']
+  pull_request:
+    paths: ['app/**', '.github/workflows/app.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: app-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Analyze and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+
+      # The same Flutter as on the PC: Material comes from the material_ui package since 3.47.
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.6
+          cache: true
+
+      - run: flutter pub get
+
+      # The translation classes are generated from app_pt.arb and committed: an edited .arb
+      # without the regenerated classes fails here instead of on someone else's machine.
+      - name: Generated translations match app_pt.arb
+        run: |
+          flutter gen-l10n
+          git diff --exit-code -- lib/core/l10n
+
+      - run: flutter analyze
+
+      # Unit and widget tests against the in-memory BFF.
+      - run: flutter test

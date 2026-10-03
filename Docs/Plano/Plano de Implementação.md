@@ -531,7 +531,8 @@ dias sem dado e, com menos de dois pontos, explica que o gráfico cresce a cada 
   consentimento com a finalidade ([[Consentimento]]).
 - Deploy: VPS, HTTPS no BFF, core e Postgres só na rede interna, backups, logs sem
   dado sensível.
-- CI e build de iOS (Codemagic ou runner macOS).
+- ~~CI~~ feito em 2026-10-03: GitHub Actions com um workflow por parte (core, BFF, app), ver o
+  README. Falta o build de iOS (Codemagic ou runner macOS).
 - CNPJ, contas de desenvolvedor nas lojas e nome definitivo
   ([[Decisões Pendentes]]).
 - Reconferir a regra de parcerias do BC ([[Risco Regulatório 2026]]).

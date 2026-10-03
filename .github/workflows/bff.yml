@@ -1,0 +1,48 @@
+name: BFF
+
+on:
+  push:
+    branches: [master]
+    paths: ['bff/**', '.github/workflows/bff.yml']
+  pull_request:
+    paths: ['bff/**', '.github/workflows/bff.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: bff-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: bff
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: bff/pom.xml
+
+      # The core is simulated with WireMock and the tokens are signed in the tests: no Docker,
+      # no secret.
+      - run: ./mvnw -B verify
+
+      - name: Keep the test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bff-test-reports
+          path: |
+            bff/target/surefire-reports
+            bff/target/failsafe-reports
+          retention-days: 7

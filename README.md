@@ -1,5 +1,9 @@
 # Wallet
 
+[![Core](https://github.com/rafaeldossanto/Wallet/actions/workflows/core.yml/badge.svg)](https://github.com/rafaeldossanto/Wallet/actions/workflows/core.yml)
+[![BFF](https://github.com/rafaeldossanto/Wallet/actions/workflows/bff.yml/badge.svg)](https://github.com/rafaeldossanto/Wallet/actions/workflows/bff.yml)
+[![App](https://github.com/rafaeldossanto/Wallet/actions/workflows/app.yml/badge.svg)](https://github.com/rafaeldossanto/Wallet/actions/workflows/app.yml)
+
 Carteira financeira para celular e PC que agrega contas, cartões e investimentos pelo
 Open Finance. Nome provisório.
 
@@ -134,6 +138,20 @@ flutter run -d emulator-5554                # emulador Android (fala com o BFF e
 
 O endereço do BFF muda com `--dart-define=WALLET_BFF_URL=https://...`. A porta 5000 do
 navegador é a origem que o BFF aceita no CORS (`WALLET_WEB_ALLOWED_ORIGINS`).
+
+## CI
+
+O GitHub Actions roda a suíte de cada parte a cada push na `master` e em pull request,
+só quando a pasta dela muda (`.github/workflows/`):
+
+| Workflow | O que roda |
+|---|---|
+| Core | `./mvnw -B verify` com JDK 25: unitários e integração (Postgres no Docker do runner) |
+| BFF | `./mvnw -B verify` com JDK 25 (core simulado no WireMock) |
+| App | Flutter 3.47.6: traduções geradas batendo com o `.arb`, `flutter analyze` e `flutter test` |
+
+Nenhum workflow precisa de segredo. Quando um teste falha, os relatórios ficam 7 dias como
+artefato da execução.
 
 ## Segredos
 
