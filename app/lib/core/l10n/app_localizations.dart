@@ -772,17 +772,17 @@ abstract class AppLocalizations {
   /// **'Distribuição dos investimentos'**
   String get investmentsAllocation;
 
-  /// No description provided for @investmentsAllocationHintPick.
+  /// No description provided for @donutHintPick.
   ///
   /// In pt, this message translates to:
   /// **'Toque numa fatia para ver a porcentagem e o valor dela.'**
-  String get investmentsAllocationHintPick;
+  String get donutHintPick;
 
-  /// No description provided for @investmentsAllocationHintUnpick.
+  /// No description provided for @donutHintUnpick.
   ///
   /// In pt, this message translates to:
   /// **'Toque de novo na fatia para voltar ao total.'**
-  String get investmentsAllocationHintUnpick;
+  String get donutHintUnpick;
 
   /// No description provided for @investmentsEvolution.
   ///

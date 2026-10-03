@@ -58,6 +58,9 @@ public final class DemoPluggy implements AutoCloseable {
 
     private static final String CARD_PAYMENT = "Credit card payment";
 
+    private static final int FIRST_MADE_UP_CONNECTOR = 9000;
+    private static final String CONNECTOR_ICONS = "https://cdn.pluggy.ai/assets/connector-icons/";
+
     private static final Bank DEMO_BANK = new Bank(BANK_ITEM, 9001, "Banco Demo", 1,
             new Account("demo-checking", "Conta Corrente", "0001/23456-7", "4800.00"),
             new Account("demo-savings", "Poupança", "0001/76543-2", "18500.00"), money("96.40"),
@@ -81,7 +84,7 @@ public final class DemoPluggy implements AutoCloseable {
                     Habit.sometimes(0.04, "LOJA DE ROUPAS DEMO", "Clothing", 90, 400)));
 
     /** A digital bank used for everyday card spending; income arrives by Pix. */
-    private static final Bank NUBANK = new Bank(NUBANK_ITEM, 9101, "Nubank", 11,
+    private static final Bank NUBANK = new Bank(NUBANK_ITEM, 212, "Nubank", 11,
             new Account("nubank-checking", "Conta", "0001/9876543-2", "2300.00"),
             null, null,
             new Card("nubank-card", "Cartão de crédito", "4821", "8500.00", 27, 8,
@@ -101,7 +104,7 @@ public final class DemoPluggy implements AutoCloseable {
                     Habit.sometimes(0.05, "CINEMA SHOPPING", "Entertainment", 38, 90)));
 
     /** The salary account: rent, bills at home, savings, and a card for groceries and fuel. */
-    private static final Bank ITAU = new Bank(ITAU_ITEM, 9102, "Itaú", 23,
+    private static final Bank ITAU = new Bank(ITAU_ITEM, 201, "Itaú", 23,
             new Account("itau-checking", "Conta Corrente", "4321/12345-6", "6200.00"),
             new Account("itau-savings", "Poupança", "4321/54321-0", "25000.00"), money("128.40"),
             new Card("itau-card", "Cartão Itaú Visa", "7310", "15000.00", 3, 7, null),
@@ -130,7 +133,7 @@ public final class DemoPluggy implements AutoCloseable {
             Position.growing("demo-pension", "MUTUAL_FUND", "RETIREMENT", "Previdência Demo PGBL", "9100.00", "0.00030",
                     "8500.00", null)));
 
-    private static final Broker XP = new Broker(XP_ITEM, 9103, "XP Investimentos", List.of(
+    private static final Broker XP = new Broker(XP_ITEM, 202, "XP Investimentos", List.of(
             Position.growing("xp-cdb", "FIXED_INCOME", "CDB", "CDB Banco Master 120% CDI", "22000.00", "0.00045",
                     "20000.00", LocalDate.of(2028, 8, 15)),
             Position.growing("xp-tesouro", "FIXED_INCOME", "TREASURY", "Tesouro IPCA+ 2035", "15500.00", "0.00033",
@@ -257,7 +260,7 @@ public final class DemoPluggy implements AutoCloseable {
         Map<String, Object> connector = new LinkedHashMap<>();
         connector.put("id", institution.connectorId());
         connector.put("name", institution.name());
-        connector.put("imageUrl", null);
+        connector.put("imageUrl", institution.imageUrl());
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("id", institution.itemId());
         item.put("connector", connector);
@@ -510,12 +513,20 @@ public final class DemoPluggy implements AutoCloseable {
 
     // ---- the simulated institutions ------------------------------------------------------------
 
+    /**
+     * Nubank, Itaú and XP carry their real Pluggy connector ids, so their logos are the ones Pluggy
+     * serves; the made-up institutions (ids from {@value #FIRST_MADE_UP_CONNECTOR}) have none.
+     */
     private sealed interface Institution permits Bank, Broker {
         String itemId();
 
         int connectorId();
 
         String name();
+
+        default String imageUrl() {
+            return connectorId() < FIRST_MADE_UP_CONNECTOR ? CONNECTOR_ICONS + connectorId() + ".svg" : null;
+        }
     }
 
     private record Account(String id, String name, String number, BigDecimal openingBalance) {

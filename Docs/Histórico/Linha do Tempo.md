@@ -99,3 +99,9 @@ atualizado: 2026-10-03
   transparência) e a tela de investimentos testada no navegador contra a demo, com 400 dias
   de histórico inseridos no banco descartável: a variação de cada período bateu com as somas
   no banco. A dica de IDs de demonstração do app passou a citar Nubank, Itaú e XP.
+- Pedidos do Rafael no fim do dia: na tela de investimentos, os tipos à esquerda e os gráficos à
+  direita (evolução em cima, distribuição embaixo); roscas finas com pontas arredondadas e
+  clicáveis (a fatia mostra a porcentagem e o valor no centro), também nos gastos por categoria;
+  e os **logos reais dos bancos** no lugar das iniciais (o SVG que a Pluggy serve, com as
+  classes CSS passadas para os elementos, porque o `flutter_svg` não lê `<style>`). Ver
+  [[App Flutter]].

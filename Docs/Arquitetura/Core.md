@@ -158,7 +158,9 @@ sobe contra um Postgres descartável com `./mvnw spring-boot:test-run`.
 sobe um servidor HTTP pequeno (`DemoPluggy`, no código de teste) que responde como a Pluggy:
 `demo-banco` e `demo-corretora` (o básico) e, desde 2026-10-03, três que parecem os bancos de
 uma pessoa de verdade: `demo-nubank` (conta e cartão de uso diário), `demo-itau` (salário,
-aluguel, contas da casa, poupança e cartão) e `demo-xp` (seis investimentos). Os nomes das
+aluguel, contas da casa, poupança e cartão) e `demo-xp` (seis investimentos). Esses três usam os ids
+de conector reais da Pluggy (212, 201 e 202) e mandam o logo que ela serve
+(`cdn.pluggy.ai/assets/connector-icons/{id}.svg`). Os nomes das
 instituições são como a Pluggy os manda; pessoas, contas e valores são inventados. O histórico
 começa num dia fixo (01/01/2026) para os saldos não andarem sozinhos de um dia para o outro. Os dados nascem da data de hoje, com uma semente por dia, então os
 ids e valores se repetem a cada sincronização. Serve para ver o app inteiro funcionando

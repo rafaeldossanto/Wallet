@@ -1,15 +1,13 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/format/categories.dart';
 import '../../../core/format/dates.dart';
-import '../../../core/format/percent.dart';
 import '../../../core/l10n/l10n.dart';
 import '../../../core/money/money.dart';
 import '../../../core/state/loadable.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/common.dart';
+import '../../../core/widgets/donut_chart.dart';
 import '../../../core/widgets/loadable_view.dart';
 import '../../../core/widgets/money_line_chart.dart';
 import '../data/insights_api.dart';
@@ -84,6 +82,7 @@ class InsightsScreen extends StatelessWidget {
   }
 }
 
+/// Spending by category, in a donut that shows a category's share and amount when tapped.
 class _SpendingCard extends StatelessWidget {
   const _SpendingCard({required this.spending});
 
@@ -95,85 +94,23 @@ class _SpendingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final theme = Theme.of(context);
-    final colors = context.walletColors.chart;
-    final slices = _slices(spending.categories, l10n);
     return SectionCard(
       title: l10n.insightsSpending,
       child: spending.categories.isEmpty
           ? Text(l10n.insightsNoSpending)
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(
-                  height: 200,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      PieChart(PieChartData(
-                        centerSpaceRadius: 64,
-                        sectionsSpace: 2,
-                        sections: [
-                          for (var index = 0; index < slices.length; index++)
-                            PieChartSectionData(
-                              value: slices[index].total.toChartValue(),
-                              color: colors[index % colors.length],
-                              radius: 28,
-                              showTitle: false,
-                            ),
-                        ],
-                      )),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(l10n.insightsTotal, style: theme.textTheme.labelMedium),
-                          MoneyText(spending.total, style: theme.textTheme.titleMedium),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                for (var index = 0; index < slices.length; index++)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(color: colors[index % colors.length], shape: BoxShape.circle),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(child: Text(slices[index].label)),
-                        Text(formatPercent(slices[index].total.shareOf(spending.total)),
-                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-                        const SizedBox(width: 12),
-                        MoneyText(slices[index].total),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
+          : DonutChart(totalLabel: l10n.insightsTotal, total: spending.total, slices: _slices(spending.categories, l10n)),
     );
   }
 
-  static List<_Slice> _slices(List<CategoryTotal> categories, AppLocalizations l10n) {
+  static List<DonutSlice> _slices(List<CategoryTotal> categories, AppLocalizations l10n) {
     if (categories.length <= maxSlices) {
-      return [for (final category in categories) _Slice(Categories.label(category.category), category.total)];
+      return [for (final category in categories) DonutSlice(Categories.label(category.category), category.total)];
     }
     return [
-      for (final category in categories.take(maxSlices - 1)) _Slice(Categories.label(category.category), category.total),
-      _Slice(l10n.insightsOtherCategories, categories.skip(maxSlices - 1).map((category) => category.total).sum()),
+      for (final category in categories.take(maxSlices - 1)) DonutSlice(Categories.label(category.category), category.total),
+      DonutSlice(l10n.insightsOtherCategories, categories.skip(maxSlices - 1).map((category) => category.total).sum()),
     ];
   }
-}
-
-class _Slice {
-  const _Slice(this.label, this.total);
-
-  final String label;
-  final Money total;
 }
 
 class _NetWorthCard extends StatelessWidget {

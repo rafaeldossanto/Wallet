@@ -1,9 +1,11 @@
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../format/institution_colors.dart';
 import '../l10n/l10n.dart';
 import '../money/money.dart';
 import '../theme/app_theme.dart';
+import 'institution_logo.dart';
 
 /// Keeps content readable on a wide PC window.
 class ContentWidth extends StatelessWidget {
@@ -99,7 +101,8 @@ class MoneyText extends StatelessWidget {
   }
 }
 
-/// The institution's logo, or its initials when there is none.
+/// The institution's logo, or its initials in the brand's colours while it loads, when there is
+/// none, or when it does not load.
 class InstitutionAvatar extends StatelessWidget {
   const InstitutionAvatar({super.key, this.name, this.imageUrl, this.radius = 20});
 
@@ -117,12 +120,32 @@ class InstitutionAvatar extends StatelessWidget {
         .map((word) => word[0].toUpperCase())
         .join();
     final url = imageUrl;
-    return CircleAvatar(
+    final isSvg = url != null && Uri.tryParse(url)?.path.toLowerCase().endsWith('.svg') == true;
+    final avatar = CircleAvatar(
       radius: radius,
       backgroundColor: colors.background,
       foregroundColor: colors.foreground,
-      foregroundImage: url == null || url.endsWith('.svg') ? null : NetworkImage(url),
+      foregroundImage: url == null || isSvg ? null : NetworkImage(url),
       child: Text(initials, style: TextStyle(fontSize: radius * 0.7, fontWeight: FontWeight.w700)),
+    );
+    if (!isSvg) {
+      return avatar;
+    }
+    // Pluggy draws its logos for a disc: a transparent circle with the mark in the middle, so a
+    // white disc behind keeps every mark legible in both themes.
+    return ClipOval(
+      child: SizedBox.square(
+        dimension: radius * 2,
+        child: ColoredBox(
+          color: Colors.white,
+          child: SvgPicture(
+            InstitutionLogoLoader(url),
+            semanticsLabel: name,
+            placeholderBuilder: (context) => avatar,
+            errorBuilder: (context, error, stackTrace) => avatar,
+          ),
+        ),
+      ),
     );
   }
 }

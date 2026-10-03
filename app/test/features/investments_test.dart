@@ -13,6 +13,7 @@ import 'package:wallet/core/money/money.dart';
 import 'package:wallet/core/state/data_changes.dart';
 import 'package:wallet/core/state/loadable.dart';
 import 'package:wallet/core/theme/app_theme.dart';
+import 'package:wallet/core/widgets/donut_chart.dart';
 import 'package:wallet/features/investments/data/investments_api.dart';
 import 'package:wallet/features/investments/presentation/investment_history_controller.dart';
 import 'package:wallet/features/investments/presentation/investments_screen.dart';
@@ -211,9 +212,10 @@ void main() {
       await openInvestments(tester);
       final pie = find.byType(PieChart);
       // Renda fixa is the first slice: 62.5% of the ring, clockwise from three o'clock. Its middle
-      // is at 112.5 degrees, halfway across the ring (hole of 64, ring of 28).
+      // is at 112.5 degrees, halfway across the ring.
       const angle = 112.5 * math.pi / 180;
-      final fixedIncome = tester.getCenter(pie) + Offset(math.cos(angle), math.sin(angle)) * (64 + 14);
+      final fixedIncome = tester.getCenter(pie) +
+          Offset(math.cos(angle), math.sin(angle)) * (DonutChart.holeRadius + DonutChart.ringWidth / 2);
 
       await tester.tapAt(fixedIncome);
       await tester.pumpAndSettle();

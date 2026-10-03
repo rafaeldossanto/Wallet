@@ -21,7 +21,8 @@ Construído em 2026-10-02 (T12 a T18 do [[Plano de Implementação]]), em `Work/
 | `local_auth` | Biometria no celular |
 | `decimal` | Dinheiro sem `double` |
 | `intl` + ARB | Moeda, datas e textos em pt-BR |
-| `fl_chart` | Rosca de gastos e linhas de patrimônio e investimentos |
+| `fl_chart` | Roscas (gastos e investimentos) e linhas de patrimônio e investimentos |
+| `flutter_svg` | Logos dos bancos (SVG, como a Pluggy manda) |
 | `shared_preferences` | A escolha de tema (`SharedPreferencesAsync`, a API atual) |
 
 O `flutter_localizations` fica só porque o `gen-l10n` exige; os delegates usados vêm do
@@ -83,8 +84,12 @@ lida antes do primeiro quadro, então o app nunca abre no tema errado.
   calendário); verde-limão (`#D4F34A`) no que está selecionado (destino, dia); cartões com
   cantos de 24 px. Fora isso, cor só com significado: verde para dinheiro entrando, amarelo
   para aviso, vermelho para erro e as fatias dos gráficos.
-- **Bancos:** sem logo (a Pluggy manda SVG), cada instituição aparece com as iniciais na cor
-  da marca (Nubank roxo, Itaú laranja, XP preto e amarelo...; `InstitutionColors`).
+- **Bancos:** o logo real que a Pluggy manda (`imageUrl` do conector, SVG no CDN dela, com CORS
+  aberto) num círculo branco, desde 2026-10-03 a pedido do Rafael. Enquanto carrega, sem logo ou
+  se falhar, as iniciais na cor da marca (`InstitutionColors`). Os SVGs da Pluggy pintam as
+  formas por classes CSS num bloco `<style>`, que o `flutter_svg` ignora (o "nu" do Nubank sairia
+  preto sobre um disco preto): o `InstitutionLogoLoader` passa essas regras para o `style` de
+  cada elemento antes de desenhar.
 
 ## Visão geral e calendário de gastos
 
@@ -100,11 +105,12 @@ lida antes do primeiro quadro, então o app nunca abre no tema errado.
 
 ## Investimentos (desde 2026-10-03)
 
-- **Distribuição:** rosca por tipo (renda fixa, Tesouro, fundos, ações, previdência) com as
+- **Distribuição:** rosca fina por tipo (renda fixa, Tesouro, fundos, ações, previdência) com as
   pontas das fatias arredondadas, o total no furo e a legenda com a fatia e o valor de cada
   tipo. Clicar numa fatia (ou na linha dela na legenda) destaca a fatia e põe no furo o tipo, a
   porcentagem e o valor; clicar de novo, ou no furo, volta ao total (pedido do Rafael em
   2026-10-03, mesmo gesto do calendário).
+  A rosca é o `DonutChart` (`core/widgets`), o mesmo dos gastos por categoria.
 - **Evolução dos investimentos:** linha do total investido dia a dia, com os períodos 1M, 3M,
   6M (padrão), 1A e Tudo (até 2 anos), vindos de `GET /api/investments/history`. Acima da
   linha, quanto o total andou no período (verde subindo, vermelho caindo), calculado com
@@ -173,25 +179,25 @@ Ver [[Fluxo de Conexão]].
 
 ## Limites conhecidos
 
-- Logo de instituição em SVG (o formato que a Pluggy usa) não é desenhado: aparece a inicial.
-  Precisa do `flutter_svg` quando houver dados reais.
 - A biometria foi testada pela lógica (relógio controlado), não com uma digital cadastrada
   no emulador.
 - O build de iOS não foi feito: exige macOS.
 
 ## Testes
 
-57 testes com um BFF em memória (`test/support/fake_bff.dart`):
+61 testes com um BFF em memória (`test/support/fake_bff.dart`):
 
 - Unitários: `Money`, sessão (restaurar, recusar, servidor fora), interceptor (duas chamadas
   com 401 geram **um** refresh), bloqueio por biometria, inatividade no navegador,
   conexões (acompanhamento e aviso às outras telas), patrimônio sem os dias zerados,
   histórico de investimentos (começo no primeiro dia com dado, perda, período abandonado
-  descartado, atualização que falha mantendo a linha).
+  descartado, atualização que falha mantendo a linha), estilos CSS dos logos passados para os
+  elementos.
 - Widget: login, visão geral (completa, com parte indisponível, sem conexões), shell nos três
   tamanhos e o "Mais", calendário (mês inteiro, dia, tocar de novo), extrato (agrupamento por
   dia, filtros, segunda página), investimentos (rosca, clique na fatia e na legenda, troca de
-  período, menos de dois dias, tipos à esquerda na tela larga), saída voluntária.
+  período, menos de dois dias, tipos à esquerda na tela larga), rosca dos gastos (fina, clicável),
+  saída voluntária.
 
 Além disso, verificado à mão em 2026-10-02 no Chrome (build release) e no emulador
 `trilha_pixel`, contra o core e o BFF reais com a Pluggy de demonstração.

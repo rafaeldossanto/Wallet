@@ -72,6 +72,15 @@ class DemoPluggyCompatibilityTest {
     }
 
     @Test
+    void theRealBanksCarryTheLogoPluggyServesAndTheMadeUpOnesNone() {
+        assertThat(provider.findItem(DemoPluggy.NUBANK_ITEM).institutionImageUrl())
+                .isEqualTo("https://cdn.pluggy.ai/assets/connector-icons/212.svg");
+        assertThat(provider.findItem(DemoPluggy.ITAU_ITEM).institutionImageUrl()).endsWith("/201.svg");
+        assertThat(provider.findItem(DemoPluggy.XP_ITEM).institutionImageUrl()).endsWith("/202.svg");
+        assertThat(provider.findItem(DemoPluggy.BANK_ITEM).institutionImageUrl()).isNull();
+    }
+
+    @Test
     void bothItemsAreReadyAndUnknownOnesAreNotFound() {
         assertThat(provider.findItem(DemoPluggy.BANK_ITEM).institutionName()).isEqualTo("Banco Demo");
         assertThat(provider.findItem(DemoPluggy.BROKER_ITEM).status()).isEqualTo(ProviderItemStatus.READY);
