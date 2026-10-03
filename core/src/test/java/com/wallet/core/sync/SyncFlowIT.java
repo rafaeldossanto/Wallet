@@ -34,14 +34,18 @@ import com.wallet.core.sync.repository.SyncRunRepository;
 import com.wallet.core.sync.service.SyncService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.sql.Timestamp;
@@ -50,6 +54,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 
 import static com.wallet.core.TestUsers.as;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -69,6 +77,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest
 @Import({TestcontainersConfiguration.class, TestClockConfiguration.class})
+@ExtendWith(OutputCaptureExtension.class)
 class SyncFlowIT {
 
     private static final LocalDate TODAY = LocalDate.parse("2026-10-01");
@@ -85,6 +94,7 @@ class SyncFlowIT {
     @Autowired private InvestmentRepository investments;
     @Autowired private SyncRunRepository runs;
     @Autowired private JdbcTemplate jdbc;
+    @Autowired private TransactionTemplate transactionTemplate;
 
     @MockitoBean
     private FinancialDataProvider provider;
@@ -285,19 +295,58 @@ class SyncFlowIT {
 
     @Test
     void linkingAConnectionTriggersTheFirstSync() throws Exception {
-        String newItemId = UUID.randomUUID().toString();
-        when(provider.findItem(newItemId)).thenReturn(new ProviderItem(newItemId, "Inter", null,
-                ProviderItemStatus.READY, COLLECTED, null, null));
-
-        String body = mockMvc.perform(post("/internal/connections").with(as(userId)).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"providerItemId\":\"%s\"}".formatted(newItemId)))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-        connectionId = UUID.fromString(JsonPath.read(body, "$.id"));
+        connectionId = link(stubNewItem());
 
         SyncRun run = awaitFinished();
         assertThat(run.getTrigger()).isEqualTo(SyncTrigger.INITIAL);
         assertThat(run.getStatus()).isEqualTo(SyncRunStatus.SUCCEEDED);
+    }
+
+    @Test
+    void unlinkingWhileTheFirstSyncReadsStopsItBeforeAnythingIsWritten(CapturedOutput output) throws Exception {
+        String newItemId = stubNewItem();
+        CountDownLatch reading = new CountDownLatch(1);
+        CountDownLatch unlinked = new CountDownLatch(1);
+        when(provider.listAccounts(newItemId)).thenReturn(List.of(checking()));
+        when(provider.listTransactions(any(), any(), any(), any()))
+                .thenReturn(List.of(transaction("tx-1", "2026-09-20", "45.90", Direction.OUTFLOW, "PADARIA")));
+        // The last read before the write holds the sync until the user has unlinked.
+        when(provider.listInvestments(newItemId)).thenAnswer(invocation -> {
+            reading.countDown();
+            unlinked.await(10, TimeUnit.SECONDS);
+            return List.of(investment("inv-1"));
+        });
+
+        connectionId = link(newItemId);
+        assertThat(reading.await(10, TimeUnit.SECONDS)).isTrue();
+        mockMvc.perform(delete("/internal/connections/" + connectionId).with(as(userId)))
+                .andExpect(status().isNoContent());
+        unlinked.countDown();
+
+        awaitLogged(output, "Connection " + connectionId + " (INITIAL) was unlinked");
+        assertThat(accountIds()).isEmpty();
+        assertThat(investments.findByConnectionId(connectionId)).isEmpty();
+        // The run went with its connection (the delete cascades): nothing is left RUNNING.
+        assertThat(runs.findByConnectionIdOrderByStartedAtDesc(connectionId)).isEmpty();
+        assertThat(output.getAll()).doesNotContain("Connection " + connectionId + " (INITIAL) failed");
+    }
+
+    @Test
+    void unlinkingAsTheSyncStartsStopsItBeforeTheProviderIsCalled() throws Exception {
+        UUID runId = syncService.start(connectionId, SyncTrigger.MANUAL).orElseThrow();
+
+        // The unlink has deleted the row but not committed yet when the sync marks the connection SYNCING.
+        CompletableFuture<SyncRunStatus> sync = transactionTemplate.execute(unlink -> {
+            jdbc.update("delete from connections where id = ?", connectionId);
+            CompletableFuture<SyncRunStatus> started =
+                    CompletableFuture.supplyAsync(() -> syncService.run(runId, connectionId, SyncTrigger.MANUAL));
+            awaitALockWait();
+            return started;
+        });
+
+        assertThat(sync.get(10, TimeUnit.SECONDS)).isEqualTo(SyncRunStatus.SKIPPED);
+        verify(provider, never()).findItem(any());
+        assertThat(runs.findByConnectionIdOrderByStartedAtDesc(connectionId)).isEmpty();
     }
 
     @Test
@@ -331,6 +380,22 @@ class SyncFlowIT {
 
     private void stubItem(ProviderItemStatus status, Instant lastUpdatedAt) {
         when(provider.findItem(itemId)).thenReturn(new ProviderItem(itemId, "Nubank", null, status, lastUpdatedAt, null, null));
+    }
+
+    private String stubNewItem() {
+        String newItemId = UUID.randomUUID().toString();
+        when(provider.findItem(newItemId)).thenReturn(new ProviderItem(newItemId, "Inter", null,
+                ProviderItemStatus.READY, COLLECTED, null, null));
+        return newItemId;
+    }
+
+    /** Links through the API, so the first sync starts in the background like in the app. */
+    private UUID link(String providerItemId) throws Exception {
+        String body = mockMvc.perform(post("/internal/connections").with(as(userId)).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"providerItemId\":\"%s\"}".formatted(providerItemId)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        return UUID.fromString(JsonPath.read(body, "$.id"));
     }
 
     private ProviderAccount checking() {
@@ -400,5 +465,26 @@ class SyncFlowIT {
             Thread.sleep(50);
         }
         throw new AssertionError("Sync of connection " + connectionId + " did not finish");
+    }
+
+    private static void awaitLogged(CapturedOutput output, String text) throws InterruptedException {
+        for (int attempt = 0; attempt < 200; attempt++) {
+            if (output.getAll().contains(text)) {
+                return;
+            }
+            Thread.sleep(50);
+        }
+        throw new AssertionError("Never logged: " + text);
+    }
+
+    /** A lock not granted yet means the sync is waiting behind the uncommitted unlink. */
+    private void awaitALockWait() {
+        for (int attempt = 0; attempt < 200; attempt++) {
+            if (jdbc.queryForObject("select count(*) from pg_locks where not granted", Integer.class) > 0) {
+                return;
+            }
+            LockSupport.parkNanos(Duration.ofMillis(50).toNanos());
+        }
+        throw new AssertionError("The sync never waited for the unlink");
     }
 }

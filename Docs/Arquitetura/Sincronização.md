@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, sync, pluggy]
-atualizado: 2026-09-30
+atualizado: 2026-10-03
 ---
 
 # Sincronização
@@ -76,6 +76,12 @@ O Wallet grava sempre **valor positivo + direção**:
   próximo ciclo tenta de novo. Nada do que já estava gravado é apagado.
 - Erro no meio: a sincronização de uma conexão roda numa transação só; ou grava tudo,
   ou nada.
+- **Conexão desvinculada no meio:** é ação normal do usuário, não falha. A sincronização
+  confere em dois pontos, ao marcar `SYNCING` e antes de gravar, e para com log `INFO`
+  e `SKIPPED connection.gone`. O `SyncWriter` trava a linha da conexão antes de gravar:
+  se o desvínculo chega durante a gravação, espera o commit, e o `ON DELETE CASCADE` apaga
+  o que foi gravado; se chegou antes, nada é gravado. A rodada some junto com a conexão
+  (cascata em `sync_runs`), então nunca fica presa em `RUNNING`.
 
 ## Webhooks (produção)
 

@@ -8,6 +8,7 @@ import com.wallet.core.connection.mapper.ConnectionMapper;
 import com.wallet.core.connection.repository.ConnectionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
@@ -49,8 +50,14 @@ class JpaConnectionRegistry implements ConnectionRegistry {
 
     @Override
     @Transactional
-    public void markSyncing(UUID connectionId) {
-        update(connectionId, connection -> connection.setStatus(ConnectionStatus.SYNCING));
+    public boolean markSyncing(UUID connectionId) {
+        return update(connectionId, connection -> connection.setStatus(ConnectionStatus.SYNCING));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public boolean lockForWrite(UUID connectionId) {
+        return repository.findLockedById(connectionId).isPresent();
     }
 
     @Override
@@ -87,11 +94,16 @@ class JpaConnectionRegistry implements ConnectionRegistry {
         });
     }
 
-    /** A connection unlinked while a sync ran is simply gone: nothing to record. */
-    private void update(UUID connectionId, Consumer<Connection> change) {
-        repository.findById(connectionId).ifPresent(connection -> {
+    /**
+     * Reads the row locked, so an unlink cannot delete it between the read and the update. A
+     * connection unlinked while a sync ran is simply gone: nothing to record, and the result says so.
+     */
+    private boolean update(UUID connectionId, Consumer<Connection> change) {
+        Optional<Connection> found = repository.findLockedById(connectionId);
+        found.ifPresent(connection -> {
             change.accept(connection);
             connection.setUpdatedAt(clock.instant());
         });
+        return found.isPresent();
     }
 }

@@ -81,11 +81,10 @@ public class SyncService {
 
     private SyncOutcome execute(UUID connectionId, SyncTrigger trigger) {
         Optional<LinkedConnection> found = registry.find(connectionId);
-        if (found.isEmpty()) {
-            return SyncOutcome.skipped("connection.gone");
+        if (found.isEmpty() || !registry.markSyncing(connectionId)) {
+            return connectionGone(connectionId, trigger);
         }
         LinkedConnection connection = found.get();
-        registry.markSyncing(connectionId);
 
         ProviderItem item = provider.findItem(connection.providerItemId());
         if (ProviderItemStatus.NEEDS_USER_ACTION.equals(item.status())) {
@@ -105,10 +104,20 @@ public class SyncService {
                 .toList();
         List<ProviderInvestment> investments = provider.listInvestments(connection.providerItemId());
 
-        BankingSyncResult result = writer.write(connection, item, today, accounts, investments);
+        Optional<BankingSyncResult> written = writer.write(connection, item, today, accounts, investments);
+        if (written.isEmpty()) {
+            return connectionGone(connectionId, trigger);
+        }
+        BankingSyncResult result = written.get();
         log.info("[SYNC] Connection {} ({}): {} accounts, {} transactions upserted, {} removed",
                 connectionId, trigger, result.accounts(), result.transactionsUpserted(), result.transactionsDeleted());
         return SyncOutcome.succeeded(result.accounts(), result.transactionsUpserted(), result.transactionsDeleted());
+    }
+
+    /** Unlinking mid-sync is a normal user action, not a failure. */
+    private static SyncOutcome connectionGone(UUID connectionId, SyncTrigger trigger) {
+        log.info("[SYNC] Connection {} ({}) was unlinked; sync stopped", connectionId, trigger);
+        return SyncOutcome.skipped("connection.gone");
     }
 
     private static boolean nothingNew(LinkedConnection connection, ProviderItem item) {

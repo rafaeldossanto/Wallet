@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * The only transactional step of a sync. Everything was already read from the provider, so the
@@ -29,13 +30,21 @@ class SyncWriter {
     private final ConnectionRegistry registry;
     private final Clock clock;
 
+    /**
+     * Empty when the connection was unlinked while the sync read from the provider: nothing is
+     * written. Otherwise the connection stays locked until the write commits, so an unlink waits for
+     * it and then cascades over everything written.
+     */
     @Transactional
-    public BankingSyncResult write(LinkedConnection connection, ProviderItem item, LocalDate today,
-                                   List<AccountSyncData> accounts, List<ProviderInvestment> investments) {
+    public Optional<BankingSyncResult> write(LinkedConnection connection, ProviderItem item, LocalDate today,
+                                             List<AccountSyncData> accounts, List<ProviderInvestment> investments) {
+        if (!registry.lockForWrite(connection.id())) {
+            return Optional.empty();
+        }
         BankingSyncResult result = bankingSync.apply(connection.id(), connection.userId(), today, accounts);
         investmentSync.apply(connection.id(), connection.userId(), today, investments);
         registry.recordSyncSucceeded(connection.id(), item.lastUpdatedAt(), clock.instant(),
                 item.institutionName(), item.institutionImageUrl(), item.consentExpiresAt());
-        return result;
+        return Optional.of(result);
     }
 }

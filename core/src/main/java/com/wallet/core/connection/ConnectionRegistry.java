@@ -18,7 +18,15 @@ public interface ConnectionRegistry {
 
     List<LinkedConnection> findByUser(UUID userId);
 
-    void markSyncing(UUID connectionId);
+    /** False when the connection was unlinked in the meantime. */
+    boolean markSyncing(UUID connectionId);
+
+    /**
+     * Locks the connection until the caller's transaction ends, so an unlink waits for the sync's
+     * write and then cascades over it instead of racing it. False when the connection is already
+     * gone. Joins the caller's transaction and refuses to run without one.
+     */
+    boolean lockForWrite(UUID connectionId);
 
     void recordSyncSucceeded(UUID connectionId, Instant providerUpdatedAt, Instant syncedAt,
                              String institutionName, String institutionImageUrl, Instant consentExpiresAt);

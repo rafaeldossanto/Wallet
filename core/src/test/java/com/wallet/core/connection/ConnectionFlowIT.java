@@ -7,12 +7,14 @@ import com.wallet.core.provider.FinancialDataProvider;
 import com.wallet.core.provider.ProviderErrors;
 import com.wallet.core.provider.ProviderItem;
 import com.wallet.core.provider.ProviderItemStatus;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
@@ -49,6 +51,9 @@ class ConnectionFlowIT {
     @Autowired
     private ApplicationEvents events;
 
+    @Autowired
+    private JdbcTemplate jdbc;
+
     @MockitoBean
     private FinancialDataProvider provider;
 
@@ -59,6 +64,26 @@ class ConnectionFlowIT {
     void setUp() throws Exception {
         mockMvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
         userId = TestUsers.register(mockMvc);
+    }
+
+    /**
+     * Linking starts the first sync in the background. Left running, it would reach the provider
+     * mock after Mockito reset it between tests, get null for the item and fail with an error.
+     */
+    @AfterEach
+    void awaitFirstSyncs() throws InterruptedException {
+        for (int attempt = 0; attempt < 200; attempt++) {
+            Integer pending = jdbc.queryForObject("""
+                    select count(*) from connections c
+                     where c.user_id = ?
+                       and not exists (select 1 from sync_runs r where r.connection_id = c.id and r.status <> 'RUNNING')
+                    """, Integer.class, userId);
+            if (pending == 0) {
+                return;
+            }
+            Thread.sleep(50);
+        }
+        throw new AssertionError("The first sync of a connection of user " + userId + " did not finish");
     }
 
     @Test

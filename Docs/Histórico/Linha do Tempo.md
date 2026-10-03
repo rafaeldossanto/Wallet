@@ -1,6 +1,6 @@
 ---
 tags: [historico]
-atualizado: 2026-10-02
+atualizado: 2026-10-03
 ---
 
 # Linha do Tempo
@@ -74,3 +74,10 @@ atualizado: 2026-10-02
   contas; o gráfico de patrimônio desenhava seis meses de zeros. Todos corrigidos e com
   teste. Ver [[BFF]] e [[Plano de Implementação]].
 - Próximo passo depende do Rafael: T02 (Meu Pluggy com dados reais). Depois, o backlog.
+
+## 2026-10-03
+
+- Desvincular uma conexão no meio da sincronização deixou de gerar `ERROR` no log: a
+  sincronização percebe que a conexão sumiu ao marcar `SYNCING` e antes de gravar, para
+  com `INFO` e não grava nada. Dois testes de integração reproduzem as duas corridas. Ver
+  [[Sincronização]].

@@ -2,7 +2,6 @@ package com.wallet.core.sync.service;
 
 import com.wallet.core.sync.SyncTrigger;
 import com.wallet.core.sync.config.SyncProperties;
-import com.wallet.core.sync.repository.SyncRunRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -27,7 +26,6 @@ import java.util.UUID;
 class SyncRunRecorder {
 
     private final JdbcTemplate jdbcTemplate;
-    private final SyncRunRepository repository;
     private final SyncProperties properties;
     private final Clock clock;
 
@@ -54,16 +52,18 @@ class SyncRunRecorder {
         }
     }
 
+    /**
+     * A plain {@code UPDATE}: when the connection was unlinked mid-sync its runs went with it (the
+     * delete cascades), and there is nothing left to close.
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void finish(UUID runId, SyncOutcome outcome) {
-        repository.findById(runId).ifPresent(run -> {
-            run.setStatus(outcome.status());
-            run.setErrorCode(outcome.errorCode());
-            run.setFinishedAt(clock.instant());
-            run.setAccountsCount(outcome.accounts());
-            run.setTransactionsUpserted(outcome.transactionsUpserted());
-            run.setTransactionsDeleted(outcome.transactionsDeleted());
-        });
+        jdbcTemplate.update("""
+                UPDATE sync_runs SET status = ?, error_code = ?, finished_at = ?, accounts_count = ?,
+                                     transactions_upserted = ?, transactions_deleted = ?
+                 WHERE id = ?
+                """, outcome.status().name(), outcome.errorCode(), Timestamp.from(clock.instant()),
+                outcome.accounts(), outcome.transactionsUpserted(), outcome.transactionsDeleted(), runId);
     }
 
     private void releaseStaleRun(UUID connectionId, Instant now) {
