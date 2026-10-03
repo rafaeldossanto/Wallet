@@ -49,6 +49,28 @@ class DemoPluggyCompatibilityTest {
         demo.close();
     }
 
+    /** Every item the README lists reads cleanly, and each bank adds up: card limit, positive accounts, recent spending. */
+    @Test
+    void everyItemReadsThroughTheAdapter() {
+        for (String itemId : DemoPluggy.ITEMS) {
+            assertThat(provider.findItem(itemId).status()).as(itemId).isEqualTo(ProviderItemStatus.READY);
+            List<ProviderAccount> accounts = provider.listAccounts(itemId);
+            List<ProviderInvestment> investments = provider.listInvestments(itemId);
+            assertThat(accounts.isEmpty() && investments.isEmpty()).as(itemId + " has nothing").isFalse();
+            for (ProviderAccount account : accounts) {
+                if (AccountKind.CREDIT_CARD.equals(account.kind())) {
+                    assertThat(account.availableCredit().plus(account.balance())).as(account.id()).isEqualTo(account.creditLimit());
+                    assertThat(provider.listBills(account.id())).as(account.id()).isNotEmpty();
+                } else {
+                    assertThat(account.balance().amount()).as(account.id()).isPositive();
+                }
+                assertThat(provider.listTransactions(account.id(), account.kind(), TODAY.minusDays(30), TODAY))
+                        .as(account.id()).isNotEmpty();
+            }
+        }
+        assertThat(provider.findItem(DemoPluggy.NUBANK_ITEM).institutionName()).isEqualTo("Nubank");
+    }
+
     @Test
     void bothItemsAreReadyAndUnknownOnesAreNotFound() {
         assertThat(provider.findItem(DemoPluggy.BANK_ITEM).institutionName()).isEqualTo("Banco Demo");

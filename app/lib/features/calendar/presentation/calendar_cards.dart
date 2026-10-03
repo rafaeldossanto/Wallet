@@ -106,6 +106,8 @@ class _MonthStepper extends StatelessWidget {
 class _MonthGrid extends StatelessWidget {
   const _MonthGrid({required this.controller, required this.calendar});
 
+  static const maxGridWidth = 380.0;
+
   final CalendarController controller;
   final CalendarMonth calendar;
 
@@ -124,33 +126,43 @@ class _MonthGrid extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            for (final weekday in weekdays)
-              Expanded(
-                child: Text(weekday.toUpperCase(),
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.labelSmall?.copyWith(color: onFeature.withValues(alpha: 0.7))),
-              ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        GridView.count(
-          crossAxisCount: 7,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          mainAxisSpacing: 4,
-          crossAxisSpacing: 4,
-          children: [
-            for (var blank = 0; blank < leading; blank++) const SizedBox.shrink(),
-            for (var day = 1; day <= daysInMonth; day++)
-              _DayCell(
-                date: DateTime(month.year, month.month, day),
-                spending: calendar.dayOf(DateTime(month.year, month.month, day)),
-                busiest: busiest,
-                controller: controller,
-              ),
-          ],
+        // Days the size of a button, however wide the card gets.
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: maxGridWidth),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    for (final weekday in weekdays)
+                      Expanded(
+                        child: Text(weekday.toUpperCase(),
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.labelSmall?.copyWith(color: onFeature.withValues(alpha: 0.7))),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                GridView.count(
+                  crossAxisCount: 7,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 4,
+                  crossAxisSpacing: 4,
+                  children: [
+                    for (var blank = 0; blank < leading; blank++) const SizedBox.shrink(),
+                    for (var day = 1; day <= daysInMonth; day++)
+                      _DayCell(
+                        date: DateTime(month.year, month.month, day),
+                        spending: calendar.dayOf(DateTime(month.year, month.month, day)),
+                        busiest: busiest,
+                        controller: controller,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
         const SizedBox(height: 12),
         Row(
@@ -163,6 +175,11 @@ class _MonthGrid extends StatelessWidget {
             ),
             MoneyText(calendar.total, style: theme.textTheme.titleMedium?.copyWith(color: onFeature)),
           ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          controller.selected == null ? l10n.calendarHintPick : l10n.calendarHintUnpick,
+          style: theme.textTheme.labelSmall?.copyWith(color: onFeature.withValues(alpha: 0.65)),
         ),
       ],
     );
@@ -204,7 +221,7 @@ class _DayCell extends StatelessWidget {
         message: future ? '' : label,
         child: InkWell(
           customBorder: const CircleBorder(),
-          onTap: future ? null : () => controller.select(date),
+          onTap: future ? null : () => controller.toggle(date),
           child: Container(
             alignment: Alignment.center,
             decoration: BoxDecoration(
@@ -226,9 +243,10 @@ class _DayCell extends StatelessWidget {
   }
 }
 
-/// What was spent on the picked day, each line with its bank and account.
-class DaySpendingCard extends StatelessWidget {
-  const DaySpendingCard({super.key});
+/// What was spent in the period the calendar shows: the picked day, or the whole month when no
+/// day is picked; each line with its bank and account.
+class SpendingListCard extends StatelessWidget {
+  const SpendingListCard({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -240,48 +258,66 @@ class DaySpendingCard extends StatelessWidget {
       Loaded<CalendarMonth>(:final value) => value,
       _ => null,
     };
-    final dayTotal = selected == null ? null : calendar?.dayOf(selected)?.total;
+    final total = selected == null ? calendar?.total : calendar?.dayOf(selected)?.total;
+    final moreError = controller.moreError;
     return SectionCard(
-      title: selected == null ? l10n.calendarNoDay : l10n.calendarDayTitle(Dates.dayHeader(selected, l10n)),
-      trailing: dayTotal == null ? null : MoneyText(dayTotal, inflow: false, style: theme.textTheme.titleMedium),
+      title: l10n.calendarListTitle(
+          selected == null ? Dates.month(controller.month) : Dates.dayHeader(selected, l10n, now: controller.today)),
+      trailing: total == null || total.isZero ? null : MoneyText(total, inflow: false, style: theme.textTheme.titleMedium),
       flush: true,
-      child: switch (controller.dayState) {
-        null => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(calendar == null ? '' : l10n.calendarMonthEmpty),
-          ),
-        Loading<DaySpending>() => const Padding(
+      child: switch (controller.listState) {
+        Loading<List<SpendingItem>>() => const Padding(
             padding: EdgeInsets.all(24),
             child: Center(child: CircularProgressIndicator()),
           ),
-        Failed<DaySpending>(:final error) => Padding(
+        Failed<List<SpendingItem>>(:final error) => Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
                 Expanded(child: Text(l10n.errorMessage(error))),
-                TextButton(onPressed: () => controller.select(selected!), child: Text(l10n.actionRetry)),
+                TextButton(onPressed: controller.refresh, child: Text(l10n.actionRetry)),
               ],
             ),
           ),
-        Loaded<DaySpending>(:final value) => value.items.isEmpty
-            ? Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text(l10n.calendarDayEmpty))
-            : Column(children: [for (final item in value.items) _DayItemTile(item: item)]),
+        Loaded<List<SpendingItem>>(:final value) => value.isEmpty
+            ? Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(selected == null ? l10n.calendarMonthEmpty : l10n.calendarDayEmpty),
+              )
+            : Column(
+                children: [
+                  for (final item in value) _SpendingItemTile(item: item, showDate: selected == null),
+                  if (controller.isLoadingMore)
+                    const Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator())
+                  else if (moreError != null)
+                    TextButton(onPressed: controller.loadMore, child: Text(l10n.errorMessage(moreError)))
+                  else if (controller.hasMore)
+                    TextButton(onPressed: controller.loadMore, child: Text(l10n.actionSeeMore)),
+                ],
+              ),
       },
     );
   }
 }
 
-class _DayItemTile extends StatelessWidget {
-  const _DayItemTile({required this.item});
+class _SpendingItemTile extends StatelessWidget {
+  const _SpendingItemTile({required this.item, required this.showDate});
 
-  final DaySpendingItem item;
+  final SpendingItem item;
+
+  /// Over a month each line says its day; within a day it would only repeat the title.
+  final bool showDate;
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final where = [?item.institutionName, ?item.accountName].join(' · ');
-    final details = [if (where.isNotEmpty) where, Categories.label(item.category)].join(' · ');
+    final details = [
+      if (showDate) Dates.dayMonth(item.bookedOn),
+      if (where.isNotEmpty) where,
+      Categories.label(item.category),
+    ].join(' · ');
     final installment = item.installment;
     return ListTile(
       leading: InstitutionAvatar(name: item.institutionName ?? item.accountName, imageUrl: item.institutionImageUrl),

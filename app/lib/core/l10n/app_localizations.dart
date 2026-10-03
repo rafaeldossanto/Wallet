@@ -124,6 +124,12 @@ abstract class AppLocalizations {
   /// **'Ver todos'**
   String get actionSeeAll;
 
+  /// No description provided for @actionSeeMore.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ver mais'**
+  String get actionSeeMore;
+
   /// No description provided for @navOverview.
   ///
   /// In pt, this message translates to:
@@ -478,17 +484,23 @@ abstract class AppLocalizations {
   /// **'{date}: nenhum gasto'**
   String calendarDayNoSpending(String date);
 
-  /// No description provided for @calendarDayTitle.
+  /// No description provided for @calendarListTitle.
   ///
   /// In pt, this message translates to:
-  /// **'Gastos · {day}'**
-  String calendarDayTitle(String day);
+  /// **'Gastos · {period}'**
+  String calendarListTitle(String period);
 
-  /// No description provided for @calendarNoDay.
+  /// No description provided for @calendarHintPick.
   ///
   /// In pt, this message translates to:
-  /// **'Gastos do dia'**
-  String get calendarNoDay;
+  /// **'Toque num dia para ver só os gastos dele.'**
+  String get calendarHintPick;
+
+  /// No description provided for @calendarHintUnpick.
+  ///
+  /// In pt, this message translates to:
+  /// **'Toque de novo no dia para voltar ao mês inteiro.'**
+  String get calendarHintUnpick;
 
   /// No description provided for @calendarMonthEmpty.
   ///

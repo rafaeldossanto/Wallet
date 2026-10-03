@@ -16,7 +16,7 @@ import static org.springframework.util.StringUtils.hasText;
  * {@code ./mvnw spring-boot:test-run}.
  *
  * <p>Without {@code PLUGGY_CLIENT_ID} it also starts {@link DemoPluggy}, so the app can link
- * {@value DemoPluggy#BANK_ITEM} and {@value DemoPluggy#BROKER_ITEM} and show synthetic data.
+ * the items in {@link DemoPluggy#ITEMS} (demo-nubank, demo-itau, demo-xp...) and show synthetic data.
  * With the variable set, it talks to the real Pluggy.
  */
 @Slf4j
@@ -27,8 +27,8 @@ public class TestCoreApplication {
         if (!hasText(System.getenv("PLUGGY_CLIENT_ID"))) {
             DemoPluggy pluggy = DemoPluggy.start(Clock.systemUTC());
             Runtime.getRuntime().addShutdownHook(new Thread(pluggy::close));
-            log.warn("PLUGGY_CLIENT_ID not set: demo Pluggy with synthetic data at {}. Link items {} and {} in the app.",
-                    pluggy.baseUrl(), DemoPluggy.BANK_ITEM, DemoPluggy.BROKER_ITEM);
+            log.warn("PLUGGY_CLIENT_ID not set: demo Pluggy with synthetic data at {}. Link items {} in the app.",
+                    pluggy.baseUrl(), String.join(", ", DemoPluggy.ITEMS));
             arguments = Stream.concat(Arrays.stream(args), Stream.of(
                     "--wallet.pluggy.base-url=" + pluggy.baseUrl(),
                     "--wallet.pluggy.client-id=demo",

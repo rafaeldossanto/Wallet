@@ -62,7 +62,7 @@ class OverviewScreen extends StatelessWidget {
                                   action: FilledButton(
                                       onPressed: () => context.go('/connections'), child: Text(l10n.overviewConnectFirst)),
                                 )
-                              : _Dashboard(data: value, wide: wide),
+                              : _Dashboard(data: value, wide: wide, medium: constraints.maxWidth >= 720),
                         },
                       ],
                     ),
@@ -114,10 +114,13 @@ class _Header extends StatelessWidget {
 }
 
 class _Dashboard extends StatelessWidget {
-  const _Dashboard({required this.data, required this.wide});
+  const _Dashboard({required this.data, required this.wide, required this.medium});
 
   final HomeData data;
   final bool wide;
+
+  /// Room for the calendar and the day side by side, but not for two full columns.
+  final bool medium;
 
   @override
   Widget build(BuildContext context) {
@@ -126,7 +129,7 @@ class _Dashboard extends StatelessWidget {
     final netWorth = _NetWorthCard(data: data);
     final month = _MonthCard(data: data);
     const calendar = SpendingCalendarCard();
-    const day = DaySpendingCard();
+    const day = SpendingListCard();
     final accounts = _AccountsCard(data: data);
     final cards = _CardsCard(data: data);
     final recent = _RecentTransactionsCard(data: data);
@@ -143,6 +146,22 @@ class _Dashboard extends StatelessWidget {
               Expanded(flex: 2, child: Column(children: [calendar, gap, day, gap, cards])),
             ],
           )
+        else if (medium) ...[
+          netWorth,
+          gap,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [const Expanded(child: calendar), const SizedBox(width: 16), const Expanded(child: day)],
+          ),
+          gap,
+          month,
+          gap,
+          cards,
+          gap,
+          accounts,
+          gap,
+          recent,
+        ]
         else ...[netWorth, gap, calendar, gap, day, gap, month, gap, cards, gap, accounts, gap, recent],
       ],
     );

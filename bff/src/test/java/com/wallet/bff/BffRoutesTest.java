@@ -416,14 +416,18 @@ class BffRoutesTest extends BffTestSupport {
     }
 
     @Test
-    void aDayOfTheCalendarComesWithAccountAndBankNames() throws Exception {
+    void aPeriodOfTheCalendarComesWithAccountAndBankNames() throws Exception {
         stubHome();
         CORE.stubFor(WireMock.get(urlPathEqualTo("/internal/transactions")).withQueryParam("spending", equalTo("true"))
                 .willReturn(okJson(spendingPage("SUPERMERCADO", "210.45"))));
 
-        mockMvc.perform(get("/api/calendar/2026-09-30").header(HttpHeaders.AUTHORIZATION, bearer(UUID.randomUUID())))
+        mockMvc.perform(get("/api/calendar/spending").queryParam("from", "2026-09-01").queryParam("to", "2026-09-30")
+                        .queryParam("page", "2").header(HttpHeaders.AUTHORIZATION, bearer(UUID.randomUUID())))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.date").value("2026-09-30"))
+                .andExpect(jsonPath("$.from").value("2026-09-01"))
+                .andExpect(jsonPath("$.to").value("2026-09-30"))
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.items[0].bookedOn").value("2026-09-30"))
                 .andExpect(jsonPath("$.items", hasSize(1)))
                 .andExpect(jsonPath("$.items[0].description").value("SUPERMERCADO"))
                 .andExpect(jsonPath("$.items[0].amount").value("210.45"))
@@ -431,10 +435,11 @@ class BffRoutesTest extends BffTestSupport {
                 .andExpect(jsonPath("$.items[0].institutionName").value("Banco Teste"));
 
         CORE.verify(getRequestedFor(urlPathEqualTo("/internal/transactions"))
-                .withQueryParam("from", equalTo("2026-09-30"))
+                .withQueryParam("from", equalTo("2026-09-01"))
                 .withQueryParam("to", equalTo("2026-09-30"))
                 .withQueryParam("spending", equalTo("true"))
-                .withQueryParam("pageSize", equalTo("200")));
+                .withQueryParam("page", equalTo("2"))
+                .withQueryParam("pageSize", equalTo("50")));
     }
 
     @Test
@@ -444,15 +449,16 @@ class BffRoutesTest extends BffTestSupport {
         CORE.stubFor(WireMock.get(urlPathEqualTo("/internal/transactions")).withQueryParam("spending", equalTo("true"))
                 .willReturn(okJson(spendingPage("SUPERMERCADO", "210.45"))));
 
-        mockMvc.perform(get("/api/calendar/2026-09-30").header(HttpHeaders.AUTHORIZATION, bearer(UUID.randomUUID())))
+        mockMvc.perform(get("/api/calendar/spending").queryParam("from", "2026-09-30").queryParam("to", "2026-09-30")
+                        .header(HttpHeaders.AUTHORIZATION, bearer(UUID.randomUUID())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].accountName").value("Conta Corrente"))
                 .andExpect(jsonPath("$.items[0].institutionName").value(nullValue()));
     }
 
     @Test
-    void aDayThatIsNotADateIsRefusedHere() throws Exception {
-        mockMvc.perform(get("/api/calendar/ontem").header(HttpHeaders.AUTHORIZATION, bearer(UUID.randomUUID())))
+    void aPeriodThatIsNotADateIsRefusedHere() throws Exception {
+        mockMvc.perform(get("/api/calendar/spending").queryParam("from", "ontem").queryParam("to", "2026-09-30").header(HttpHeaders.AUTHORIZATION, bearer(UUID.randomUUID())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("request.invalid_parameter"));
     }

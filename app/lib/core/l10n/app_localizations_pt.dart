@@ -25,6 +25,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get actionSeeAll => 'Ver todos';
 
   @override
+  String get actionSeeMore => 'Ver mais';
+
+  @override
   String get navOverview => 'Início';
 
   @override
@@ -253,12 +256,16 @@ class AppLocalizationsPt extends AppLocalizations {
   }
 
   @override
-  String calendarDayTitle(String day) {
-    return 'Gastos · $day';
+  String calendarListTitle(String period) {
+    return 'Gastos · $period';
   }
 
   @override
-  String get calendarNoDay => 'Gastos do dia';
+  String get calendarHintPick => 'Toque num dia para ver só os gastos dele.';
+
+  @override
+  String get calendarHintUnpick =>
+      'Toque de novo no dia para voltar ao mês inteiro.';
 
   @override
   String get calendarMonthEmpty => 'Nenhum gasto neste mês.';

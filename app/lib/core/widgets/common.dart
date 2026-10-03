@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../format/institution_colors.dart';
 import '../l10n/l10n.dart';
 import '../money/money.dart';
 import '../theme/app_theme.dart';
@@ -108,7 +109,7 @@ class InstitutionAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final colors = InstitutionColors.of(name);
     final initials = (name ?? '?')
         .split(RegExp(r'\s+'))
         .where((word) => word.isNotEmpty)
@@ -118,10 +119,10 @@ class InstitutionAvatar extends StatelessWidget {
     final url = imageUrl;
     return CircleAvatar(
       radius: radius,
-      backgroundColor: scheme.primaryContainer,
-      foregroundColor: scheme.onPrimaryContainer,
+      backgroundColor: colors.background,
+      foregroundColor: colors.foreground,
       foregroundImage: url == null || url.endsWith('.svg') ? null : NetworkImage(url),
-      child: Text(initials, style: TextStyle(fontSize: radius * 0.7)),
+      child: Text(initials, style: TextStyle(fontSize: radius * 0.7, fontWeight: FontWeight.w700)),
     );
   }
 }

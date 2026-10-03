@@ -5,14 +5,16 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * What was spent on one day, each item with the account and the bank it came from. The day's
- * total is the calendar's: the BFF does no arithmetic with money.
+ * What was spent in a period (a day or a whole month), a page at a time, each item with the
+ * account and the bank it came from. The period's total is the calendar's: the BFF does no
+ * arithmetic with money.
  */
-public record DaySpendingResponse(LocalDate date, List<Item> items) {
+public record SpendingListResponse(LocalDate from, LocalDate to, int page, int totalPages, long total, List<Item> items) {
 
     public record Item(
             UUID id,
             UUID accountId,
+            LocalDate bookedOn,
             String accountName,
             String institutionName,
             String institutionImageUrl,

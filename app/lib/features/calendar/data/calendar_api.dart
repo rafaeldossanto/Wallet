@@ -41,9 +41,10 @@ class CalendarMonth {
   }
 }
 
-class DaySpendingItem {
-  const DaySpendingItem({
+class SpendingItem {
+  const SpendingItem({
     required this.id,
+    required this.bookedOn,
     required this.description,
     required this.amount,
     required this.pending,
@@ -55,8 +56,9 @@ class DaySpendingItem {
     this.installmentTotal,
   });
 
-  factory DaySpendingItem.fromJson(Json json) => DaySpendingItem(
+  factory SpendingItem.fromJson(Json json) => SpendingItem(
         id: json.string('id'),
+        bookedOn: json.date('bookedOn'),
         description: json.stringOrNull('description') ?? '',
         amount: json.money('amount'),
         pending: json.stringOrNull('status') == 'PENDING',
@@ -69,6 +71,7 @@ class DaySpendingItem {
       );
 
   final String id;
+  final DateTime bookedOn;
   final String description;
   final Money amount;
   final bool pending;
@@ -83,16 +86,23 @@ class DaySpendingItem {
       installmentNumber == null || installmentTotal == null ? null : '$installmentNumber/$installmentTotal';
 }
 
-class DaySpending {
-  const DaySpending({required this.date, required this.items});
+/// One page of a period's spending (a day, or the whole month), newest first.
+class SpendingPage {
+  const SpendingPage({required this.items, required this.page, required this.totalPages, required this.total});
 
-  factory DaySpending.fromJson(Json json) => DaySpending(
-        date: json.date('date'),
-        items: [for (final item in json.list('items')) DaySpendingItem.fromJson(item)],
+  factory SpendingPage.fromJson(Json json) => SpendingPage(
+        items: [for (final item in json.list('items')) SpendingItem.fromJson(item)],
+        page: json.integer('page'),
+        totalPages: json.integer('totalPages'),
+        total: json.integer('total'),
       );
 
-  final DateTime date;
-  final List<DaySpendingItem> items;
+  final List<SpendingItem> items;
+  final int page;
+  final int totalPages;
+  final int total;
+
+  bool get hasMore => page < totalPages;
 }
 
 class CalendarApi {
@@ -103,5 +113,6 @@ class CalendarApi {
   Future<CalendarMonth> month(DateTime month) async =>
       CalendarMonth.fromJson(Json.of(await _api.get('/api/calendar', query: {'month': Dates.isoMonth(month)})));
 
-  Future<DaySpending> day(DateTime day) async => DaySpending.fromJson(Json.of(await _api.get('/api/calendar/${Dates.iso(day)}')));
+  Future<SpendingPage> spending(DateTime from, DateTime to, {required int page}) async => SpendingPage.fromJson(Json.of(
+      await _api.get('/api/calendar/spending', query: {'from': Dates.iso(from), 'to': Dates.iso(to), 'page': page})));
 }

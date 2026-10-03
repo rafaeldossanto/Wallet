@@ -7,6 +7,7 @@
   "actionRefresh": "Atualizar",
   "actionRetry": "Tentar de novo",
   "actionSeeAll": "Ver todos",
+  "actionSeeMore": "Ver mais",
 
   "navOverview": "Início",
   "navTransactions": "Extrato",
@@ -84,9 +85,10 @@
   "@calendarDaySpending": {"placeholders": {"date": {"type": "String"}, "amount": {"type": "String"}}},
   "calendarDayNoSpending": "{date}: nenhum gasto",
   "@calendarDayNoSpending": {"placeholders": {"date": {"type": "String"}}},
-  "calendarDayTitle": "Gastos · {day}",
-  "@calendarDayTitle": {"placeholders": {"day": {"type": "String"}}},
-  "calendarNoDay": "Gastos do dia",
+  "calendarListTitle": "Gastos · {period}",
+  "@calendarListTitle": {"placeholders": {"period": {"type": "String"}}},
+  "calendarHintPick": "Toque num dia para ver só os gastos dele.",
+  "calendarHintUnpick": "Toque de novo no dia para voltar ao mês inteiro.",
   "calendarMonthEmpty": "Nenhum gasto neste mês.",
   "calendarDayEmpty": "Nenhum gasto neste dia.",
 
