@@ -27,8 +27,8 @@ public class ConnectionController {
     private final ConnectionService connectionService;
 
     @GetMapping
-    public List<ConnectionResponse> list() {
-        return connectionService.list();
+    public List<ConnectionResponse> list(@CurrentUserId UUID userId) {
+        return connectionService.list(userId);
     }
 
     @PostMapping

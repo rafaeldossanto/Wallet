@@ -4,6 +4,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -18,12 +19,29 @@ import static java.util.Objects.nonNull;
 public class ScreenCache {
 
     private final Cache<Key, Object> cache;
+    private final Cache<UUID, String> syncStates;
 
     public ScreenCache(CacheProperties properties) {
         this.cache = Caffeine.newBuilder()
                 .expireAfterWrite(properties.screenTtl())
                 .maximumSize(10_000)
                 .build();
+        this.syncStates = Caffeine.newBuilder()
+                .expireAfterAccess(Duration.ofDays(1))
+                .maximumSize(10_000)
+                .build();
+    }
+
+    /**
+     * Syncs finish in the core's background, where the BFF cannot see them. Every look at the
+     * user's connections passes their state here (ids, last sync, status); when it differs from
+     * the last look, a sync landed and the user's screens are stale.
+     */
+    public void noteSyncState(UUID userId, String state) {
+        String previous = syncStates.asMap().put(userId, state);
+        if (!state.equals(previous)) {
+            evictUser(userId);
+        }
     }
 
     public <T> T get(UUID userId, String screen, String variant, Supplier<T> loader) {

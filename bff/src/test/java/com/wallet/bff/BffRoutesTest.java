@@ -291,6 +291,43 @@ class BffRoutesTest extends BffTestSupport {
         CORE.verify(2, getRequestedFor(urlEqualTo("/internal/overview")));
     }
 
+    /** Found running the app against the demo Pluggy: the home cached mid-sync stayed empty for a minute. */
+    @Test
+    void homeDuringAConnectionsFirstSyncIsNotCached() throws Exception {
+        stubHome();
+        CORE.stubFor(WireMock.get(urlEqualTo("/internal/connections"))
+                .willReturn(okJson("[" + connectionJson("SYNCING", null) + "]")));
+        String rafael = bearer(UUID.randomUUID());
+
+        home(rafael);
+        home(rafael);
+
+        CORE.verify(2, getRequestedFor(urlEqualTo("/internal/overview")));
+    }
+
+    /**
+     * The BFF cannot see a background sync finish, but the app lists the connections while it
+     * waits: a changed last sync there drops the user's cached screens.
+     */
+    @Test
+    void aSyncThatLandsInTheBackgroundDropsTheCachedScreens() throws Exception {
+        stubHome();
+        String rafael = bearer(UUID.randomUUID());
+        home(rafael);
+        home(rafael);
+        CORE.verify(1, getRequestedFor(urlEqualTo("/internal/overview")));
+
+        CORE.stubFor(WireMock.get(urlEqualTo("/internal/connections"))
+                .willReturn(okJson("[" + connectionJson("ACTIVE", "2026-10-01T15:00:00Z") + "]")));
+        mockMvc.perform(get("/api/connections").header(HttpHeaders.AUTHORIZATION, rafael)).andExpect(status().isOk());
+        home(rafael);
+        CORE.verify(2, getRequestedFor(urlEqualTo("/internal/overview")));
+
+        mockMvc.perform(get("/api/connections").header(HttpHeaders.AUTHORIZATION, rafael)).andExpect(status().isOk());
+        home(rafael);
+        CORE.verify(2, getRequestedFor(urlEqualTo("/internal/overview")));
+    }
+
     // ---- other screens -----------------------------------------------------------------------
 
     @Test
@@ -359,6 +396,22 @@ class BffRoutesTest extends BffTestSupport {
                 .andExpect(jsonPath("$.total").value("5000.00"));
     }
 
+    /** The statement's account filter: every account, cards included, cached like the other screens. */
+    @Test
+    void accountsAreRelayedAndCachedPerUser() throws Exception {
+        stubHome();
+        String rafael = bearer(UUID.randomUUID());
+
+        for (int call = 0; call < 2; call++) {
+            mockMvc.perform(get("/api/accounts").header(HttpHeaders.AUTHORIZATION, rafael))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$", hasSize(2)))
+                    .andExpect(jsonPath("$[1].kind").value("CREDIT_CARD"));
+        }
+
+        CORE.verify(1, getRequestedFor(urlEqualTo("/internal/accounts")));
+    }
+
     @Test
     void linkingAndUnlinkingAreRelayed() throws Exception {
         CORE.stubFor(WireMock.post(urlEqualTo("/internal/connections")).willReturn(aResponse()
@@ -424,9 +477,13 @@ class BffRoutesTest extends BffTestSupport {
     }
 
     private static String connectionJson() {
+        return connectionJson("ACTIVE", "2026-10-01T09:00:00Z");
+    }
+
+    private static String connectionJson(String status, String lastSyncedAt) {
         return """
                 {"id":"%s","institutionName":"Banco Teste","institutionImageUrl":"https://example.com/logo.png",
-                 "status":"ACTIVE","lastSyncedAt":"2026-10-01T09:00:00Z","createdAt":"2026-09-01T12:00:00Z"}
-                """.formatted(CONNECTION_ID);
+                 "status":"%s","lastSyncedAt":%s,"createdAt":"2026-09-01T12:00:00Z"}
+                """.formatted(CONNECTION_ID, status, lastSyncedAt == null ? "null" : "\"" + lastSyncedAt + "\"");
     }
 }

@@ -28,6 +28,7 @@ import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
 
 /**
  * The home screen: five calls to the core in parallel, one answer to the app. A failed part leaves
@@ -48,10 +49,10 @@ public class HomeService {
     private final Clock clock;
 
     public HomeResponse home(UUID userId) {
-        return cache.get(userId, SCREEN, "", this::compose, HomeResponse::isComplete);
+        return cache.get(userId, SCREEN, "", () -> compose(userId), HomeResponse::isCacheable);
     }
 
-    private HomeResponse compose() {
+    private HomeResponse compose(UUID userId) {
         LocalDate today = ClockConfig.today(clock);
         CompletableFuture<OverviewResponse> overview = executor.supply(coreApi::overview);
         CompletableFuture<List<AccountResponse>> accounts = executor.supply(coreApi::accounts);
@@ -72,6 +73,9 @@ public class HomeService {
 
         if (failures.size() == 5) {
             throw failures.getFirst();
+        }
+        if (nonNull(connectionsPart)) {
+            cache.noteSyncState(userId, SyncStates.of(connectionsPart));
         }
         return new HomeResponse(
                 overviewPart,

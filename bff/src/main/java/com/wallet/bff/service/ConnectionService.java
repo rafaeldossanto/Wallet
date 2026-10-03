@@ -19,8 +19,14 @@ public class ConnectionService {
     private final CoreApi coreApi;
     private final ScreenCache cache;
 
-    public List<ConnectionResponse> list() {
-        return coreApi.connections();
+    /**
+     * Never cached: the app polls this while a sync runs, which is also how the BFF learns that a
+     * sync landed and the user's cached screens are stale.
+     */
+    public List<ConnectionResponse> list(UUID userId) {
+        List<ConnectionResponse> connections = coreApi.connections();
+        cache.noteSyncState(userId, SyncStates.of(connections));
+        return connections;
     }
 
     public ConnectionResponse link(UUID userId, LinkConnectionRequest request) {

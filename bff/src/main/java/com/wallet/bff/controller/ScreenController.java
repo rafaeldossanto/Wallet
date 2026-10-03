@@ -1,6 +1,7 @@
 package com.wallet.bff.controller;
 
 import com.wallet.bff.auth.CurrentUserId;
+import com.wallet.bff.model.dto.response.AccountResponse;
 import com.wallet.bff.model.dto.response.BillResponse;
 import com.wallet.bff.model.dto.response.CreditCardResponse;
 import com.wallet.bff.model.dto.response.InsightsResponse;
@@ -43,6 +44,11 @@ public class ScreenController {
         filters.put("page", page);
         filters.put("pageSize", pageSize);
         return screenService.transactions(filters);
+    }
+
+    @GetMapping("/api/accounts")
+    public List<AccountResponse> accounts(@CurrentUserId UUID userId) {
+        return screenService.accounts(userId);
     }
 
     @GetMapping("/api/cards")

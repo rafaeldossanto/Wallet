@@ -4,6 +4,7 @@ import com.wallet.bff.cache.ScreenCache;
 import com.wallet.bff.client.CoreApi;
 import com.wallet.bff.config.ClockConfig;
 import com.wallet.bff.config.RequestContextExecutor;
+import com.wallet.bff.model.dto.response.AccountResponse;
 import com.wallet.bff.model.dto.response.BillResponse;
 import com.wallet.bff.model.dto.response.CreditCardResponse;
 import com.wallet.bff.model.dto.response.InsightsResponse;
@@ -39,6 +40,11 @@ public class ScreenService {
 
     public PageResponse<TransactionResponse> transactions(Map<String, String> filters) {
         return coreApi.transactions(filters);
+    }
+
+    /** Every account, cards included: the statement's account filter. */
+    public List<AccountResponse> accounts(UUID userId) {
+        return cache.get(userId, "accounts", "", coreApi::accounts);
     }
 
     public List<CreditCardResponse> cards(UUID userId) {
