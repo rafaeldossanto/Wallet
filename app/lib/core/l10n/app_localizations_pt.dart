@@ -419,6 +419,14 @@ class AppLocalizationsPt extends AppLocalizations {
   String get investmentsAllocation => 'Distribuição dos investimentos';
 
   @override
+  String get investmentsAllocationHintPick =>
+      'Toque numa fatia para ver a porcentagem e o valor dela.';
+
+  @override
+  String get investmentsAllocationHintUnpick =>
+      'Toque de novo na fatia para voltar ao total.';
+
+  @override
   String get investmentsEvolution => 'Evolução dos investimentos';
 
   @override

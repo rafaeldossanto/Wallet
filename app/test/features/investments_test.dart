@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -195,9 +196,57 @@ void main() {
       expect(find.text('Renda fixa'), findsNWidgets(2), reason: 'in the legend and over its positions');
       expect(find.text('Ações e ETFs'), findsNWidgets(2));
       expect(find.text('Tesouro Selic 2029'), findsOneWidget, reason: 'the positions by kind stay');
-      expect(tester.getTopLeft(find.text('Evolução dos investimentos')).dy,
-          greaterThan(tester.getTopLeft(find.text('Distribuição dos investimentos')).dy),
-          reason: 'stacked on a phone');
+      expect(tester.widget<PieChart>(find.byType(PieChart)).data.sections.map((section) => section.cornerRadius),
+          everyElement(greaterThan(0)),
+          reason: 'rounded slice ends');
+      final evolution = tester.getTopLeft(find.text('Evolução dos investimentos')).dy;
+      final allocation = tester.getTopLeft(find.text('Distribuição dos investimentos')).dy;
+      final positions = tester.getTopLeft(find.text('Tesouro Selic 2029')).dy;
+      expect(evolution, lessThan(allocation), reason: 'on a phone the evolution comes first, the allocation under it');
+      expect(allocation, lessThan(positions), reason: 'and the positions by kind after both');
+    });
+
+    testWidgets('tapping a slice puts its share and amount in the hole; tapping it again goes back to the total',
+        (tester) async {
+      await openInvestments(tester);
+      final pie = find.byType(PieChart);
+      // Renda fixa is the first slice: 62.5% of the ring, clockwise from three o'clock. Its middle
+      // is at 112.5 degrees, halfway across the ring (hole of 64, ring of 28).
+      const angle = 112.5 * math.pi / 180;
+      final fixedIncome = tester.getCenter(pie) + Offset(math.cos(angle), math.sin(angle)) * (64 + 14);
+
+      await tester.tapAt(fixedIncome);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Total investido'), findsNothing);
+      expect(find.text('62,5%'), findsNWidgets(2), reason: 'in the hole and in the legend');
+      expect(find.text('Renda fixa'), findsNWidgets(3), reason: 'the hole, the legend and over its positions');
+      expect(find.text('Toque de novo na fatia para voltar ao total.'), findsOneWidget);
+      final sections = tester.widget<PieChart>(pie).data.sections;
+      expect(sections.first.radius, greaterThan(sections.last.radius), reason: 'the picked slice stands out');
+
+      await tester.tapAt(fixedIncome);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Total investido'), findsOneWidget);
+      expect(find.text('62,5%'), findsOneWidget);
+      expect(find.text('Toque numa fatia para ver a porcentagem e o valor dela.'), findsOneWidget);
+    });
+
+    testWidgets('the legend picks a kind too, and a tap in the hole goes back to the total', (tester) async {
+      await openInvestments(tester);
+
+      await tester.tap(find.text('Ações e ETFs').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('12,5%'), findsNWidgets(2));
+      expect(find.text('Total investido'), findsNothing);
+
+      await tester.tapAt(tester.getCenter(find.byType(PieChart)));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Total investido'), findsOneWidget);
+      expect(find.text('12,5%'), findsOneWidget);
     });
 
     testWidgets('the evolution starts on six months; picking 1A asks for it and redraws', (tester) async {
@@ -232,13 +281,16 @@ void main() {
       expect(find.byType(LineChart), findsNothing);
     });
 
-    testWidgets('on a wide screen the donut and the evolution sit side by side', (tester) async {
+    testWidgets('on a wide screen the positions by kind sit left of the charts', (tester) async {
       await openInvestments(tester, size: const Size(1280, 1400));
 
       final allocation = tester.getTopLeft(find.text('Distribuição dos investimentos'));
       final evolution = tester.getTopLeft(find.text('Evolução dos investimentos'));
-      expect(evolution.dy, allocation.dy);
-      expect(evolution.dx, greaterThan(allocation.dx));
+      final positions = tester.getTopLeft(find.text('CDB Banco Demo'));
+      expect(evolution.dx, allocation.dx, reason: 'the charts share a column');
+      expect(evolution.dy, lessThan(allocation.dy), reason: 'the evolution on top');
+      expect(positions.dx, lessThan(evolution.dx), reason: 'the kinds on the left');
+      expect(positions.dy, lessThan(allocation.dy), reason: 'beside the charts, not under them');
     });
   });
 }

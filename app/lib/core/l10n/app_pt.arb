@@ -146,6 +146,8 @@
   "investmentKindRetirement": "Previdência",
   "investmentKindOther": "Outros",
   "investmentsAllocation": "Distribuição dos investimentos",
+  "investmentsAllocationHintPick": "Toque numa fatia para ver a porcentagem e o valor dela.",
+  "investmentsAllocationHintUnpick": "Toque de novo na fatia para voltar ao total.",
   "investmentsEvolution": "Evolução dos investimentos",
   "investmentsEvolutionGrowing": "O gráfico começa no primeiro dia de uso e ganha um ponto a cada dia em que o Wallet atualiza seus investimentos.",
   "investmentsChange": "{amount} ({percent}) no período",

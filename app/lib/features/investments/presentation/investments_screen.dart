@@ -54,7 +54,7 @@ extension InvestmentPeriodLabel on InvestmentPeriod {
 class InvestmentsScreen extends StatelessWidget {
   const InvestmentsScreen({super.key});
 
-  /// From this content width the allocation and the evolution sit side by side.
+  /// From this content width the positions by kind and the charts sit side by side.
   static const _sideBySideWidth = 900.0;
 
   @override
@@ -78,28 +78,35 @@ class InvestmentsScreen extends StatelessWidget {
                   children: [
                     ContentWidth(
                       child: LayoutBuilder(builder: (context, constraints) {
-                        final allocation = _AllocationCard(portfolio: portfolio);
-                        const evolution = _EvolutionCard();
+                        // The evolution on top and the allocation under it; the positions by kind
+                        // follow them on a phone and sit to their left on a wide screen.
+                        final charts = [const _EvolutionCard(), _AllocationCard(portfolio: portfolio)];
+                        final kinds = [
+                          for (final kind in portfolio.byKind) _KindCard(kind: kind, positions: portfolio.positionsOf(kind.kind)),
+                        ];
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
+                          spacing: 16,
                           children: [
-                            if (controller.refreshError != null) ...[
-                              RefreshErrorBanner(error: controller.refreshError!),
-                              const SizedBox(height: 16),
-                            ],
+                            if (controller.refreshError != null) RefreshErrorBanner(error: controller.refreshError!),
                             if (constraints.maxWidth >= _sideBySideWidth)
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [Expanded(child: allocation), const SizedBox(width: 16), const Expanded(child: evolution)],
+                                children: [
+                                  Expanded(
+                                    flex: 2,
+                                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 16, children: kinds),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    flex: 3,
+                                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, spacing: 16, children: charts),
+                                  ),
+                                ],
                               )
                             else ...[
-                              allocation,
-                              const SizedBox(height: 16),
-                              evolution,
-                            ],
-                            for (final kind in portfolio.byKind) ...[
-                              const SizedBox(height: 16),
-                              _KindCard(kind: kind, positions: portfolio.positionsOf(kind.kind)),
+                              ...charts,
+                              ...kinds,
                             ],
                           ],
                         );
@@ -113,79 +120,145 @@ class InvestmentsScreen extends StatelessWidget {
   }
 }
 
-/// A donut of the portfolio by kind, the total in its hole.
-class _AllocationCard extends StatelessWidget {
+/// A donut of the portfolio by kind, the total in its hole. Tapping a slice, or its line in the
+/// legend, puts that kind's share and amount in the hole; tapping it again goes back to the total.
+class _AllocationCard extends StatefulWidget {
   const _AllocationCard({required this.portfolio});
 
-  static const _holeRadius = 64.0;
-
   final Portfolio portfolio;
+
+  @override
+  State<_AllocationCard> createState() => _AllocationCardState();
+}
+
+class _AllocationCardState extends State<_AllocationCard> {
+  static const _holeRadius = 64.0;
+  static const _ringWidth = 28.0;
+
+  /// The picked slice stands out of the ring by this much more.
+  static const _pickedRingWidth = 34.0;
+
+  /// Rounds the slice ends; the chart shrinks it on a slice too thin to take it.
+  static const _sliceCornerRadius = 10.0;
+
+  InvestmentKind? _picked;
+
+  /// Null (a tap in the hole or off the ring) always goes back to the total.
+  void _toggle(InvestmentKind? kind) => setState(() => _picked = kind == _picked ? null : kind);
 
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
     final colors = context.walletColors.chart;
+    final portfolio = widget.portfolio;
     final kinds = portfolio.byKind.where((kind) => !kind.total.isZero && !kind.total.isNegative).toList();
+    // A kind gone after a refresh is no longer picked.
+    final picked = kinds.where((kind) => kind.kind == _picked).firstOrNull;
+    final hint = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+
+    int touchedIndex(PieTouchResponse? response) => response?.touchedSection?.touchedSectionIndex ?? -1;
+
     return SectionCard(
       title: l10n.investmentsAllocation,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
-            height: 200,
+            height: (_holeRadius + _pickedRingWidth) * 2,
             child: Stack(
               alignment: Alignment.center,
               children: [
                 if (kinds.isNotEmpty)
                   PieChart(PieChartData(
                     centerSpaceRadius: _holeRadius,
-                    sectionsSpace: kinds.length > 1 ? 2 : 0,
+                    sectionsSpace: kinds.length > 1 ? 4 : 0,
+                    pieTouchData: PieTouchData(
+                      touchCallback: (event, response) {
+                        if (event is FlTapUpEvent) {
+                          final index = touchedIndex(response);
+                          _toggle(index >= 0 && index < kinds.length ? kinds[index].kind : null);
+                        }
+                      },
+                      mouseCursorResolver: (event, response) =>
+                          touchedIndex(response) >= 0 ? SystemMouseCursors.click : MouseCursor.defer,
+                    ),
                     sections: [
                       for (var index = 0; index < kinds.length; index++)
                         PieChartSectionData(
                           value: kinds[index].total.toChartValue(),
-                          color: colors[index % colors.length],
-                          radius: 28,
+                          color: picked == null || kinds[index] == picked
+                              ? colors[index % colors.length]
+                              : colors[index % colors.length].withValues(alpha: 0.35),
+                          radius: kinds[index] == picked ? _pickedRingWidth : _ringWidth,
+                          cornerRadius: _sliceCornerRadius,
                           showTitle: false,
                         ),
                     ],
                   )),
-                // A large total shrinks to fit the hole instead of spilling over the ring.
-                SizedBox(
-                  width: _holeRadius * 2 - 16,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(l10n.investmentsTotal, style: theme.textTheme.labelMedium),
-                        MoneyText(portfolio.total, style: theme.textTheme.titleMedium),
-                      ],
+                // A large amount shrinks to fit the hole instead of spilling over the ring. Taps
+                // go through it to the chart, so a tap in the hole goes back to the total.
+                IgnorePointer(
+                  child: SizedBox(
+                    width: _holeRadius * 2 - 16,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: picked == null
+                            ? [
+                                Text(l10n.investmentsTotal, style: theme.textTheme.labelMedium),
+                                MoneyText(portfolio.total, style: theme.textTheme.titleMedium),
+                              ]
+                            : [
+                                Text(picked.kind.label(l10n), style: theme.textTheme.labelMedium),
+                                Text(formatPercent(picked.total.shareOf(portfolio.total)),
+                                    style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600)),
+                                MoneyText(picked.total, style: theme.textTheme.titleSmall),
+                              ],
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          if (kinds.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              picked == null ? l10n.investmentsAllocationHintPick : l10n.investmentsAllocationHintUnpick,
+              style: hint,
+              textAlign: TextAlign.center,
+            ),
+          ],
+          const SizedBox(height: 12),
           for (var index = 0; index < kinds.length; index++)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Row(
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(color: colors[index % colors.length], shape: BoxShape.circle),
+            Semantics(
+              selected: kinds[index] == picked,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () => _toggle(kinds[index].kind),
+                child: Ink(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: kinds[index] == picked ? theme.colorScheme.onSurface.withValues(alpha: 0.06) : null,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(kinds[index].kind.label(l10n))),
-                  Text(formatPercent(kinds[index].total.shareOf(portfolio.total)),
-                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-                  const SizedBox(width: 12),
-                  MoneyText(kinds[index].total),
-                ],
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(color: colors[index % colors.length], shape: BoxShape.circle),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(kinds[index].kind.label(l10n))),
+                      Text(formatPercent(kinds[index].total.shareOf(portfolio.total)), style: hint),
+                      const SizedBox(width: 12),
+                      MoneyText(kinds[index].total),
+                    ],
+                  ),
+                ),
               ),
             ),
         ],

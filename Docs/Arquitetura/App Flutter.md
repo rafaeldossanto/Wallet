@@ -100,8 +100,11 @@ lida antes do primeiro quadro, então o app nunca abre no tema errado.
 
 ## Investimentos (desde 2026-10-03)
 
-- **Distribuição:** rosca por tipo (renda fixa, Tesouro, fundos, ações, previdência), o total
-  no furo e a legenda com a fatia e o valor de cada tipo.
+- **Distribuição:** rosca por tipo (renda fixa, Tesouro, fundos, ações, previdência) com as
+  pontas das fatias arredondadas, o total no furo e a legenda com a fatia e o valor de cada
+  tipo. Clicar numa fatia (ou na linha dela na legenda) destaca a fatia e põe no furo o tipo, a
+  porcentagem e o valor; clicar de novo, ou no furo, volta ao total (pedido do Rafael em
+  2026-10-03, mesmo gesto do calendário).
 - **Evolução dos investimentos:** linha do total investido dia a dia, com os períodos 1M, 3M,
   6M (padrão), 1A e Tudo (até 2 anos), vindos de `GET /api/investments/history`. Acima da
   linha, quanto o total andou no período (verde subindo, vermelho caindo), calculado com
@@ -115,7 +118,9 @@ lida antes do primeiro quadro, então o app nunca abre no tema errado.
   investimentos.
 - Trocar de período no meio de uma resposta descarta a resposta velha; uma sincronização
   atualiza o período na tela sem apagar a linha.
-- A partir de 900 px de conteúdo, rosca e evolução ficam lado a lado.
+- Ordem: evolução em cima, distribuição embaixo, depois os tipos com as posições. A partir de
+  900 px de conteúdo (PC, tablet deitado), duas colunas: os tipos à esquerda e os dois gráficos
+  à direita (pedido do Rafael em 2026-10-03).
 - Conferido em 2026-10-03 contra a demo com 400 dias de fotos inseridas no banco
   descartável: a variação de 1M, 1A e Tudo bateu centavo a centavo com as somas no banco.
 
@@ -176,7 +181,7 @@ Ver [[Fluxo de Conexão]].
 
 ## Testes
 
-55 testes com um BFF em memória (`test/support/fake_bff.dart`):
+57 testes com um BFF em memória (`test/support/fake_bff.dart`):
 
 - Unitários: `Money`, sessão (restaurar, recusar, servidor fora), interceptor (duas chamadas
   com 401 geram **um** refresh), bloqueio por biometria, inatividade no navegador,
@@ -185,8 +190,8 @@ Ver [[Fluxo de Conexão]].
   descartado, atualização que falha mantendo a linha).
 - Widget: login, visão geral (completa, com parte indisponível, sem conexões), shell nos três
   tamanhos e o "Mais", calendário (mês inteiro, dia, tocar de novo), extrato (agrupamento por
-  dia, filtros, segunda página), investimentos (rosca, troca de período, menos de dois dias,
-  lado a lado na tela larga), saída voluntária.
+  dia, filtros, segunda página), investimentos (rosca, clique na fatia e na legenda, troca de
+  período, menos de dois dias, tipos à esquerda na tela larga), saída voluntária.
 
 Além disso, verificado à mão em 2026-10-02 no Chrome (build release) e no emulador
 `trilha_pixel`, contra o core e o BFF reais com a Pluggy de demonstração.
