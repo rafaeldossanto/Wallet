@@ -16,6 +16,8 @@ import 'core/session/session_controller.dart';
 import 'core/session/session_store.dart';
 import 'core/state/data_changes.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/theme_controller.dart';
+import 'features/calendar/data/calendar_api.dart';
 import 'features/cards/data/cards_api.dart';
 import 'features/connections/data/connections_api.dart';
 import 'features/insights/data/insights_api.dart';
@@ -25,28 +27,37 @@ import 'features/transactions/data/transactions_api.dart';
 
 /// Everything the screens need, built once. Tests build it with a fake HTTP adapter.
 class AppDependencies {
-  AppDependencies._(this.api, this.session, this.appLock);
+  AppDependencies._(this.api, this.session, this.appLock, this.theme);
 
-  factory AppDependencies.create({ApiClient? api, SessionStore? store, bool withAppLock = !kIsWeb}) {
+  factory AppDependencies.create({
+    ApiClient? api,
+    SessionStore? store,
+    ThemeController? theme,
+    bool withAppLock = !kIsWeb,
+  }) {
     final client = api ?? ApiClient.create();
     final session = SessionController(
       api: SessionApi(client),
       store: store ?? (kIsWeb ? const CookieSessionStore() : SecureSessionStore()),
     );
     client.dio.interceptors.add(AuthInterceptor(session, client.dio));
-    return AppDependencies._(client, session, withAppLock ? AppLock(session: session) : null);
+    return AppDependencies._(client, session, withAppLock ? AppLock(session: session) : null,
+        theme ?? ThemeController(MemoryThemePreference()));
   }
 
   final ApiClient api;
   final SessionController session;
   final AppLock? appLock;
+  final ThemeController theme;
   final DataChanges dataChanges = DataChanges();
 
   List<SingleChildWidget> get providers => [
         ChangeNotifierProvider.value(value: session),
         ChangeNotifierProvider.value(value: dataChanges),
+        ChangeNotifierProvider.value(value: theme),
         ChangeNotifierProvider<AppLock?>.value(value: appLock),
         Provider(create: (_) => HomeApi(api)),
+        Provider(create: (_) => CalendarApi(api)),
         Provider(create: (_) => TransactionsApi(api)),
         Provider(create: (_) => CardsApi(api)),
         Provider(create: (_) => InvestmentsApi(api)),
@@ -65,6 +76,9 @@ class WalletApp extends StatefulWidget {
 }
 
 class _WalletAppState extends State<WalletApp> {
+  static final _light = AppTheme.light();
+  static final _dark = AppTheme.dark();
+
   late final GoRouter _router = createRouter(widget.dependencies.session);
 
   @override
@@ -85,11 +99,18 @@ class _WalletAppState extends State<WalletApp> {
     final dependencies = widget.dependencies;
     return MultiProvider(
       providers: dependencies.providers,
-      child: MaterialApp.router(
+      child: Consumer<ThemeController>(
+        builder: (context, theme, _) => _app(dependencies, theme.mode),
+      ),
+    );
+  }
+
+  Widget _app(AppDependencies dependencies, ThemeMode mode) => MaterialApp.router(
         onGenerateTitle: (context) => context.l10n.appTitle,
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.dark(),
-        themeMode: ThemeMode.dark,
+        theme: _light,
+        darkTheme: _dark,
+        themeMode: mode,
         locale: const Locale('pt', 'BR'),
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: const [AppLocalizations.delegate, ...GlobalMaterialLocalizations.delegates],
@@ -103,7 +124,5 @@ class _WalletAppState extends State<WalletApp> {
             builder: (context, lock, _) => Stack(children: [app, if (lock?.isLocked ?? false) const LockScreen()]),
           );
         },
-      ),
-    );
-  }
+      );
 }

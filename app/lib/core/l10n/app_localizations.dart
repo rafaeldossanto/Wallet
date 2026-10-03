@@ -361,7 +361,7 @@ abstract class AppLocalizations {
   /// No description provided for @overviewGreeting.
   ///
   /// In pt, this message translates to:
-  /// **'Olá, {name}'**
+  /// **'Olá, {name}!'**
   String overviewGreeting(String name);
 
   /// No description provided for @overviewEmpty.
@@ -453,6 +453,90 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Nenhuma movimentação nos últimos 30 dias.'**
   String get overviewNoRecent;
+
+  /// No description provided for @calendarTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Dias com gastos'**
+  String get calendarTitle;
+
+  /// No description provided for @calendarSummary.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count, plural, =0{Nenhum dia com gastos} =1{1 dia com gastos} other{{count} dias com gastos}}'**
+  String calendarSummary(int count);
+
+  /// No description provided for @calendarDaySpending.
+  ///
+  /// In pt, this message translates to:
+  /// **'{date}: {amount} em gastos'**
+  String calendarDaySpending(String date, String amount);
+
+  /// No description provided for @calendarDayNoSpending.
+  ///
+  /// In pt, this message translates to:
+  /// **'{date}: nenhum gasto'**
+  String calendarDayNoSpending(String date);
+
+  /// No description provided for @calendarDayTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Gastos · {day}'**
+  String calendarDayTitle(String day);
+
+  /// No description provided for @calendarNoDay.
+  ///
+  /// In pt, this message translates to:
+  /// **'Gastos do dia'**
+  String get calendarNoDay;
+
+  /// No description provided for @calendarMonthEmpty.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhum gasto neste mês.'**
+  String get calendarMonthEmpty;
+
+  /// No description provided for @calendarDayEmpty.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhum gasto neste dia.'**
+  String get calendarDayEmpty;
+
+  /// No description provided for @themeToLight.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tema claro'**
+  String get themeToLight;
+
+  /// No description provided for @themeToDark.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tema escuro'**
+  String get themeToDark;
+
+  /// No description provided for @settingsAppearance.
+  ///
+  /// In pt, this message translates to:
+  /// **'Aparência'**
+  String get settingsAppearance;
+
+  /// No description provided for @themeLight.
+  ///
+  /// In pt, this message translates to:
+  /// **'Claro'**
+  String get themeLight;
+
+  /// No description provided for @themeDark.
+  ///
+  /// In pt, this message translates to:
+  /// **'Escuro'**
+  String get themeDark;
+
+  /// No description provided for @themeSystem.
+  ///
+  /// In pt, this message translates to:
+  /// **'Automático'**
+  String get themeSystem;
 
   /// No description provided for @transactionsSearch.
   ///

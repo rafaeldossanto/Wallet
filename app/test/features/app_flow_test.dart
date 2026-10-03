@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:wallet/app.dart';
+import 'package:wallet/core/router/adaptive_shell.dart';
 
 import '../support/fake_bff.dart';
 import '../support/fixtures.dart';
@@ -51,7 +52,7 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Entrar'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Olá, Rafael'), findsOneWidget);
+      expect(find.text('Olá, Rafael!'), findsOneWidget);
     });
   });
 
@@ -81,7 +82,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Entrar'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Olá, Rafael'), findsOneWidget);
+    expect(find.text('Olá, Rafael!'), findsOneWidget);
   });
 
   group('overview', () {
@@ -147,22 +148,41 @@ void main() {
   });
 
   group('adaptive shell', () {
-    testWidgets('bottom bar on a phone, rail on a tablet, fixed menu on a PC', (tester) async {
+    testWidgets('bottom bar on a phone, the round-button rail from a tablet up', (tester) async {
       bff.signedIn();
       bff.json('GET', '/api/home', Fixtures.home());
+      bff.json('GET', '/api/cards', [Fixtures.card()]);
 
       await openApp(tester, size: const Size(400, 860));
       expect(find.byType(NavigationBar), findsOneWidget);
       expect(find.text('Mais'), findsOneWidget);
+      expect(find.byType(WalletRail), findsNothing);
 
-      tester.view.physicalSize = const Size(700, 900);
-      await tester.pumpAndSettle();
-      expect(find.byType(NavigationRail), findsOneWidget);
+      for (final size in const [Size(700, 900), Size(1280, 900)]) {
+        tester.view.physicalSize = size;
+        await tester.pumpAndSettle();
+        expect(find.byType(WalletRail), findsOneWidget);
+        expect(find.byType(NavigationBar), findsNothing);
+      }
 
-      tester.view.physicalSize = const Size(1280, 900);
+      await tester.tap(find.byTooltip('Cartões'));
       await tester.pumpAndSettle();
-      expect(find.byType(NavigationDrawer), findsOneWidget);
-      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.text('Cartão Demo •••• 5162'), findsOneWidget);
+    });
+
+    testWidgets('the sun in the dark theme switches to light, and back', (tester) async {
+      bff.signedIn();
+      bff.json('GET', '/api/home', Fixtures.home());
+      await openApp(tester, size: const Size(1280, 900));
+      expect(Theme.of(tester.element(find.byType(WalletRail))).brightness, Brightness.dark);
+
+      await tester.tap(find.byTooltip('Tema claro'));
+      await tester.pumpAndSettle();
+      expect(Theme.of(tester.element(find.byType(WalletRail))).brightness, Brightness.light);
+
+      await tester.tap(find.byTooltip('Tema escuro'));
+      await tester.pumpAndSettle();
+      expect(Theme.of(tester.element(find.byType(WalletRail))).brightness, Brightness.dark);
     });
 
     testWidgets('"Mais" on a phone opens the other destinations', (tester) async {

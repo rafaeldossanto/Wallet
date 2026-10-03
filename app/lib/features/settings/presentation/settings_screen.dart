@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../core/l10n/l10n.dart';
 import '../../../core/security/app_lock.dart';
 import '../../../core/session/session_controller.dart';
+import '../../../core/theme/theme_controller.dart';
 import '../../../core/widgets/common.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -32,6 +33,24 @@ class SettingsScreen extends StatelessWidget {
                     leading: const Icon(Icons.person_outline),
                     title: Text(user?.displayName ?? '—'),
                     subtitle: Text(user?.email ?? ''),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SectionCard(
+                  title: l10n.settingsAppearance,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: SegmentedButton<ThemeMode>(
+                      showSelectedIcon: false,
+                      segments: [
+                        ButtonSegment(value: ThemeMode.light, icon: const Icon(Icons.light_mode_outlined), label: Text(l10n.themeLight)),
+                        ButtonSegment(value: ThemeMode.dark, icon: const Icon(Icons.dark_mode_outlined), label: Text(l10n.themeDark)),
+                        ButtonSegment(
+                            value: ThemeMode.system, icon: const Icon(Icons.brightness_auto_outlined), label: Text(l10n.themeSystem)),
+                      ],
+                      selected: {context.watch<ThemeController>().mode},
+                      onSelectionChanged: (selection) => context.read<ThemeController>().setMode(selection.first),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),

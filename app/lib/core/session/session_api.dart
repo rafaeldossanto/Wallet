@@ -31,6 +31,16 @@ class UserProfile {
   final String displayName;
 
   String get firstName => displayName.trim().split(RegExp(r'\s+')).first;
+
+  /// `RS` for Rafael Santos; one letter for a single name.
+  String get initials {
+    final words = displayName.trim().split(RegExp(r'\s+')).where((word) => word.isNotEmpty).toList();
+    if (words.isEmpty) {
+      return '?';
+    }
+    final first = words.first[0];
+    return (words.length == 1 ? first : first + words.last[0]).toUpperCase();
+  }
 }
 
 class SessionApi {

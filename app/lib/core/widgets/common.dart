@@ -162,6 +162,74 @@ class MonthSelector extends StatelessWidget {
   }
 }
 
+/// A small figure in its own rounded tile, with a colored icon: the dashboard's summaries.
+class StatTile extends StatelessWidget {
+  const StatTile({super.key, required this.icon, required this.color, required this.label, required this.value});
+
+  final IconData icon;
+  final Color color;
+  final String label;
+  final Widget value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.18), shape: BoxShape.circle),
+            child: Icon(icon, size: 18, color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: LabeledValue(label: label, value: value)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Tiles side by side when there is room, stacked on a phone.
+class StatTileRow extends StatelessWidget {
+  const StatTileRow({super.key, required this.children});
+
+  static const _sideBySideWidth = 560.0;
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < _sideBySideWidth) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var index = 0; index < children.length; index++) ...[
+                  if (index > 0) const SizedBox(height: 8),
+                  children[index],
+                ],
+              ],
+            );
+          }
+          return Row(
+            children: [
+              for (var index = 0; index < children.length; index++) ...[
+                if (index > 0) const SizedBox(width: 12),
+                Expanded(child: children[index]),
+              ],
+            ],
+          );
+        },
+      );
+}
+
 /// Label above, value below; the small summaries on top of the screens.
 class LabeledValue extends StatelessWidget {
   const LabeledValue({super.key, required this.label, required this.value, this.crossAxisAlignment});

@@ -7,93 +7,145 @@ import '../../../core/l10n/l10n.dart';
 import '../../../core/models/credit_card.dart';
 import '../../../core/router/adaptive_shell.dart';
 import '../../../core/session/session_controller.dart';
+import '../../../core/state/loadable.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/loadable_view.dart';
+import '../../../core/widgets/theme_toggle.dart';
+import '../../calendar/data/calendar_api.dart';
+import '../../calendar/presentation/calendar_cards.dart';
+import '../../calendar/presentation/calendar_controller.dart';
 import '../../transactions/presentation/transaction_tile.dart';
 import '../data/home_api.dart';
 import 'overview_controller.dart';
 
+/// The dashboard: a greeting, the net worth and the month on one side, the spending calendar
+/// and the picked day's spending on the other; one column on phones.
 class OverviewScreen extends StatelessWidget {
   const OverviewScreen({super.key});
+
+  /// From here up, the dashboard splits in two columns.
+  static const twoColumnsWidth = 1000.0;
 
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<OverviewController>();
     final l10n = context.l10n;
-    final name = context.select<SessionController, String?>((session) => session.user?.firstName);
     return Scaffold(
-      appBar: AppBar(
-        title: Text(name == null ? l10n.navOverview : l10n.overviewGreeting(name)),
-        actions: [
-          IconButton(
-            tooltip: l10n.actionRefresh,
-            onPressed: controller.isRefreshing ? null : controller.refresh,
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: controller.refresh,
-        child: LoadableView(
-          state: controller.state,
-          onRetry: controller.load,
-          builder: (context, data) => data.hasNoConnections
-              ? ListView(children: [
-                  EmptyState(
-                    icon: Icons.account_balance_outlined,
-                    message: l10n.overviewEmpty,
-                    action: FilledButton(onPressed: () => context.go('/connections'), child: Text(l10n.overviewConnectFirst)),
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: () => Future.wait([controller.refresh(), context.read<CalendarController>().refresh()]),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= twoColumnsWidth;
+              return ListView(
+                padding: EdgeInsets.fromLTRB(wide ? 8 : 16, 16, wide ? 24 : 16, 24),
+                children: [
+                  ContentWidth(
+                    maxWidth: 1320,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const _Header(),
+                        const SizedBox(height: 20),
+                        switch (controller.state) {
+                          Loading<HomeData>() => const Padding(
+                              padding: EdgeInsets.all(48),
+                              child: Center(child: CircularProgressIndicator()),
+                            ),
+                          Failed<HomeData>(:final error) => ErrorView(error: error, onRetry: controller.load),
+                          Loaded<HomeData>(:final value) => value.hasNoConnections
+                              ? EmptyState(
+                                  icon: Icons.account_balance_outlined,
+                                  message: l10n.overviewEmpty,
+                                  action: FilledButton(
+                                      onPressed: () => context.go('/connections'), child: Text(l10n.overviewConnectFirst)),
+                                )
+                              : _Dashboard(data: value, wide: wide),
+                        },
+                      ],
+                    ),
                   ),
-                ])
-              : _OverviewContent(data: data),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
   }
 }
 
-class _OverviewContent extends StatelessWidget {
-  const _OverviewContent({required this.data});
-
-  final HomeData data;
+/// `Olá, Rafael!` and today's date; refresh, and on phones the theme switch (the rail has it
+/// on larger screens).
+class _Header extends StatelessWidget {
+  const _Header();
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.read<OverviewController>();
-    final banner = controller.refreshError;
-    return LayoutBuilder(builder: (context, constraints) {
-      final wide = constraints.maxWidth >= AdaptiveShell.expandedWidth - 200;
-      final netWorth = _NetWorthCard(data: data);
-      final month = _MonthCard(data: data);
-      final accounts = _AccountsCard(data: data);
-      final cards = _CardsCard(data: data);
-      final recent = _RecentTransactionsCard(data: data);
-      const gap = SizedBox(height: 16);
-      return ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          ContentWidth(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (banner != null) ...[RefreshErrorBanner(error: banner), gap],
-                if (wide)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(flex: 3, child: Column(children: [netWorth, gap, month, gap, accounts])),
-                      const SizedBox(width: 16),
-                      Expanded(flex: 2, child: Column(children: [cards, gap, recent])),
-                    ],
-                  )
-                else ...[netWorth, gap, month, gap, accounts, gap, cards, gap, recent],
-              ],
-            ),
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final controller = context.watch<OverviewController>();
+    final name = context.select<SessionController, String?>((session) => session.user?.firstName);
+    final phone = MediaQuery.sizeOf(context).width < AdaptiveShell.mediumWidth;
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name == null ? l10n.navOverview : l10n.overviewGreeting(name), style: theme.textTheme.headlineMedium),
+              const SizedBox(height: 4),
+              Text(Dates.fullDate(DateTime.now()),
+                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            ],
           ),
-        ],
-      );
-    });
+        ),
+        IconButton(
+          tooltip: l10n.actionRefresh,
+          onPressed: controller.isRefreshing ? null : controller.refresh,
+          icon: const Icon(Icons.refresh),
+        ),
+        if (phone) const ThemeToggle(),
+      ],
+    );
+  }
+}
+
+class _Dashboard extends StatelessWidget {
+  const _Dashboard({required this.data, required this.wide});
+
+  final HomeData data;
+  final bool wide;
+
+  @override
+  Widget build(BuildContext context) {
+    final banner = context.read<OverviewController>().refreshError;
+    const gap = SizedBox(height: 16);
+    final netWorth = _NetWorthCard(data: data);
+    final month = _MonthCard(data: data);
+    const calendar = SpendingCalendarCard();
+    const day = DaySpendingCard();
+    final accounts = _AccountsCard(data: data);
+    final cards = _CardsCard(data: data);
+    final recent = _RecentTransactionsCard(data: data);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (banner != null) ...[RefreshErrorBanner(error: banner), gap],
+        if (wide)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 3, child: Column(children: [netWorth, gap, month, gap, accounts, gap, recent])),
+              const SizedBox(width: 16),
+              Expanded(flex: 2, child: Column(children: [calendar, gap, day, gap, cards])),
+            ],
+          )
+        else ...[netWorth, gap, calendar, gap, day, gap, month, gap, cards, gap, accounts, gap, recent],
+      ],
+    );
   }
 }
 
@@ -106,28 +158,41 @@ class _NetWorthCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = Theme.of(context);
+    final colors = context.walletColors;
     final overview = data.overview;
     return SectionCard(
       title: l10n.overviewNetWorth,
+      trailing: overview?.lastSyncedAt == null
+          ? null
+          : Text(l10n.updatedAgo(Dates.timeAgo(overview!.lastSyncedAt!, l10n)),
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
       child: overview == null
           ? const UnavailableNotice()
           : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 MoneyText(overview.netWorth, style: theme.textTheme.displaySmall),
-                if (overview.lastSyncedAt != null)
-                  Text(l10n.updatedAgo(Dates.timeAgo(overview.lastSyncedAt!, l10n)),
-                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 32,
-                  runSpacing: 12,
-                  children: [
-                    LabeledValue(label: l10n.overviewCash, value: MoneyText(overview.cashBalance)),
-                    LabeledValue(label: l10n.overviewInvestments, value: MoneyText(overview.investmentsTotal)),
-                    LabeledValue(label: l10n.overviewCardDebt, value: MoneyText(overview.creditCardDebt)),
-                  ],
-                ),
+                const SizedBox(height: 20),
+                StatTileRow(children: [
+                  StatTile(
+                    icon: Icons.account_balance_wallet_outlined,
+                    color: colors.feature,
+                    label: l10n.overviewCash,
+                    value: MoneyText(overview.cashBalance),
+                  ),
+                  StatTile(
+                    icon: Icons.trending_up,
+                    color: colors.highlight,
+                    label: l10n.overviewInvestments,
+                    value: MoneyText(overview.investmentsTotal),
+                  ),
+                  StatTile(
+                    icon: Icons.credit_card,
+                    color: colors.chart[2],
+                    label: l10n.overviewCardDebt,
+                    value: MoneyText(overview.creditCardDebt),
+                  ),
+                ]),
               ],
             ),
     );
@@ -142,20 +207,32 @@ class _MonthCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    final colors = context.walletColors;
     final overview = data.overview;
     return SectionCard(
       title: overview == null ? l10n.overviewMonth : Dates.monthName(overview.month),
       child: overview == null
           ? const UnavailableNotice()
-          : Wrap(
-              spacing: 32,
-              runSpacing: 12,
-              children: [
-                LabeledValue(label: l10n.overviewIncome, value: MoneyText(overview.monthIncome, inflow: true)),
-                LabeledValue(label: l10n.overviewExpenses, value: MoneyText(overview.monthExpenses, inflow: false)),
-                LabeledValue(label: l10n.overviewMonthBalance, value: MoneyText(overview.monthBalance)),
-              ],
-            ),
+          : StatTileRow(children: [
+              StatTile(
+                icon: Icons.south_west,
+                color: colors.inflow,
+                label: l10n.overviewIncome,
+                value: MoneyText(overview.monthIncome, inflow: true),
+              ),
+              StatTile(
+                icon: Icons.north_east,
+                color: colors.chart[4],
+                label: l10n.overviewExpenses,
+                value: MoneyText(overview.monthExpenses, inflow: false),
+              ),
+              StatTile(
+                icon: Icons.balance,
+                color: colors.chart[3],
+                label: l10n.overviewMonthBalance,
+                value: MoneyText(overview.monthBalance),
+              ),
+            ]),
     );
   }
 }
@@ -299,8 +376,13 @@ class _RecentTransactionsCard extends StatelessWidget {
 }
 
 /// Built by the router for the home branch.
-Widget buildOverview(BuildContext context) => ChangeNotifierProvider(
-      create: (context) => OverviewController(context.read<HomeApi>(), dataChanges: context.read())..load(),
+Widget buildOverview(BuildContext context) => MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+            create: (context) => OverviewController(context.read<HomeApi>(), dataChanges: context.read())..load()),
+        ChangeNotifierProvider(
+            create: (context) => CalendarController(context.read<CalendarApi>(), dataChanges: context.read())..load()),
+      ],
       child: const OverviewScreen(),
     );
 

@@ -17,6 +17,10 @@ class Money implements Comparable<Money> {
 
   Money operator -(Money other) => Money._(amount - other.amount);
 
+  bool operator >(Money other) => amount > other.amount;
+
+  bool operator <(Money other) => amount < other.amount;
+
   bool get isNegative => amount < Decimal.zero;
 
   bool get isZero => amount == Decimal.zero;

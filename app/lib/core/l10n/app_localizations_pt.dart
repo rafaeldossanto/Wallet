@@ -177,7 +177,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String overviewGreeting(String name) {
-    return 'Olá, $name';
+    return 'Olá, $name!';
   }
 
   @override
@@ -226,6 +226,63 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get overviewNoRecent => 'Nenhuma movimentação nos últimos 30 dias.';
+
+  @override
+  String get calendarTitle => 'Dias com gastos';
+
+  @override
+  String calendarSummary(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count dias com gastos',
+      one: '1 dia com gastos',
+      zero: 'Nenhum dia com gastos',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String calendarDaySpending(String date, String amount) {
+    return '$date: $amount em gastos';
+  }
+
+  @override
+  String calendarDayNoSpending(String date) {
+    return '$date: nenhum gasto';
+  }
+
+  @override
+  String calendarDayTitle(String day) {
+    return 'Gastos · $day';
+  }
+
+  @override
+  String get calendarNoDay => 'Gastos do dia';
+
+  @override
+  String get calendarMonthEmpty => 'Nenhum gasto neste mês.';
+
+  @override
+  String get calendarDayEmpty => 'Nenhum gasto neste dia.';
+
+  @override
+  String get themeToLight => 'Tema claro';
+
+  @override
+  String get themeToDark => 'Tema escuro';
+
+  @override
+  String get settingsAppearance => 'Aparência';
+
+  @override
+  String get themeLight => 'Claro';
+
+  @override
+  String get themeDark => 'Escuro';
+
+  @override
+  String get themeSystem => 'Automático';
 
   @override
   String get transactionsSearch => 'Buscar pela descrição';
