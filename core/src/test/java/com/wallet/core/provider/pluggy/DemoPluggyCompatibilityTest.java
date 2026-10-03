@@ -9,6 +9,7 @@ import com.wallet.core.provider.ProviderItemStatus;
 import com.wallet.core.provider.ProviderTransaction;
 import com.wallet.core.shared.finance.AccountKind;
 import com.wallet.core.shared.finance.Direction;
+import com.wallet.core.shared.money.Money;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,6 +65,22 @@ class DemoPluggyCompatibilityTest {
         assertThat(card.balance().amount()).isNotNegative();
         assertThat(card.availableCredit().plus(card.balance())).isEqualTo(card.creditLimit());
         assertThat(accounts.getFirst().balance().amount()).isPositive();
+    }
+
+    /** Found when the net worth chart dropped R$ 8 mil overnight: the history window moved with the date. */
+    @Test
+    void aDayLaterTheBalanceMovedOnlyByThatDaysTransactions() {
+        Money before = provider.listAccounts(DemoPluggy.BANK_ITEM).getFirst().balance();
+
+        clock.advance(Duration.ofDays(1));
+        Money after = provider.listAccounts(DemoPluggy.BANK_ITEM).getFirst().balance();
+        Money ofTheDay = provider.listTransactions("demo-checking", AccountKind.CHECKING, TODAY.plusDays(1), TODAY.plusDays(1))
+                .stream()
+                .map(transaction -> Direction.INFLOW.equals(transaction.direction())
+                        ? transaction.amount() : Money.ZERO.minus(transaction.amount()))
+                .reduce(Money.ZERO, Money::plus);
+
+        assertThat(after).isEqualTo(before.plus(ofTheDay));
     }
 
     @Test

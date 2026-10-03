@@ -222,8 +222,10 @@ class _NetWorthCard extends StatelessWidget {
                     sideTitles: SideTitles(
                       showTitles: true,
                       reservedSize: 28,
-                      minIncluded: false,
-                      maxIncluded: false,
+                      // Over a few days each day gets its label, ends included; over months the
+                      // ends would collide with the nearest regular label.
+                      minIncluded: _fewDays(points),
+                      maxIncluded: _fewDays(points),
                       interval: _dayInterval(points),
                       getTitlesWidget: (value, meta) => SideTitleWidget(
                         meta: meta,
@@ -271,10 +273,12 @@ class _NetWorthCard extends StatelessWidget {
   }
 
   /// About four labels along the axis, whatever the span.
-  static double _dayInterval(List<NetWorthPoint> points) {
-    final span = _dayOf(points.last.date) - _dayOf(points.first.date);
-    return span <= 4 ? 1 : (span / 4).ceilToDouble();
-  }
+  static double _dayInterval(List<NetWorthPoint> points) =>
+      _fewDays(points) ? 1 : (_span(points) / 4).ceilToDouble();
+
+  static bool _fewDays(List<NetWorthPoint> points) => _span(points) <= 4;
+
+  static double _span(List<NetWorthPoint> points) => _dayOf(points.last.date) - _dayOf(points.first.date);
 }
 
 /// Built by the router for the insights branch.

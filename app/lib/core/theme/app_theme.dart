@@ -30,11 +30,34 @@ class WalletColors extends ThemeExtension<WalletColors> {
   }
 }
 
+/// Black: the screen is pure black, each layer above it a neutral gray a step lighter, and
+/// actions are white. Color is kept for meaning only: money in, warnings, errors and charts.
 abstract final class AppTheme {
-  static const _seed = Color(0xFF2DD4A3);
-
   static ThemeData dark() {
-    final scheme = ColorScheme.fromSeed(seedColor: _seed, brightness: Brightness.dark);
+    final scheme = ColorScheme.fromSeed(
+      seedColor: Colors.black,
+      brightness: Brightness.dark,
+      dynamicSchemeVariant: DynamicSchemeVariant.monochrome,
+    ).copyWith(
+      surface: Colors.black,
+      surfaceDim: Colors.black,
+      surfaceBright: const Color(0xFF2A2A2A),
+      surfaceContainerLowest: Colors.black,
+      surfaceContainerLow: const Color(0xFF0A0A0A),
+      surfaceContainer: const Color(0xFF121212),
+      surfaceContainerHigh: const Color(0xFF1C1C1C),
+      surfaceContainerHighest: const Color(0xFF262626),
+      onSurface: const Color(0xFFF2F2F2),
+      onSurfaceVariant: const Color(0xFFA3A3A3),
+      primary: Colors.white,
+      onPrimary: Colors.black,
+      primaryContainer: const Color(0xFF2A2A2A),
+      onPrimaryContainer: Colors.white,
+      secondaryContainer: const Color(0xFF2A2A2A),
+      onSecondaryContainer: Colors.white,
+      outline: const Color(0xFF5C5C5C),
+      outlineVariant: const Color(0xFF2E2E2E),
+    );
     return ThemeData(
       colorScheme: scheme,
       scaffoldBackgroundColor: scheme.surface,

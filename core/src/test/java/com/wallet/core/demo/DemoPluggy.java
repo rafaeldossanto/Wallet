@@ -42,7 +42,13 @@ public final class DemoPluggy implements AutoCloseable {
     public static final String BROKER_ITEM = "demo-corretora";
 
     private static final ZoneId BRAZIL = ZoneId.of("America/Sao_Paulo");
-    private static final int HISTORY_DAYS = 180;
+
+    /**
+     * Where the demo accounts begin. Fixed, not "N days ago": balances add up everything since
+     * then, and a window that moved with the date would forget one day of history every day.
+     */
+    private static final LocalDate FIRST_DAY = LocalDate.of(2026, 1, 1);
+
     private static final String CHECKING = "demo-checking";
     private static final String SAVINGS = "demo-savings";
     private static final String CARD = "demo-card";
@@ -175,16 +181,16 @@ public final class DemoPluggy implements AutoCloseable {
         if (!BANK_ITEM.equals(itemId)) {
             return List.of();
         }
-        BigDecimal cardBalance = sum(transactions(CARD, start(today), today, today));
+        BigDecimal cardBalance = sum(transactions(CARD, FIRST_DAY, today, today));
         Map<String, Object> creditData = new LinkedHashMap<>();
         creditData.put("creditLimit", CARD_LIMIT);
         creditData.put("availableCreditLimit", CARD_LIMIT.subtract(cardBalance));
         creditData.put("balanceDueDate", instant(nextDueDate(today)));
         return List.of(
                 account(CHECKING, "BANK", "CHECKING_ACCOUNT", "0001/23456-7", "Conta Corrente",
-                        new BigDecimal("4800.00").add(sum(transactions(CHECKING, start(today), today, today))), null),
+                        new BigDecimal("4800.00").add(sum(transactions(CHECKING, FIRST_DAY, today, today))), null),
                 account(SAVINGS, "BANK", "SAVINGS_ACCOUNT", "0001/76543-2", "Poupança",
-                        new BigDecimal("18500.00").add(sum(transactions(SAVINGS, start(today), today, today))), null),
+                        new BigDecimal("18500.00").add(sum(transactions(SAVINGS, FIRST_DAY, today, today))), null),
                 account(CARD, "CREDIT", "CREDIT_CARD", "5162", "Cartão Demo Platinum", cardBalance, creditData));
     }
 
@@ -211,7 +217,7 @@ public final class DemoPluggy implements AutoCloseable {
     }
 
     private List<Map<String, Object>> transactionsJson(String accountId, LocalDate from, LocalDate to, LocalDate today) {
-        LocalDate start = isNull(from) || from.isBefore(start(today)) ? start(today) : from;
+        LocalDate start = isNull(from) || from.isBefore(FIRST_DAY) ? FIRST_DAY : from;
         LocalDate end = isNull(to) || to.isAfter(today) ? today : to;
         boolean card = CARD.equals(accountId);
         return transactions(accountId, start, end, today).stream().map(transaction -> {
@@ -317,7 +323,7 @@ public final class DemoPluggy implements AutoCloseable {
             add(out, CARD, day, "STREAMING MUSICA DEMO", "21.90", "Music streaming");
         }
         if (dayOfMonth == 18) {
-            int installment = (int) ChronoUnit.MONTHS.between(start(today).withDayOfMonth(1), day.withDayOfMonth(1)) + 1;
+            int installment = (int) ChronoUnit.MONTHS.between(FIRST_DAY.withDayOfMonth(1), day.withDayOfMonth(1)) + 1;
             if (installment <= 10) {
                 out.add(new DemoTransaction(CARD + "-" + day + "-notebook", CARD, day,
                         "MAGAZINE DEMO NOTEBOOK %02d/10".formatted(installment), new BigDecimal("389.90"),
@@ -352,7 +358,7 @@ public final class DemoPluggy implements AutoCloseable {
      */
     private List<Map<String, Object>> bills(LocalDate today) {
         List<Map<String, Object>> bills = new ArrayList<>();
-        for (LocalDate closing = start(today).withDayOfMonth(CLOSING_DAY).plusMonths(1);
+        for (LocalDate closing = FIRST_DAY.withDayOfMonth(CLOSING_DAY).plusMonths(1);
              !closing.isAfter(today); closing = closing.plusMonths(1)) {
             BigDecimal total = billTotal(closing, today);
             if (total.signum() == 0) {
@@ -373,7 +379,7 @@ public final class DemoPluggy implements AutoCloseable {
     /** The charges of the cycle that closes on {@code closing}; payments do not count. */
     private BigDecimal billTotal(LocalDate closing, LocalDate today) {
         LocalDate cycleStart = closing.minusMonths(1).plusDays(1);
-        if (closing.isAfter(today) || cycleStart.isBefore(start(today))) {
+        if (closing.isAfter(today) || cycleStart.isBefore(FIRST_DAY)) {
             return BigDecimal.ZERO;
         }
         List<DemoTransaction> charges = new ArrayList<>();
@@ -391,7 +397,7 @@ public final class DemoPluggy implements AutoCloseable {
     // ---- investments ---------------------------------------------------------------------
 
     private List<Map<String, Object>> investments(LocalDate today) {
-        long days = ChronoUnit.DAYS.between(start(today), today);
+        long days = ChronoUnit.DAYS.between(FIRST_DAY, today);
         return List.of(
                 investment("demo-cdb", "FIXED_INCOME", "CDB", "CDB Banco Demo 110% CDI",
                         grow("15000.00", "0.00042", days), "14200.00", LocalDate.of(2028, 3, 15)),
@@ -432,10 +438,6 @@ public final class DemoPluggy implements AutoCloseable {
     }
 
     // ---- helpers -------------------------------------------------------------------------
-
-    private static LocalDate start(LocalDate today) {
-        return today.minusDays(HISTORY_DAYS);
-    }
 
     private static String instant(LocalDate date) {
         return date.atStartOfDay(BRAZIL).toInstant().toString();

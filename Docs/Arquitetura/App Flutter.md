@@ -1,11 +1,11 @@
 ---
 tags: [arquitetura, flutter, app]
-atualizado: 2026-10-02
+atualizado: 2026-10-03
 ---
 
 # App Flutter
 
-Um projeto para **Android, iOS e Web**, tema escuro. Construído em 2026-10-02 (T12 a T18
+Um projeto para **Android, iOS e Web**, **preto** (pedido do Rafael em 2026-10-03). Construído em 2026-10-02 (T12 a T18
 do [[Plano de Implementação]]), em `Work/Wallet/app`.
 
 ## Pacotes
@@ -41,7 +41,7 @@ app/lib/
     models/       Account, Transaction, CreditCard, Bill
     money/        Money (Decimal) e formatação R$
     format/       datas, porcentagem, categorias da Pluggy em pt-BR
-    theme/        tema escuro e cores com significado (entrada, aviso, gráficos)
+    theme/        tema preto e cores com significado (entrada, aviso, gráficos)
     l10n/         app_pt.arb e as classes geradas
     widgets/      LoadableView, SectionCard, MoneyText, MonthSelector...
   features/
@@ -69,6 +69,14 @@ depois do login (`?from=`), menos quando a pessoa saiu de propósito.
 Só com o [[BFF]]: `http://localhost:8080` no navegador e no iOS,
 `http://10.0.2.2:8080` no emulador Android (HTTP liberado só no build de debug). Muda com
 `--dart-define=WALLET_BFF_URL=`. Toda chamada leva `X-Wallet-Client: mobile` ou `web`.
+
+## Tema
+
+Fundo preto puro; cada camada acima dele (cartões, barras, menus) um cinza neutro um
+passo mais claro; ações (botões, item selecionado, linha do patrimônio) em branco. A base é o
+`ColorScheme.fromSeed` na variante `monochrome`, com as camadas fixadas à mão. Cor só onde
+tem significado: verde para dinheiro entrando, amarelo para aviso, vermelho para erro e as
+fatias dos gráficos.
 
 ## Dinheiro
 
