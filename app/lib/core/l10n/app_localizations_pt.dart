@@ -416,6 +416,51 @@ class AppLocalizationsPt extends AppLocalizations {
   String get investmentKindOther => 'Outros';
 
   @override
+  String get investmentsAllocation => 'Distribuição dos investimentos';
+
+  @override
+  String get investmentsEvolution => 'Evolução dos investimentos';
+
+  @override
+  String get investmentsEvolutionGrowing =>
+      'O gráfico começa no primeiro dia de uso e ganha um ponto a cada dia em que o Wallet atualiza seus investimentos.';
+
+  @override
+  String investmentsChange(String amount, String percent) {
+    return '$amount ($percent) no período';
+  }
+
+  @override
+  String get investmentPeriodOneMonth => '1M';
+
+  @override
+  String get investmentPeriodOneMonthHint => '1 mês';
+
+  @override
+  String get investmentPeriodThreeMonths => '3M';
+
+  @override
+  String get investmentPeriodThreeMonthsHint => '3 meses';
+
+  @override
+  String get investmentPeriodSixMonths => '6M';
+
+  @override
+  String get investmentPeriodSixMonthsHint => '6 meses';
+
+  @override
+  String get investmentPeriodOneYear => '1A';
+
+  @override
+  String get investmentPeriodOneYearHint => '1 ano';
+
+  @override
+  String get investmentPeriodAll => 'Tudo';
+
+  @override
+  String get investmentPeriodAllHint => 'Todo o período';
+
+  @override
   String get insightsSpending => 'Gastos por categoria';
 
   @override

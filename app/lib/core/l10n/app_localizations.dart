@@ -766,6 +766,90 @@ abstract class AppLocalizations {
   /// **'Outros'**
   String get investmentKindOther;
 
+  /// No description provided for @investmentsAllocation.
+  ///
+  /// In pt, this message translates to:
+  /// **'Distribuição dos investimentos'**
+  String get investmentsAllocation;
+
+  /// No description provided for @investmentsEvolution.
+  ///
+  /// In pt, this message translates to:
+  /// **'Evolução dos investimentos'**
+  String get investmentsEvolution;
+
+  /// No description provided for @investmentsEvolutionGrowing.
+  ///
+  /// In pt, this message translates to:
+  /// **'O gráfico começa no primeiro dia de uso e ganha um ponto a cada dia em que o Wallet atualiza seus investimentos.'**
+  String get investmentsEvolutionGrowing;
+
+  /// No description provided for @investmentsChange.
+  ///
+  /// In pt, this message translates to:
+  /// **'{amount} ({percent}) no período'**
+  String investmentsChange(String amount, String percent);
+
+  /// No description provided for @investmentPeriodOneMonth.
+  ///
+  /// In pt, this message translates to:
+  /// **'1M'**
+  String get investmentPeriodOneMonth;
+
+  /// No description provided for @investmentPeriodOneMonthHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'1 mês'**
+  String get investmentPeriodOneMonthHint;
+
+  /// No description provided for @investmentPeriodThreeMonths.
+  ///
+  /// In pt, this message translates to:
+  /// **'3M'**
+  String get investmentPeriodThreeMonths;
+
+  /// No description provided for @investmentPeriodThreeMonthsHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'3 meses'**
+  String get investmentPeriodThreeMonthsHint;
+
+  /// No description provided for @investmentPeriodSixMonths.
+  ///
+  /// In pt, this message translates to:
+  /// **'6M'**
+  String get investmentPeriodSixMonths;
+
+  /// No description provided for @investmentPeriodSixMonthsHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'6 meses'**
+  String get investmentPeriodSixMonthsHint;
+
+  /// No description provided for @investmentPeriodOneYear.
+  ///
+  /// In pt, this message translates to:
+  /// **'1A'**
+  String get investmentPeriodOneYear;
+
+  /// No description provided for @investmentPeriodOneYearHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'1 ano'**
+  String get investmentPeriodOneYearHint;
+
+  /// No description provided for @investmentPeriodAll.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tudo'**
+  String get investmentPeriodAll;
+
+  /// No description provided for @investmentPeriodAllHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Todo o período'**
+  String get investmentPeriodAllHint;
+
   /// No description provided for @insightsSpending.
   ///
   /// In pt, this message translates to:

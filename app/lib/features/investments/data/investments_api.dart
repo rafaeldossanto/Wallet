@@ -81,10 +81,60 @@ class Portfolio {
       positions.where((position) => position.kind == kind).toList()..sort((first, second) => second.balance.compareTo(first.balance));
 }
 
+/// The periods of the evolution chart, with the codes the BFF takes.
+enum InvestmentPeriod {
+  oneMonth('1M'),
+  threeMonths('3M'),
+  sixMonths('6M'),
+  oneYear('1A'),
+  all('TUDO');
+
+  const InvestmentPeriod(this.code);
+
+  final String code;
+}
+
+class InvestmentHistoryPoint {
+  const InvestmentHistoryPoint(this.date, this.total);
+
+  factory InvestmentHistoryPoint.fromJson(Json json) => InvestmentHistoryPoint(json.date('date'), json.money('total'));
+
+  final DateTime date;
+  final Money total;
+}
+
+/// The invested total day by day over a period.
+class InvestmentHistory {
+  const InvestmentHistory(this.points);
+
+  factory InvestmentHistory.fromJson(Json json) =>
+      InvestmentHistory(_fromFirstData([for (final point in json.list('points')) InvestmentHistoryPoint.fromJson(point)]));
+
+  /// Oldest first, one point per day, starting on the first day with any data.
+  final List<InvestmentHistoryPoint> points;
+
+  /// What the invested total moved from the first day to the last, new money included. Null
+  /// with fewer than two points.
+  Money? get change => points.length < 2 ? null : points.last.total - points.first.total;
+
+  /// [change] over the first day's total.
+  double? get changeShare => change?.shareOf(points.first.total);
+
+  /// The BFF sends every day of the period and fills the days before the first sync with zeros;
+  /// drawn as they come, they read as a fortune made overnight.
+  static List<InvestmentHistoryPoint> _fromFirstData(List<InvestmentHistoryPoint> points) {
+    final first = points.indexWhere((point) => !point.total.isZero);
+    return first < 0 ? const [] : points.sublist(first);
+  }
+}
+
 class InvestmentsApi {
   InvestmentsApi(this._api);
 
   final ApiClient _api;
 
   Future<Portfolio> portfolio() async => Portfolio.fromJson(Json.of(await _api.get('/api/investments')));
+
+  Future<InvestmentHistory> history(InvestmentPeriod period) async => InvestmentHistory.fromJson(
+      Json.of(await _api.get('/api/investments/history', query: {'period': period.code})));
 }
