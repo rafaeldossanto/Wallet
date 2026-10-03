@@ -30,8 +30,9 @@ cd app && flutter run -d chrome --web-port 5000
 
 Sem `PLUGGY_CLIENT_ID` definido, o `test-run` do core sobe um Postgres descartável e uma
 **Pluggy de demonstração** com dados sintéticos gerados a partir da data de hoje. No app,
-crie uma conta, vá em Conexões → Vincular conexão e use os Item IDs `demo-banco` (conta
-corrente, poupança e cartão com faturas) e `demo-corretora` (investimentos). Com
+crie uma conta, vá em Conexões → Vincular conexão e use os Item IDs `demo-nubank`, `demo-itau`
+e `demo-xp` (bancos com cara de reais: conta, poupança, cartões com faturas e parcelas,
+investimentos) ou os básicos `demo-banco` e `demo-corretora`. Com
 `PLUGGY_CLIENT_ID` e `PLUGGY_CLIENT_SECRET` definidos, o mesmo comando fala com a Pluggy de
 verdade. Tudo some quando o core para.
 

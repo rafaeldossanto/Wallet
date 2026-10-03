@@ -81,3 +81,19 @@ atualizado: 2026-10-03
   sincronização percebe que a conexão sumiu ao marcar `SYNCING` e antes de gravar, para
   com `INFO` e não grava nada. Dois testes de integração reproduzem as duas corridas. Ver
   [[Sincronização]].
+
+## 2026-10-03
+
+- Tema preto (pedido de manhã) e, à tarde, redesenho em estilo painel a partir de duas
+  referências que o Rafael mandou: **tema claro e escuro**, trilho de botões redondos, blocos
+  de indicadores e o **calendário de gastos** na visão geral (dia mais claro quanto mais se
+  gastou; sem dia selecionado mostra o mês inteiro, tocar num dia filtra, tocar de novo volta).
+  Ver [[App Flutter]].
+- Core e BFF ganharam o gasto por dia e a lista de gastos de um período com o banco de cada
+  item; o BFF ganhou o histórico dos investimentos por período (1M a TUDO). Ver [[BFF]] e
+  [[Core]].
+- A Pluggy de demonstração ganhou Nubank, Itaú e XP simulados, para ver o app com cara de uso
+  real antes da T02.
+- O Rafael pediu e iniciou em sessões separadas (worktrees): o gráfico dos investimentos com
+  períodos, o ícone novo do app (a carteira da tela de login, branca no preto e inclinada) e
+  o tratamento de desvincular durante uma sincronização.

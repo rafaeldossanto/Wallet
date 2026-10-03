@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, backend, bff]
-atualizado: 2026-10-02
+atualizado: 2026-10-03
 porta: 8080
 repo: Work/Wallet/bff
 ---
@@ -60,6 +60,9 @@ bff/src/main/java/com/wallet/bff/
 | GET | `/api/cards` | `/internal/credit-cards` |
 | GET | `/api/cards/{accountId}/bills` | `/internal/credit-cards/{accountId}/bills` |
 | GET | `/api/investments` | `/internal/investments` |
+| GET | `/api/investments/history?period=` | `net-worth` do período (1M, 3M, 6M, 1A ou TUDO = até 2 anos), só o total investido por dia; cache por período |
+| GET | `/api/calendar?month=` | `/internal/insights/daily-spending` (gasto por dia do mês, mesma regra dos gastos por categoria); cache por mês |
+| GET | `/api/calendar/spending?from&to&page` | `/internal/transactions?spending=true` + contas + conexões em paralelo: os gastos do dia ou do mês, com o nome da conta e do banco |
 | GET | `/api/insights?month=` | `spending-by-category` do mês + `net-worth` dos últimos 6 meses |
 | GET, POST, DELETE | `/api/connections...` | `/internal/connections...`; POST e DELETE limpam o cache do usuário |
 | POST | `/api/connections/{id}/sync` | `/internal/connections/{id}/sync` (202) e limpa o cache |

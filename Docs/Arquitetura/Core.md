@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, backend, core]
-atualizado: 2026-10-02
+atualizado: 2026-10-03
 porta: 8081
 repo: Work/Wallet/core
 ---
@@ -156,11 +156,22 @@ sobe contra um Postgres descartável com `./mvnw spring-boot:test-run`.
 
 **Pluggy de demonstração (desde 2026-10-02):** sem `PLUGGY_CLIENT_ID`, o `test-run` também
 sobe um servidor HTTP pequeno (`DemoPluggy`, no código de teste) que responde como a Pluggy:
-`demo-banco` (conta corrente, poupança e cartão com faturas e parcelas) e `demo-corretora`
-(cinco investimentos). Os dados nascem da data de hoje, com uma semente por dia, então os
+`demo-banco` e `demo-corretora` (o básico) e, desde 2026-10-03, três que parecem os bancos de
+uma pessoa de verdade: `demo-nubank` (conta e cartão de uso diário), `demo-itau` (salário,
+aluguel, contas da casa, poupança e cartão) e `demo-xp` (seis investimentos). Os nomes das
+instituições são como a Pluggy os manda; pessoas, contas e valores são inventados. O histórico
+começa num dia fixo (01/01/2026) para os saldos não andarem sozinhos de um dia para o outro. Os dados nascem da data de hoje, com uma semente por dia, então os
 ids e valores se repetem a cada sincronização. Serve para ver o app inteiro funcionando
 antes da T02. `DemoPluggyCompatibilityTest` lê a demo pelo adaptador de verdade: se o
 adaptador mudar o que espera, quebra ali primeiro.
+
+## Calendário de gastos (desde 2026-10-03)
+
+- `GET /internal/insights/daily-spending?month=`: o gasto de cada dia do mês, pela mesma
+  regra dos gastos por categoria (saídas, sem o pagamento de fatura feito pela conta
+  corrente, porque as compras já estão no cartão).
+- `spending=true` no `/internal/transactions` aplica a mesma regra à lista, então os gastos de
+  um dia somam exatamente o total do calendário naquele dia.
 
 ## Testes
 

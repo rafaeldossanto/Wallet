@@ -5,8 +5,9 @@ atualizado: 2026-10-03
 
 # App Flutter
 
-Um projeto para **Android, iOS e Web**, **preto** (pedido do Rafael em 2026-10-03). Construído em 2026-10-02 (T12 a T18
-do [[Plano de Implementação]]), em `Work/Wallet/app`.
+Um projeto para **Android, iOS e Web**, com **tema claro e escuro** e visual de painel
+(redesenho pedido pelo Rafael em 2026-10-03, a partir de duas referências de dashboard).
+Construído em 2026-10-02 (T12 a T18 do [[Plano de Implementação]]), em `Work/Wallet/app`.
 
 ## Pacotes
 
@@ -20,7 +21,8 @@ do [[Plano de Implementação]]), em `Work/Wallet/app`.
 | `local_auth` | Biometria no celular |
 | `decimal` | Dinheiro sem `double` |
 | `intl` + ARB | Moeda, datas e textos em pt-BR |
-| `fl_chart` | Rosca de gastos e linha do patrimônio |
+| `fl_chart` | Rosca de gastos e linhas de patrimônio e investimentos |
+| `shared_preferences` | A escolha de tema (`SharedPreferencesAsync`, a API atual) |
 
 O `flutter_localizations` fica só porque o `gen-l10n` exige; os delegates usados vêm do
 `material_ui` (`GlobalMaterialLocalizations.delegates`). O `fl_chart` ainda importa o
@@ -41,11 +43,11 @@ app/lib/
     models/       Account, Transaction, CreditCard, Bill
     money/        Money (Decimal) e formatação R$
     format/       datas, porcentagem, categorias da Pluggy em pt-BR
-    theme/        tema preto e cores com significado (entrada, aviso, gráficos)
+    theme/        temas claro e escuro, ThemeController, cores com significado
     l10n/         app_pt.arb e as classes geradas
-    widgets/      LoadableView, SectionCard, MoneyText, MonthSelector...
+    widgets/      LoadableView, SectionCard, StatTile, MoneyText, MoneyLineChart, ThemeToggle...
   features/
-    auth/  overview/  transactions/  cards/  investments/  insights/  connections/  settings/
+    auth/  overview/  calendar/  transactions/  cards/  investments/  insights/  connections/  settings/
 ```
 
 Cada feature tem `data/` (chamadas ao BFF e modelos) e `presentation/` (telas e
@@ -56,8 +58,7 @@ controllers).
 | Largura | Navegação |
 |---|---|
 | < 600 px (celular) | Barra inferior: Início, Extrato, Cartões, Investir e **Mais** (Gastos, Conexões, Ajustes) |
-| 600–839 px | `NavigationRail` com os sete destinos (rola no celular deitado) |
-| ≥ 840 px (PC) | Menu lateral fixo e conteúdo em colunas |
+| ≥ 600 px | Trilho flutuante de botões redondos (`WalletRail`): a marca, os destinos com dica ao passar o mouse, a troca de tema e as iniciais do usuário (vão para Ajustes) |
 
 Rotas: `/home`, `/transactions?accountId=`, `/cards`, `/cards/:id?name=` (faturas),
 `/investments`, `/insights`, `/connections`, `/settings`, além de `/splash`, `/login` e
@@ -72,11 +73,30 @@ Só com o [[BFF]]: `http://localhost:8080` no navegador e no iOS,
 
 ## Tema
 
-Fundo preto puro; cada camada acima dele (cartões, barras, menus) um cinza neutro um
-passo mais claro; ações (botões, item selecionado, linha do patrimônio) em branco. A base é o
-`ColorScheme.fromSeed` na variante `monochrome`, com as camadas fixadas à mão. Cor só onde
-tem significado: verde para dinheiro entrando, amarelo para aviso, vermelho para erro e as
-fatias dos gráficos.
+Claro e escuro; escuro por padrão. Troca no botão de sol/lua (no trilho, ou no topo da
+visão geral no celular) ou em Ajustes → Aparência (Claro, Escuro, Automático). A escolha é
+lida antes do primeiro quadro, então o app nunca abre no tema errado.
+
+- **Escuro:** fundo quase preto (`#0B0B0C`), cartões em cinza escuro.
+- **Claro:** fundo cinza suave (`#EEF0F4`), cartões brancos com borda fina.
+- **Nos dois:** azul elétrico (`#3D5AFE`) nas ações e no cartão que puxa a tela (o
+  calendário); verde-limão (`#D4F34A`) no que está selecionado (destino, dia); cartões com
+  cantos de 24 px. Fora isso, cor só com significado: verde para dinheiro entrando, amarelo
+  para aviso, vermelho para erro e as fatias dos gráficos.
+- **Bancos:** sem logo (a Pluggy manda SVG), cada instituição aparece com as iniciais na cor
+  da marca (Nubank roxo, Itaú laranja, XP preto e amarelo...; `InstitutionColors`).
+
+## Visão geral e calendário de gastos
+
+- Cabeçalho com "Olá, Rafael!" e a data por extenso.
+- Patrimônio e mês em blocos (`StatTile`) com ícone colorido.
+- **Calendário de gastos** (cartão azul): os dias do mês mais claros quanto mais se gastou.
+  Sem dia selecionado, a lista ao lado mostra os gastos do **mês inteiro** (com o dia e o banco
+  de cada um, paginada com "Ver mais"); tocar num dia mostra só aquele dia; tocar de novo no
+  mesmo dia volta ao mês. O total vem do calendário, então lista e calendário batem.
+- Arranjo: duas colunas a partir de 1000 px de conteúdo (patrimônio, mês, contas e últimas
+  movimentações à esquerda; calendário, lista e cartões à direita); entre 720 e 1000 px,
+  calendário e lista lado a lado; uma coluna no celular.
 
 ## Dinheiro
 
