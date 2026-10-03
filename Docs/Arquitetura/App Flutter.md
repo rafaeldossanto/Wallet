@@ -98,6 +98,36 @@ lida antes do primeiro quadro, então o app nunca abre no tema errado.
   movimentações à esquerda; calendário, lista e cartões à direita); entre 720 e 1000 px,
   calendário e lista lado a lado; uma coluna no celular.
 
+## Investimentos (desde 2026-10-03)
+
+- **Distribuição:** rosca por tipo (renda fixa, Tesouro, fundos, ações, previdência), o total
+  no furo e a legenda com a fatia e o valor de cada tipo.
+- **Evolução dos investimentos:** linha do total investido dia a dia, com os períodos 1M, 3M,
+  6M (padrão), 1A e Tudo (até 2 anos), vindos de `GET /api/investments/history`. Acima da
+  linha, quanto o total andou no período (verde subindo, vermelho caindo), calculado com
+  `Money`. A variação inclui dinheiro novo aplicado: é a evolução do patrimônio investido, não
+  a rentabilidade.
+- A linha começa no **primeiro dia com dado**: o BFF manda zeros antes da primeira
+  sincronização, e desenhá-los pareceria uma fortuna feita da noite para o dia. Com menos de
+  dois dias, o cartão explica que o gráfico ganha um ponto a cada dia de atualização.
+- O histórico vem das fotos diárias que a sincronização grava, então numa conta nova (ou na
+  Pluggy de demonstração) só existe o dia de hoje. A Pluggy não manda histórico de
+  investimentos.
+- Trocar de período no meio de uma resposta descarta a resposta velha; uma sincronização
+  atualiza o período na tela sem apagar a linha.
+- A partir de 900 px de conteúdo, rosca e evolução ficam lado a lado.
+- Conferido em 2026-10-03 contra a demo com 400 dias de fotos inseridas no banco
+  descartável: a variação de 1M, 1A e Tudo bateu centavo a centavo com as somas no banco.
+
+## Ícone
+
+A carteira da tela de login, branca sobre preto e inclinada 20°, em todos os ícones (web,
+favicon, Android e iOS). Gerado por `tool/render_app_icon_test.dart` (fora de `test/`, para o
+`flutter test` normal não rodar): desenha o glifo grande, reduz com média em luz linear (o
+traço não some nos 16 px do favicon) e grava PNG RGB sem transparência, que o iOS exige. O
+maskable do Android usa um desenho menor, para caber na zona segura. Para regerar:
+`flutter test tool/render_app_icon_test.dart`.
+
 ## Dinheiro
 
 O BFF manda valor como texto (`"1234.56"`) e ele vira `Decimal`. A formatação
@@ -130,8 +160,8 @@ sozinhas. O BFF usa a mesma consulta para descartar o cache das telas daquele us
 ## Conectar banco
 
 - **Agora (Meu Pluggy):** Conexões → "Vincular conexão" pede o Item ID copiado do painel da
-  Pluggy. Em debug, o diálogo lembra os IDs da Pluggy de demonstração (`demo-banco`,
-  `demo-corretora`).
+  Pluggy. Em debug, o diálogo lembra os IDs da Pluggy de demonstração (`demo-nubank`,
+  `demo-itau`, `demo-xp` e os básicos `demo-banco` e `demo-corretora`).
 - **Produção:** widget `flutter_pluggy_connect` no celular (backlog).
 
 Ver [[Fluxo de Conexão]].
@@ -146,14 +176,17 @@ Ver [[Fluxo de Conexão]].
 
 ## Testes
 
-40 testes com um BFF em memória (`test/support/fake_bff.dart`):
+55 testes com um BFF em memória (`test/support/fake_bff.dart`):
 
 - Unitários: `Money`, sessão (restaurar, recusar, servidor fora), interceptor (duas chamadas
   com 401 geram **um** refresh), bloqueio por biometria, inatividade no navegador,
-  conexões (acompanhamento e aviso às outras telas), patrimônio sem os dias zerados.
+  conexões (acompanhamento e aviso às outras telas), patrimônio sem os dias zerados,
+  histórico de investimentos (começo no primeiro dia com dado, perda, período abandonado
+  descartado, atualização que falha mantendo a linha).
 - Widget: login, visão geral (completa, com parte indisponível, sem conexões), shell nos três
-  tamanhos e o "Mais", extrato (agrupamento por dia, filtros, segunda página), saída
-  voluntária.
+  tamanhos e o "Mais", calendário (mês inteiro, dia, tocar de novo), extrato (agrupamento por
+  dia, filtros, segunda página), investimentos (rosca, troca de período, menos de dois dias,
+  lado a lado na tela larga), saída voluntária.
 
 Além disso, verificado à mão em 2026-10-02 no Chrome (build release) e no emulador
 `trilha_pixel`, contra o core e o BFF reais com a Pluggy de demonstração.

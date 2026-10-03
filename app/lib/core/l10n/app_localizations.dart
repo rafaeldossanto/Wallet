@@ -925,7 +925,7 @@ abstract class AppLocalizations {
   /// No description provided for @connectionsDemoHint.
   ///
   /// In pt, this message translates to:
-  /// **'Desenvolvimento: com o core em modo demonstração, use demo-banco ou demo-corretora.'**
+  /// **'Desenvolvimento: com o core em modo demonstração, use demo-nubank, demo-itau ou demo-xp (ou os básicos demo-banco e demo-corretora).'**
   String get connectionsDemoHint;
 
   /// No description provided for @connectionsLinked.

@@ -174,7 +174,7 @@
   "connectionsLinkHelp": "Conecte o banco no painel do Meu Pluggy, abra a conexão e copie o Item ID. O Wallet só lê os dados: não faz pagamentos nem transferências.",
   "connectionsItemId": "Item ID",
   "connectionsItemIdInvalid": "O Item ID tem só letras, números e hífens.",
-  "connectionsDemoHint": "Desenvolvimento: com o core em modo demonstração, use demo-banco ou demo-corretora.",
+  "connectionsDemoHint": "Desenvolvimento: com o core em modo demonstração, use demo-nubank, demo-itau ou demo-xp (ou os básicos demo-banco e demo-corretora).",
   "connectionsLinked": "Conexão vinculada. Os dados chegam em instantes.",
   "connectionNeverSynced": "Ainda não sincronizou",
   "connectionConsentUntil": "Consentimento válido até {date}",

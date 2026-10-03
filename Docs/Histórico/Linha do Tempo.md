@@ -77,13 +77,6 @@ atualizado: 2026-10-03
 
 ## 2026-10-03
 
-- Desvincular uma conexão no meio da sincronização deixou de gerar `ERROR` no log: a
-  sincronização percebe que a conexão sumiu ao marcar `SYNCING` e antes de gravar, para
-  com `INFO` e não grava nada. Dois testes de integração reproduzem as duas corridas. Ver
-  [[Sincronização]].
-
-## 2026-10-03
-
 - Tema preto (pedido de manhã) e, à tarde, redesenho em estilo painel a partir de duas
   referências que o Rafael mandou: **tema claro e escuro**, trilho de botões redondos, blocos
   de indicadores e o **calendário de gastos** na visão geral (dia mais claro quanto mais se
@@ -97,3 +90,12 @@ atualizado: 2026-10-03
 - O Rafael pediu e iniciou em sessões separadas (worktrees): o gráfico dos investimentos com
   períodos, o ícone novo do app (a carteira da tela de login, branca no preto e inclinada) e
   o tratamento de desvincular durante uma sincronização.
+- Desvincular uma conexão no meio da sincronização deixou de gerar `ERROR` no log: a
+  sincronização percebe que a conexão sumiu ao marcar `SYNCING` e antes de gravar, para
+  com `INFO` e não grava nada. Dois testes de integração reproduzem as duas corridas. Ver
+  [[Sincronização]].
+- As três sessões paralelas terminaram e entraram na master. Validação no fim do dia: suítes
+  verdes (core 55 unitários + 58 de integração, BFF 41, app 55), ícones conferidos (RGB sem
+  transparência) e a tela de investimentos testada no navegador contra a demo, com 400 dias
+  de histórico inseridos no banco descartável: a variação de cada período bateu com as somas
+  no banco. A dica de IDs de demonstração do app passou a citar Nubank, Itaú e XP.

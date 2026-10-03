@@ -143,7 +143,7 @@ entrava no cache e ficava vazia por um minuto. Desde 2026-10-02:
 
 ## Testes
 
-36 testes, todos com o core simulado no **WireMock** e tokens assinados de verdade:
+41 testes, todos com o core simulado no **WireMock** e tokens assinados de verdade:
 
 - `BffEdgeTest`: token ausente, vencido, de outra chave ou de outro emissor; Bearer e
   trace chegando ao core; erro do core intacto; core fora do ar e circuito aberto; CORS.
@@ -152,7 +152,9 @@ entrava no cache e ficava vazia por um minuto. Desde 2026-10-02:
   home (completa, com parte falhando, 401), cache por usuário limpo pela sincronização,
   home parcial fora do cache, home durante a primeira sincronização fora do cache,
   sincronização no fundo descartando o cache, filtros do extrato com `&` e `+`, insights,
-  cartões, contas e conexões.
+  cartões, contas e conexões, calendário (mês em cache, período com nome da conta e do
+  banco, dia que volta mesmo sem os nomes, data inválida recusada) e o histórico dos
+  investimentos por período, com cache por período.
 - `RateLimitTest`: orçamento por usuário e login por IP.
 - `CoreKeyRotationTest`: chave nova no core é aceita sem reiniciar o BFF.
 

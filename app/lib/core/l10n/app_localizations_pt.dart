@@ -502,7 +502,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get connectionsDemoHint =>
-      'Desenvolvimento: com o core em modo demonstração, use demo-banco ou demo-corretora.';
+      'Desenvolvimento: com o core em modo demonstração, use demo-nubank, demo-itau ou demo-xp (ou os básicos demo-banco e demo-corretora).';
 
   @override
   String get connectionsLinked =>
