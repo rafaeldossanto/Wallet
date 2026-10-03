@@ -6,6 +6,7 @@ import com.wallet.core.banking.BankingQueries;
 import com.wallet.core.banking.CashFlow;
 import com.wallet.core.connection.ConnectionRegistry;
 import com.wallet.core.connection.LinkedConnection;
+import com.wallet.core.insight.dto.DailySpendingResponse;
 import com.wallet.core.insight.dto.NetWorthResponse;
 import com.wallet.core.insight.dto.OverviewResponse;
 import com.wallet.core.insight.dto.SpendingResponse;
@@ -64,6 +65,14 @@ public class InsightService {
                 .toList();
         return new SpendingResponse(month, sum(categories.stream().map(SpendingResponse.CategoryTotal::total).toList()),
                 categories);
+    }
+
+    public DailySpendingResponse dailySpending(UUID userId, YearMonth month) {
+        List<DailySpendingResponse.Day> days = banking
+                .spendingByDay(userId, new DateRange(month.atDay(1), month.atEndOfMonth())).stream()
+                .map(day -> new DailySpendingResponse.Day(day.date(), day.total(), day.count()))
+                .toList();
+        return new DailySpendingResponse(month, sum(days.stream().map(DailySpendingResponse.Day::total).toList()), days);
     }
 
     public NetWorthResponse netWorth(UUID userId, DateRange period) {

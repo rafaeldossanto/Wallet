@@ -18,6 +18,9 @@ public interface BankingQueries {
      */
     List<CategorySpending> spendingByCategory(UUID userId, DateRange period);
 
+    /** Same rule as {@link #spendingByCategory}, by day; only days with spending, oldest first. */
+    List<DailySpending> spendingByDay(UUID userId, DateRange period);
+
     /** One point per day; a day without a snapshot repeats the last known balance. */
     List<BalancePoint> balanceHistory(UUID userId, DateRange period);
 }

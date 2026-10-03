@@ -1,5 +1,6 @@
 package com.wallet.core.insight.controller;
 
+import com.wallet.core.insight.dto.DailySpendingResponse;
 import com.wallet.core.insight.dto.NetWorthResponse;
 import com.wallet.core.insight.dto.OverviewResponse;
 import com.wallet.core.insight.dto.SpendingResponse;
@@ -40,6 +41,13 @@ public class InsightController {
     public SpendingResponse spending(@CurrentUserId UUID userId,
                                      @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM") YearMonth month) {
         return insightService.spending(userId, isNull(month) ? WalletTime.currentMonth(clock) : month);
+    }
+
+    /** {@code month=2026-09}; defaults to the current month. */
+    @GetMapping("/internal/insights/daily-spending")
+    public DailySpendingResponse dailySpending(@CurrentUserId UUID userId,
+                                               @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM") YearMonth month) {
+        return insightService.dailySpending(userId, isNull(month) ? WalletTime.currentMonth(clock) : month);
     }
 
     /** Defaults to the last 30 days. */

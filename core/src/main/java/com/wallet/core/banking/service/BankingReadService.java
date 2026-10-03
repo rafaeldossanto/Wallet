@@ -5,6 +5,7 @@ import com.wallet.core.banking.BalancePoint;
 import com.wallet.core.banking.BankingQueries;
 import com.wallet.core.banking.CashFlow;
 import com.wallet.core.banking.CategorySpending;
+import com.wallet.core.banking.DailySpending;
 import com.wallet.core.banking.dto.AccountResponse;
 import com.wallet.core.banking.dto.BillResponse;
 import com.wallet.core.banking.dto.CreditCardResponse;
@@ -117,6 +118,11 @@ public class BankingReadService implements BankingQueries {
     @Override
     public List<CategorySpending> spendingByCategory(UUID userId, DateRange period) {
         return aggregates.spendingByCategory(userId, period);
+    }
+
+    @Override
+    public List<DailySpending> spendingByDay(UUID userId, DateRange period) {
+        return aggregates.spendingByDay(userId, period);
     }
 
     @Override

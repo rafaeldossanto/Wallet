@@ -27,6 +27,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -396,6 +397,66 @@ class BffRoutesTest extends BffTestSupport {
                 .andExpect(jsonPath("$.total").value("5000.00"));
     }
 
+    @Test
+    void theCalendarMonthIsRelayedAndCachedPerMonth() throws Exception {
+        CORE.stubFor(WireMock.get(urlPathEqualTo("/internal/insights/daily-spending")).willReturn(okJson(
+                "{\"month\":\"2026-09\",\"total\":\"165.90\",\"days\":[{\"date\":\"2026-09-18\",\"total\":\"120.00\",\"count\":1}]}")));
+        String rafael = bearer(UUID.randomUUID());
+
+        for (int call = 0; call < 2; call++) {
+            mockMvc.perform(get("/api/calendar").queryParam("month", "2026-09").header(HttpHeaders.AUTHORIZATION, rafael))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.total").value("165.90"))
+                    .andExpect(jsonPath("$.days[0].date").value("2026-09-18"))
+                    .andExpect(jsonPath("$.days[0].count").value(1));
+        }
+
+        CORE.verify(1, getRequestedFor(urlPathEqualTo("/internal/insights/daily-spending"))
+                .withQueryParam("month", equalTo("2026-09")));
+    }
+
+    @Test
+    void aDayOfTheCalendarComesWithAccountAndBankNames() throws Exception {
+        stubHome();
+        CORE.stubFor(WireMock.get(urlPathEqualTo("/internal/transactions")).withQueryParam("spending", equalTo("true"))
+                .willReturn(okJson(spendingPage("SUPERMERCADO", "210.45"))));
+
+        mockMvc.perform(get("/api/calendar/2026-09-30").header(HttpHeaders.AUTHORIZATION, bearer(UUID.randomUUID())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.date").value("2026-09-30"))
+                .andExpect(jsonPath("$.items", hasSize(1)))
+                .andExpect(jsonPath("$.items[0].description").value("SUPERMERCADO"))
+                .andExpect(jsonPath("$.items[0].amount").value("210.45"))
+                .andExpect(jsonPath("$.items[0].accountName").value("Conta Corrente"))
+                .andExpect(jsonPath("$.items[0].institutionName").value("Banco Teste"));
+
+        CORE.verify(getRequestedFor(urlPathEqualTo("/internal/transactions"))
+                .withQueryParam("from", equalTo("2026-09-30"))
+                .withQueryParam("to", equalTo("2026-09-30"))
+                .withQueryParam("spending", equalTo("true"))
+                .withQueryParam("pageSize", equalTo("200")));
+    }
+
+    @Test
+    void withoutTheNamesTheDayStillComesBack() throws Exception {
+        stubHome();
+        CORE.stubFor(WireMock.get(urlEqualTo("/internal/connections")).willReturn(aResponse().withStatus(500)));
+        CORE.stubFor(WireMock.get(urlPathEqualTo("/internal/transactions")).withQueryParam("spending", equalTo("true"))
+                .willReturn(okJson(spendingPage("SUPERMERCADO", "210.45"))));
+
+        mockMvc.perform(get("/api/calendar/2026-09-30").header(HttpHeaders.AUTHORIZATION, bearer(UUID.randomUUID())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].accountName").value("Conta Corrente"))
+                .andExpect(jsonPath("$.items[0].institutionName").value(nullValue()));
+    }
+
+    @Test
+    void aDayThatIsNotADateIsRefusedHere() throws Exception {
+        mockMvc.perform(get("/api/calendar/ontem").header(HttpHeaders.AUTHORIZATION, bearer(UUID.randomUUID())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("request.invalid_parameter"));
+    }
+
     /** The statement's account filter: every account, cards included, cached like the other screens. */
     @Test
     void accountsAreRelayedAndCachedPerUser() throws Exception {
@@ -474,6 +535,14 @@ class BffRoutesTest extends BffTestSupport {
                            "category":"Food"}],
                  "page":0,"pageSize":5,"total":1,"totalPages":1}
                 """.formatted(CHECKING_ID))));
+    }
+
+    private static String spendingPage(String description, String amount) {
+        return """
+                {"items":[{"id":"6f1c2a9e-0000-4000-8000-0000000000d1","accountId":"%s","bookedOn":"2026-09-30",
+                           "description":"%s","amount":"%s","direction":"OUTFLOW","status":"POSTED","category":"Groceries"}],
+                 "page":1,"pageSize":200,"total":1,"totalPages":1}
+                """.formatted(CHECKING_ID, description, amount);
     }
 
     private static String connectionJson() {

@@ -6,6 +6,7 @@ import com.wallet.bff.model.dto.request.RefreshRequest;
 import com.wallet.bff.model.dto.request.RegisterRequest;
 import com.wallet.bff.model.dto.response.AccountResponse;
 import com.wallet.bff.model.dto.response.BillResponse;
+import com.wallet.bff.model.dto.response.CalendarResponse;
 import com.wallet.bff.model.dto.response.ConnectionResponse;
 import com.wallet.bff.model.dto.response.CreditCardResponse;
 import com.wallet.bff.model.dto.response.NetWorthResponse;
@@ -105,6 +106,11 @@ public class CoreApi {
     public SpendingResponse spending(String month) {
         Map<String, Object> query = nonNull(month) ? Map.of("month", month) : Map.of();
         return client.get("/internal/insights/spending-by-category", query, new ParameterizedTypeReference<>() {});
+    }
+
+    public CalendarResponse dailySpending(String month) {
+        Map<String, Object> query = nonNull(month) ? Map.of("month", month) : Map.of();
+        return client.get("/internal/insights/daily-spending", query, new ParameterizedTypeReference<>() {});
     }
 
     public NetWorthResponse netWorth(LocalDate from, LocalDate to) {

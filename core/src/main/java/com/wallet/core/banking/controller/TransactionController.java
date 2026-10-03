@@ -29,7 +29,11 @@ public class TransactionController {
     private final BankingReadService bankingReadService;
     private final Clock clock;
 
-    /** Defaults to the current month so far. */
+    /**
+     * Defaults to the current month so far. {@code spending=true} keeps only what counts as
+     * spending, by the same rule as the spending insights, so a day's list adds up to the
+     * calendar's total for that day.
+     */
     @GetMapping("/internal/transactions")
     public PageResponse<TransactionResponse> search(
             @CurrentUserId UUID userId,
@@ -38,11 +42,12 @@ public class TransactionController {
             @RequestParam(required = false) UUID accountId,
             @RequestParam(required = false) Direction direction,
             @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "false") boolean spending,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer pageSize) {
         LocalDate today = WalletTime.today(clock);
         DateRange period = DateRange.of(from, to, today.withDayOfMonth(1), today, MAX_PERIOD_DAYS);
-        return bankingReadService.searchTransactions(new TransactionFilter(userId, period, accountId, direction), q,
-                PageQuery.of(page, pageSize));
+        return bankingReadService.searchTransactions(new TransactionFilter(userId, period, accountId, direction, spending),
+                q, PageQuery.of(page, pageSize));
     }
 }

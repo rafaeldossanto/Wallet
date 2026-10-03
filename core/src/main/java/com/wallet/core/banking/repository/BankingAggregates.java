@@ -1,6 +1,7 @@
 package com.wallet.core.banking.repository;
 
 import com.wallet.core.banking.CategorySpending;
+import com.wallet.core.banking.DailySpending;
 import com.wallet.core.shared.finance.AccountKind;
 import com.wallet.core.shared.finance.Direction;
 import com.wallet.core.shared.money.Money;
@@ -51,6 +52,21 @@ public class BankingAggregates {
                  ORDER BY total DESC, category
                 """,
                 (row, index) -> new CategorySpending(row.getString("category"), Money.of(row.getBigDecimal("total"))),
+                userId, Date.valueOf(period.from()), Date.valueOf(period.to()), CARD_PAYMENT_CATEGORY);
+    }
+
+    public List<DailySpending> spendingByDay(UUID userId, DateRange period) {
+        return jdbc.query("""
+                SELECT t.booked_on, SUM(t.amount) AS total, COUNT(*) AS count
+                  FROM transactions t JOIN accounts a ON a.id = t.account_id
+                 WHERE t.user_id = ? AND t.deleted_at IS NULL AND t.direction = 'OUTFLOW'
+                   AND t.booked_on BETWEEN ? AND ?
+                   AND NOT (a.kind <> 'CREDIT_CARD' AND LOWER(COALESCE(t.category, '')) = ?)
+                 GROUP BY t.booked_on
+                 ORDER BY t.booked_on
+                """,
+                (row, index) -> new DailySpending(row.getDate("booked_on").toLocalDate(),
+                        Money.of(row.getBigDecimal("total")), row.getInt("count")),
                 userId, Date.valueOf(period.from()), Date.valueOf(period.to()), CARD_PAYMENT_CATEGORY);
     }
 

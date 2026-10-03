@@ -210,6 +210,31 @@ class ReadApiIT {
                 .andExpect(jsonPath("$.categories[1].total").value("45.90"));
     }
 
+    /** The calendar: September had purchases on the 18th (card) and 20th; the bill paid on the 10th is not spending. */
+    @Test
+    void dailySpendingFollowsTheSameRuleAsCategories() throws Exception {
+        read("/internal/insights/daily-spending?month=2026-09")
+                .andExpect(jsonPath("$.month").value("2026-09"))
+                .andExpect(jsonPath("$.total").value("165.90"))
+                .andExpect(jsonPath("$.days", hasSize(2)))
+                .andExpect(jsonPath("$.days[0].date").value("2026-09-18"))
+                .andExpect(jsonPath("$.days[0].total").value("120.00"))
+                .andExpect(jsonPath("$.days[0].count").value(1))
+                .andExpect(jsonPath("$.days[1].date").value("2026-09-20"));
+    }
+
+    @Test
+    void aDaysSpendingListAddsUpToTheCalendar() throws Exception {
+        read("/internal/transactions?from=2026-09-10&to=2026-09-10&spending=true")
+                .andExpect(jsonPath("$.total").value(0));
+        read("/internal/transactions?from=2026-09-01&to=2026-09-30&spending=true")
+                .andExpect(jsonPath("$.total").value(2))
+                .andExpect(jsonPath("$.items[0].description").value("Padaria do Bairro"))
+                .andExpect(jsonPath("$.items[1].description").value("Loja de Eletrônicos"));
+        read("/internal/transactions?from=2026-09-10&to=2026-09-10")
+                .andExpect(jsonPath("$.total").value(1));
+    }
+
     @Test
     void netWorthCarriesTheLastKnownBalanceForward() throws Exception {
         read("/internal/insights/net-worth?from=2026-09-30&to=2026-10-01")
