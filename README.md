@@ -134,7 +134,7 @@ flutter test       # unitários e de tela, com o BFF simulado
 flutter analyze
 flutter run -d chrome --web-port 5000       # PC, no navegador
 flutter run -d emulator-5554                # emulador Android (fala com o BFF em 10.0.2.2:8080)
-flutter run -d windows                      # app de Windows (exige o Visual Studio 2022 com C++)
+flutter run -d windows                      # app de Windows (exige o Visual Studio com C++)
 ```
 
 O endereço do BFF muda com `--dart-define=WALLET_BFF_URL=https://...`. A porta 5000 do
@@ -153,7 +153,7 @@ cada mudança no `app/`: abra a última execução em Actions → Desktop e baix
 - Até o deploy, o app instalado fala com o BFF deste PC (`localhost:8080`): core e BFF precisam
   estar rodando. Com a variável de repositório `WALLET_BFF_URL` definida no GitHub, o build
   aponta para ela.
-- Para rodar com `flutter run -d windows` é preciso o Visual Studio 2022 Community com a carga
+- Para rodar com `flutter run -d windows` é preciso o Visual Studio Community (2022 ou 2026) com a carga
   "Desenvolvimento para desktop com C++" (só o compilador é usado).
 
 ## CI

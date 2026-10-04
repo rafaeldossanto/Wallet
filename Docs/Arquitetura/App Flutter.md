@@ -104,9 +104,13 @@ projeto Flutter e o mesmo código Dart; o Flutter gera o executável nativo a pa
 - **Sem assinatura de código:** o Windows mostra "O Windows protegeu o computador" na primeira
   execução do instalador (Mais informações → Executar assim mesmo). Assinar custa um
   certificado; fica para antes de abrir a outras pessoas.
-- **Rodar aqui no PC** (`flutter run -d windows`) exige o Visual Studio 2022 com "Desenvolvimento
-  para desktop com C++". Só o compilador dele é usado; ninguém escreve C++. Baixar e usar o
-  instalador não exige nada disso.
+- **Rodar aqui no PC** (`flutter run -d windows`) exige o Visual Studio (2022 ou 2026) com
+  "Desenvolvimento para desktop com C++". Só o compilador dele é usado; ninguém escreve C++.
+  Baixar e usar o instalador não exige nada disso.
+- **Visual Studio 2026:** o plugin do Windows Hello (`local_auth_windows` 2.0.2, o mais novo)
+  ainda usa `<experimental/coroutine>`, que o compilador do VS 2026 recusa (STL1011). O
+  `windows/CMakeLists.txt` libera isso só para esse plugin; tirar quando ele for atualizado.
+  Achado na primeira execução do workflow Desktop, em 2026-10-04.
 - **Ainda não:** atualização automática como a do Discord, ícone na bandeja, abrir com o
   Windows, macOS (exige um Mac, como o iOS) e Linux.
 
