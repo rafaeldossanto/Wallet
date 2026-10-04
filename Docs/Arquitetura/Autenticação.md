@@ -24,9 +24,10 @@ entregá-los a cada plataforma.
 | Access (JWT RS256) | 15 min | Memória | Memória |
 | Refresh (opaco) | 30 dias | `flutter_secure_storage` (Keychain/Keystore) | Cookie `HttpOnly`, `Secure`, `SameSite=Strict`, só em `/api/auth` |
 
-- O app diz quem é pelo header `X-Wallet-Client: mobile` ou `web`, e o BFF escolhe a
-  entrega. No `web`, o refresh vai só no cookie e **nunca** no corpo; no `mobile`, vai
-  no corpo.
+- O app diz quem é pelo header `X-Wallet-Client: mobile`, `desktop` ou `web`, e o BFF
+  escolhe a entrega. No `web`, o refresh vai só no cookie e **nunca** no corpo; no `mobile`
+  e no `desktop` (o app instalado no PC, desde 2026-10-04), vai no corpo e o app guarda no
+  cofre do sistema (Keychain, Keystore ou o cofre do Windows).
 - O BFF valida o JWT com a chave pública e repassa o mesmo Bearer ao core, que valida
   de novo. A chave vem de `/internal/.well-known/jwks.json`; o `kid` é o thumbprint da
   chave, então uma chave nova no core é buscada pelo BFF sem reiniciar nada.

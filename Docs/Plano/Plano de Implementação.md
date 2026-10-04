@@ -521,6 +521,19 @@ dias sem dado e, com menos de dois pontos, explica que o gráfico cresce a cada 
 
 ---
 
+### T19 — App de Windows
+
+**Pedido do Rafael em 2026-10-04:** além do navegador, um app instalável como o Steam e o
+Discord. Mesmo projeto Flutter, sem outra linguagem: `app/windows/` mais o instalador.
+
+**Feito em 2026-10-04:** sessão como no celular (`X-Wallet-Client: desktop`, refresh no cofre do
+Windows), bloqueio pelo Windows Hello, janela centralizada com tamanho mínimo e instância única,
+ícone `.ico`, instalador Inno Setup por usuário e o workflow **Desktop**, que compila em Windows
+no GitHub e anexa o instalador (e publica nos Releases numa tag `v*`). Detalhes em
+[[App Flutter]].
+
+**Depois:** atualização automática, assinatura de código, bandeja e abrir com o Windows, macOS.
+
 ## Backlog — antes de abrir para outras pessoas
 
 - Plano Dados da Pluggy, widget Pluggy Connect no celular e `connect_token`.

@@ -4,8 +4,9 @@ import 'package:local_auth/local_auth.dart';
 
 import '../session/session_controller.dart';
 
-/// Phones only: after a few minutes in the background the app asks for the fingerprint, face or
-/// device PIN before showing any balance again.
+/// The phone and desktop apps: after a few minutes in the background (minimised, on a PC) the app
+/// asks for the fingerprint, face or device PIN (Windows Hello on a PC) before showing any balance
+/// again.
 class AppLock extends ChangeNotifier with WidgetsBindingObserver {
   AppLock({
     required this._session,

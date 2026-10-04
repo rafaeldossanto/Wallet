@@ -69,6 +69,19 @@ class BffRoutesTest extends BffTestSupport {
     }
 
     @Test
+    void desktopLoginGetsBothTokensInTheBodyLikeThePhone() throws Exception {
+        stubTokens("/internal/auth/login", "access-1", "refresh-1");
+
+        mockMvc.perform(post("/api/auth/login").header(CLIENT, "desktop")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"rafael@example.com\",\"password\":\"secret-password\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").value("access-1"))
+                .andExpect(jsonPath("$.refreshToken").value("refresh-1"))
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
+    }
+
+    @Test
     void webLoginKeepsTheRefreshTokenOutOfReachOfJavaScript() throws Exception {
         stubTokens("/internal/auth/login", "access-1", "refresh-1");
 
@@ -95,7 +108,7 @@ class BffRoutesTest extends BffTestSupport {
                         .content("{\"email\":\"rafael@example.com\",\"password\":\"secret-password\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("auth.client_required"));
-        mockMvc.perform(post("/api/auth/refresh").header(CLIENT, "desktop")
+        mockMvc.perform(post("/api/auth/refresh").header(CLIENT, "smart-tv")
                         .cookie(new Cookie("wallet_refresh", "refresh-1")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("auth.client_required"));

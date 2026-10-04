@@ -580,6 +580,17 @@ class AppLocalizationsPt extends AppLocalizations {
       'Este aparelho não tem bloqueio de tela configurado.';
 
   @override
+  String get settingsWindowsHello => 'Pedir o Windows Hello ao voltar';
+
+  @override
+  String get settingsWindowsHelloHelp =>
+      'Depois de 5 minutos com o Wallet minimizado, ele pede o PIN, o rosto ou a digital do Windows Hello.';
+
+  @override
+  String get settingsWindowsHelloUnavailable =>
+      'O Windows Hello não está configurado neste computador.';
+
+  @override
   String get settingsWebSession => 'Sessão no navegador';
 
   @override

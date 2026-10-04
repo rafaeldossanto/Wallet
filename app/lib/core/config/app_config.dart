@@ -15,6 +15,18 @@ abstract final class AppConfig {
     return 'http://localhost:8080';
   }
 
-  /// What the BFF calls this app in `X-Wallet-Client`: it decides where the refresh token goes.
-  static String get client => kIsWeb ? 'web' : 'mobile';
+  /// The installed Windows app, where the lock is Windows Hello.
+  static bool get isWindows => !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+
+  /// What the BFF calls this app in `X-Wallet-Client`. The browser gets the refresh token in a
+  /// cookie; the phone and desktop apps get it in the body and keep it in the system's vault.
+  static String get client {
+    if (kIsWeb) {
+      return 'web';
+    }
+    return switch (defaultTargetPlatform) {
+      TargetPlatform.windows || TargetPlatform.macOS || TargetPlatform.linux => 'desktop',
+      TargetPlatform.android || TargetPlatform.iOS || TargetPlatform.fuchsia => 'mobile',
+    };
+  }
 }

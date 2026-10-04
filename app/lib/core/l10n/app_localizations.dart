@@ -1060,6 +1060,24 @@ abstract class AppLocalizations {
   /// **'Este aparelho não tem bloqueio de tela configurado.'**
   String get settingsBiometricUnavailable;
 
+  /// No description provided for @settingsWindowsHello.
+  ///
+  /// In pt, this message translates to:
+  /// **'Pedir o Windows Hello ao voltar'**
+  String get settingsWindowsHello;
+
+  /// No description provided for @settingsWindowsHelloHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Depois de 5 minutos com o Wallet minimizado, ele pede o PIN, o rosto ou a digital do Windows Hello.'**
+  String get settingsWindowsHelloHelp;
+
+  /// No description provided for @settingsWindowsHelloUnavailable.
+  ///
+  /// In pt, this message translates to:
+  /// **'O Windows Hello não está configurado neste computador.'**
+  String get settingsWindowsHelloUnavailable;
+
   /// No description provided for @settingsWebSession.
   ///
   /// In pt, this message translates to:

@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/config/app_config.dart';
 import '../../../core/l10n/l10n.dart';
 import '../../../core/security/app_lock.dart';
 import '../../../core/session/session_controller.dart';
@@ -62,8 +63,13 @@ class SettingsScreen extends StatelessWidget {
                       if (lock != null)
                         SwitchListTile(
                           secondary: const Icon(Icons.fingerprint),
-                          title: Text(l10n.settingsBiometric),
-                          subtitle: Text(lock.isAvailable ? l10n.settingsBiometricHelp : l10n.settingsBiometricUnavailable),
+                          title: Text(AppConfig.isWindows ? l10n.settingsWindowsHello : l10n.settingsBiometric),
+                          subtitle: Text(switch ((AppConfig.isWindows, lock.isAvailable)) {
+                            (true, true) => l10n.settingsWindowsHelloHelp,
+                            (true, false) => l10n.settingsWindowsHelloUnavailable,
+                            (false, true) => l10n.settingsBiometricHelp,
+                            (false, false) => l10n.settingsBiometricUnavailable,
+                          }),
                           value: lock.isAvailable && lock.isEnabled,
                           onChanged: lock.isAvailable ? lock.setEnabled : null,
                         )

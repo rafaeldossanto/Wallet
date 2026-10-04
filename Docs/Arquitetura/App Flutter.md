@@ -5,7 +5,8 @@ atualizado: 2026-10-03
 
 # App Flutter
 
-Um projeto para **Android, iOS e Web**, com **tema claro e escuro** e visual de painel
+Um projeto para **Android, iOS, Web e Windows** (app instalável, desde 2026-10-04), com **tema
+claro e escuro** e visual de painel
 (redesenho pedido pelo Rafael em 2026-10-03, a partir de duas referências de dashboard).
 Construído em 2026-10-02 (T12 a T18 do [[Plano de Implementação]]), em `Work/Wallet/app`.
 
@@ -68,9 +69,46 @@ depois do login (`?from=`), menos quando a pessoa saiu de propósito.
 
 ## Com quem o app fala
 
-Só com o [[BFF]]: `http://localhost:8080` no navegador e no iOS,
+Só com o [[BFF]]: `http://localhost:8080` no navegador, no Windows e no iOS,
 `http://10.0.2.2:8080` no emulador Android (HTTP liberado só no build de debug). Muda com
-`--dart-define=WALLET_BFF_URL=`. Toda chamada leva `X-Wallet-Client: mobile` ou `web`.
+`--dart-define=WALLET_BFF_URL=`. Toda chamada leva `X-Wallet-Client: mobile`, `desktop` ou
+`web`.
+
+## App de Windows (desde 2026-10-04)
+
+Pedido do Rafael: além do navegador, um app instalável como o Steam ou o Discord. É o mesmo
+projeto Flutter e o mesmo código Dart; o Flutter gera o executável nativo a partir de
+`app/windows/` (a casca em C++ que ele cria, como o Kotlin do Android e o Swift do iOS).
+
+- **Sessão:** como no celular. O refresh token vai no corpo (`X-Wallet-Client: desktop`) e fica
+  no cofre do Windows (`flutter_secure_storage`, cifrado com a conta do usuário).
+- **Bloqueio:** depois de 5 minutos minimizado, pede o Windows Hello (PIN, rosto ou digital),
+  como a digital no celular. Dá para desligar em Ajustes.
+- **Janela:** abre centralizada em 1280×800 (no máximo 90% da tela), não fica menor que
+  400×640, e abrir de novo pelo Menu Iniciar traz para a frente a janela que já está aberta, em
+  vez de abrir outra (`windows/runner/main.cpp` e `flutter_window.cpp`).
+- **Ícone:** o mesmo da carteira, num `app_icon.ico` com 8 tamanhos gerado pelo
+  `tool/render_app_icon_test.dart` (de 16 a 32 px a carteira ocupa mais do quadro, para não sumir
+  na barra de tarefas).
+- **Instalador:** Inno Setup (`windows/installer/wallet.iss`). Instala só para o usuário, em
+  `%LOCALAPPDATA%ProgramsWallet`, sem pedir administrador, como o Discord; atalho no Menu
+  Iniciar e, se quiser, na área de trabalho; desinstala por Configurações → Aplicativos.
+  Atualizar é rodar um instalador mais novo por cima: ele fecha o Wallet aberto e abre de novo.
+  Leva junto as três DLLs do Visual C++, então não precisa instalar mais nada.
+- **Onde baixar:** o workflow Desktop compila em Windows no GitHub a cada mudança no `app/` e
+  anexa o `Wallet-Setup-<versão>.exe` à execução. Uma tag `v<versão>` (igual à do `pubspec.yaml`)
+  também publica o instalador nos Releases do repositório.
+- **Endereço do BFF:** enquanto não houver deploy, o app instalado fala com o BFF deste PC
+  (`localhost:8080`), então core e BFF precisam estar rodando. Depois do deploy, a variável
+  `WALLET_BFF_URL` do repositório no GitHub entra no build.
+- **Sem assinatura de código:** o Windows mostra "O Windows protegeu o computador" na primeira
+  execução do instalador (Mais informações → Executar assim mesmo). Assinar custa um
+  certificado; fica para antes de abrir a outras pessoas.
+- **Rodar aqui no PC** (`flutter run -d windows`) exige o Visual Studio 2022 com "Desenvolvimento
+  para desktop com C++". Só o compilador dele é usado; ninguém escreve C++. Baixar e usar o
+  instalador não exige nada disso.
+- **Ainda não:** atualização automática como a do Discord, ícone na bandeja, abrir com o
+  Windows, macOS (exige um Mac, como o iOS) e Linux.
 
 ## Tema
 
@@ -185,14 +223,14 @@ Ver [[Fluxo de Conexão]].
 
 ## Testes
 
-61 testes com um BFF em memória (`test/support/fake_bff.dart`):
+63 testes com um BFF em memória (`test/support/fake_bff.dart`):
 
 - Unitários: `Money`, sessão (restaurar, recusar, servidor fora), interceptor (duas chamadas
   com 401 geram **um** refresh), bloqueio por biometria, inatividade no navegador,
   conexões (acompanhamento e aviso às outras telas), patrimônio sem os dias zerados,
   histórico de investimentos (começo no primeiro dia com dado, perda, período abandonado
   descartado, atualização que falha mantendo a linha), estilos CSS dos logos passados para os
-  elementos.
+  elementos, o app de PC se identificando como `desktop`.
 - Widget: login, visão geral (completa, com parte indisponível, sem conexões), shell nos três
   tamanhos e o "Mais", calendário (mês inteiro, dia, tocar de novo), extrato (agrupamento por
   dia, filtros, segunda página), investimentos (rosca, clique na fatia e na legenda, troca de

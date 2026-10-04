@@ -114,8 +114,8 @@ cd bff
 ```
 
 O app web roda na porta 5000 (`flutter run -d chrome --web-port 5000`). O celular
-manda `X-Wallet-Client: mobile` e o navegador `X-Wallet-Client: web` nas rotas de
-`/api/auth`.
+manda `X-Wallet-Client: mobile`, o app de Windows `X-Wallet-Client: desktop` e o navegador
+`X-Wallet-Client: web` nas rotas de `/api/auth`.
 
 ### Testar
 
@@ -126,7 +126,7 @@ manda `X-Wallet-Client: mobile` e o navegador `X-Wallet-Client: web` nas rotas d
 ## App
 
 Flutter 3.47 ou mais novo (o Material vem do pacote `material_ui`). Um projeto para
-Android, iOS e navegador; só fala com o BFF.
+Android, iOS, navegador e Windows (app instalável); só fala com o BFF.
 
 ```bash
 cd app
@@ -134,10 +134,27 @@ flutter test       # unitários e de tela, com o BFF simulado
 flutter analyze
 flutter run -d chrome --web-port 5000       # PC, no navegador
 flutter run -d emulator-5554                # emulador Android (fala com o BFF em 10.0.2.2:8080)
+flutter run -d windows                      # app de Windows (exige o Visual Studio 2022 com C++)
 ```
 
 O endereço do BFF muda com `--dart-define=WALLET_BFF_URL=https://...`. A porta 5000 do
 navegador é a origem que o BFF aceita no CORS (`WALLET_WEB_ALLOWED_ORIGINS`).
+
+### App de Windows
+
+O instalador `Wallet-Setup-<versão>.exe` é gerado pelo workflow **Desktop** do GitHub Actions a
+cada mudança no `app/`: abra a última execução em Actions → Desktop e baixe o arquivo em
+*Artifacts*. Uma tag `v<versão>` (a mesma do `pubspec.yaml`) também publica o instalador em
+*Releases*.
+
+- Instala só para o seu usuário, sem pedir administrador; atalho no Menu Iniciar.
+- O instalador não é assinado: na primeira vez o Windows avisa "O Windows protegeu o
+  computador" (Mais informações → Executar assim mesmo).
+- Até o deploy, o app instalado fala com o BFF deste PC (`localhost:8080`): core e BFF precisam
+  estar rodando. Com a variável de repositório `WALLET_BFF_URL` definida no GitHub, o build
+  aponta para ela.
+- Para rodar com `flutter run -d windows` é preciso o Visual Studio 2022 Community com a carga
+  "Desenvolvimento para desktop com C++" (só o compilador é usado).
 
 ## CI
 
@@ -149,6 +166,7 @@ só quando a pasta dela muda (`.github/workflows/`):
 | Core | `./mvnw -B verify` com JDK 25: unitários e integração (Postgres no Docker do runner) |
 | BFF | `./mvnw -B verify` com JDK 25 (core simulado no WireMock) |
 | App | Flutter 3.47.6: traduções geradas batendo com o `.arb`, `flutter analyze` e `flutter test` |
+| Desktop | Em Windows: compila o app, monta o instalador (Inno Setup) e anexa o `.exe` à execução; numa tag `v*`, publica nos Releases |
 
 Nenhum workflow precisa de segredo. Quando um teste falha, os relatórios ficam 7 dias como
 artefato da execução.

@@ -108,3 +108,10 @@ atualizado: 2026-10-03
 - CI no GitHub Actions: um workflow por parte (core, BFF, app), cada um rodando só quando a
   pasta dele muda. A primeira execução passou nos três (core em 1min36s, com Postgres no Docker
   do runner; BFF em 53s; app em 2min05s). Ver o README.
+
+## 2026-10-04
+
+- App de Windows instalável (T19), pedido do Rafael: mesmo projeto Flutter, sem outra
+  linguagem. Sessão como no celular (`X-Wallet-Client: desktop`, que o BFF passou a aceitar),
+  Windows Hello no lugar da digital, janela de instância única e instalador Inno Setup gerado
+  pelo workflow Desktop no GitHub. Ver [[App Flutter]].

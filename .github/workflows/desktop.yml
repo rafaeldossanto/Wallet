@@ -1,0 +1,98 @@
+name: Desktop
+
+on:
+  push:
+    branches: [master]
+    # A version tag (v0.1.0) also publishes the installer as a GitHub release.
+    tags: ['v*']
+    paths: ['app/**', '.github/workflows/desktop.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows installer
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: app
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.6
+          cache: true
+
+      # The installer carries the pubspec version; a tag must say the same, so a release is never
+      # labelled with a version the app itself does not report.
+      - name: Version
+        id: version
+        run: |
+          $version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*(\d+\.\d+\.\d+)').Matches[0].Groups[1].Value
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$version") {
+            throw "The tag $env:GITHUB_REF_NAME does not match the pubspec version $version"
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      # WALLET_BFF_URL is a repository variable (not a secret): the BFF's public address once it is
+      # deployed. Unset, the app talks to the BFF on this PC (http://localhost:8080).
+      - name: Build
+        run: |
+          flutter pub get
+          flutter build windows --release "--dart-define=WALLET_BFF_URL=${{ vars.WALLET_BFF_URL }}"
+
+      # A Flutter app needs the Visual C++ runtime. Shipping its three DLLs next to Wallet.exe
+      # (Microsoft's app-local deployment) spares the user installing the redistributable.
+      - name: Bundle the Visual C++ runtime
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $crt = Get-ChildItem "$vs\VC\Redist\MSVC\*\x64\Microsoft.VC14*.CRT" -Directory | Sort-Object FullName | Select-Object -Last 1
+          if (-not $crt) { throw "Visual C++ runtime not found under $vs" }
+          Copy-Item "$($crt.FullName)\msvcp140.dll", "$($crt.FullName)\vcruntime140.dll", "$($crt.FullName)\vcruntime140_1.dll" build\windows\x64\runner\Release
+
+      - name: Installer
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y }
+          & $iscc /Qp "/DAppVersion=${{ steps.version.outputs.version }}" windows\installer\wallet.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
+
+      # Not zipped: the run page offers the .exe itself, named after the file.
+      - uses: actions/upload-artifact@v7
+        with:
+          path: app/build/installer/Wallet-Setup-${{ steps.version.outputs.version }}.exe
+          archive: false
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: GitHub release
+    if: github.ref_type == 'tag'
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: Wallet-Setup-${{ needs.windows.outputs.version }}.exe
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" "Wallet-Setup-${{ needs.windows.outputs.version }}.exe"
+          --title "Wallet ${{ needs.windows.outputs.version }}" --generate-notes
