@@ -48,10 +48,20 @@ jobs:
 
       # WALLET_BFF_URL is a repository variable (not a secret): the BFF's public address once it is
       # deployed. Unset, the app talks to the BFF on this PC (http://localhost:8080).
+      # On failure the end of the output also becomes an annotation: the run page shows those to
+      # anyone, while the full log needs a GitHub login.
       - name: Build
         run: |
           flutter pub get
-          flutter build windows --release "--dart-define=WALLET_BFF_URL=${{ vars.WALLET_BFF_URL }}"
+          New-Item -ItemType Directory -Force build | Out-Null
+          cmd /c "flutter build windows --release --dart-define=WALLET_BFF_URL=${{ vars.WALLET_BFF_URL }} > build\windows-build.log 2>&1"
+          $failed = $LASTEXITCODE -ne 0
+          Get-Content build\windows-build.log
+          if ($failed) {
+            $tail = (Get-Content build\windows-build.log -Tail 40 | ForEach-Object { $_.Replace('%', '%25') }) -join '%0A'
+            Write-Output "::error title=flutter build windows failed::$tail"
+            exit 1
+          }
 
       # A Flutter app needs the Visual C++ runtime. Shipping its three DLLs next to Wallet.exe
       # (Microsoft's app-local deployment) spares the user installing the redistributable.
@@ -59,15 +69,24 @@ jobs:
         run: |
           $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
           $crt = Get-ChildItem "$vs\VC\Redist\MSVC\*\x64\Microsoft.VC14*.CRT" -Directory | Sort-Object FullName | Select-Object -Last 1
-          if (-not $crt) { throw "Visual C++ runtime not found under $vs" }
+          if (-not $crt) {
+            Write-Output "::error title=Visual C++ runtime not found::Nothing under $vs\VC\Redist\MSVC"
+            exit 1
+          }
           Copy-Item "$($crt.FullName)\msvcp140.dll", "$($crt.FullName)\vcruntime140.dll", "$($crt.FullName)\vcruntime140_1.dll" build\windows\x64\runner\Release
 
       - name: Installer
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup --no-progress -y }
-          & $iscc /Qp "/DAppVersion=${{ steps.version.outputs.version }}" windows\installer\wallet.iss
-          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
+          & $iscc /Qp "/DAppVersion=${{ steps.version.outputs.version }}" windows\installer\wallet.iss *> build\installer.log
+          $failed = $LASTEXITCODE -ne 0
+          Get-Content build\installer.log
+          if ($failed) {
+            $tail = (Get-Content build\installer.log -Tail 40 | ForEach-Object { $_.Replace('%', '%25') }) -join '%0A'
+            Write-Output "::error title=Inno Setup failed::$tail"
+            exit 1
+          }
 
       # Not zipped: the run page offers the .exe itself, named after the file.
       - uses: actions/upload-artifact@v7
