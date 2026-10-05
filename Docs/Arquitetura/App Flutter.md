@@ -24,6 +24,10 @@ Construído em 2026-10-02 (T12 a T18 do [[Plano de Implementação]]), em `Work/
 | `intl` + ARB | Moeda, datas e textos em pt-BR |
 | `fl_chart` | Roscas (gastos e investimentos) e linhas de patrimônio e investimentos |
 | `flutter_svg` | Logos dos bancos (SVG, como a Pluggy manda) |
+| `window_manager`, `screen_retriever` | Janela do Windows: tamanho, centro, esconder na bandeja |
+| `tray_manager` | Ícone e menu na bandeja do Windows |
+| `win32_registry` | "Abrir com o Windows" |
+| `crypto` | SHA-256 do instalador baixado pelo atualizador |
 | `shared_preferences` | A escolha de tema (`SharedPreferencesAsync`, a API atual) |
 
 O `flutter_localizations` fica só porque o `gen-l10n` exige; os delegates usados vêm do
@@ -84,14 +88,32 @@ projeto Flutter e o mesmo código Dart; o Flutter gera o executável nativo a pa
   no cofre do Windows (`flutter_secure_storage`, cifrado com a conta do usuário).
 - **Bloqueio:** depois de 5 minutos minimizado, pede o Windows Hello (PIN, rosto ou digital),
   como a digital no celular. Dá para desligar em Ajustes.
-- **Janela:** abre centralizada em 1280×800 (no máximo 90% da tela), não fica menor que
-  400×640, e abrir de novo pelo Menu Iniciar traz para a frente a janela que já está aberta, em
-  vez de abrir outra (`windows/runner/main.cpp` e `flutter_window.cpp`).
+- **Janela:** abre centralizada em 1280×800 (no máximo 90% da tela) e não fica menor que
+  400×640, pelo `window_manager`, em Dart (`lib/core/desktop/desktop_start_io.dart`). A casca C++
+  (`windows/runner/main.cpp`) só cuida de uma coisa: abrir de novo pelo Menu Iniciar traz para a
+  frente a janela que já está aberta (ou escondida na bandeja), em vez de abrir outra.
+- **Bandeja (desde 2026-10-05):** ícone perto do relógio (`tray_manager`); clique abre a janela,
+  o botão direito mostra "Abrir o Wallet" e "Sair". O X da janela esconde o Wallet na bandeja,
+  como no Discord; dá para desligar em Ajustes → Computador ("Ao fechar, continuar na bandeja").
+- **Abrir com o Windows:** opção em Ajustes → Computador, desligada até a pessoa ligar. Grava
+  `HKEY_CURRENT_USER\...\Run\Wallet` com `--hidden`, então o Wallet já começa na bandeja. O
+  desinstalador apaga a entrada.
+- **Atualização automática (desde 2026-10-05):** como a do Discord. O app procura a versão nova nos
+  Releases do GitHub ao abrir e a cada 6 horas, baixa o instalador em segundo plano para
+  `%LOCALAPPDATA%\Wallet\updates` e só o aceita se o SHA-256 bater com o que o GitHub publica.
+  - Escondido na bandeja: instala sozinho (Inno Setup em `/VERYSILENT`) e volta para a bandeja.
+  - Com a janela aberta: um cartão no canto avisa "Atualização pronta" (Reiniciar e atualizar ou
+    Depois); "Depois" instala quando a pessoa sair pelo menu da bandeja, ou na próxima vez em que
+    estiver na bandeja.
+  - Ajustes → Computador mostra a versão e "Procurar agora". Um build de desenvolvimento (sem
+    `--dart-define=WALLET_VERSION`) nunca se atualiza.
+  - O instalador recebe `/RELAUNCH=open|tray|none` e decide se reabre o app. Sem assinatura de
+    código não há aviso do SmartScreen na atualização, porque o arquivo não vem do navegador.
 - **Ícone:** o mesmo da carteira, num `app_icon.ico` com 8 tamanhos gerado pelo
   `tool/render_app_icon_test.dart` (de 16 a 32 px a carteira ocupa mais do quadro, para não sumir
   na barra de tarefas).
 - **Instalador:** Inno Setup (`windows/installer/wallet.iss`). Instala só para o usuário, em
-  `%LOCALAPPDATA%ProgramsWallet`, sem pedir administrador, como o Discord; atalho no Menu
+  `%LOCALAPPDATA%\Programs\Wallet`, sem pedir administrador, como o Discord; atalho no Menu
   Iniciar e, se quiser, na área de trabalho; desinstala por Configurações → Aplicativos.
   Atualizar é rodar um instalador mais novo por cima: ele fecha o Wallet aberto e abre de novo.
   Leva junto as três DLLs do Visual C++, então não precisa instalar mais nada.
@@ -111,8 +133,10 @@ projeto Flutter e o mesmo código Dart; o Flutter gera o executável nativo a pa
   ainda usa `<experimental/coroutine>`, que o compilador do VS 2026 recusa (STL1011). O
   `windows/CMakeLists.txt` libera isso só para esse plugin; tirar quando ele for atualizado.
   Achado na primeira execução do workflow Desktop, em 2026-10-04.
-- **Ainda não:** atualização automática como a do Discord, ícone na bandeja, abrir com o
-  Windows, macOS (exige um Mac, como o iOS) e Linux.
+- **Ainda não:** assinatura de código, macOS (exige um Mac, como o iOS) e Linux.
+- **Não testado aqui:** janela, bandeja, Windows Hello e a atualização de verdade só rodam no
+  Windows instalado; este PC não tem Visual Studio. O que é lógica (quando atualizar, a
+  conferência do SHA-256, os Ajustes) tem teste; o resto é conferido pelo Rafael no app instalado.
 
 ## Tema
 
@@ -227,18 +251,20 @@ Ver [[Fluxo de Conexão]].
 
 ## Testes
 
-63 testes com um BFF em memória (`test/support/fake_bff.dart`):
+80 testes com um BFF em memória (`test/support/fake_bff.dart`):
 
 - Unitários: `Money`, sessão (restaurar, recusar, servidor fora), interceptor (duas chamadas
   com 401 geram **um** refresh), bloqueio por biometria, inatividade no navegador,
   conexões (acompanhamento e aviso às outras telas), patrimônio sem os dias zerados,
   histórico de investimentos (começo no primeiro dia com dado, perda, período abandonado
   descartado, atualização que falha mantendo a linha), estilos CSS dos logos passados para os
-  elementos, o app de PC se identificando como `desktop`.
+  elementos, o app de PC se identificando como `desktop`, o atualizador (quando baixa, quando
+  instala e como reabre; Releases do GitHub; SHA-256 que não bate).
 - Widget: login, visão geral (completa, com parte indisponível, sem conexões), shell nos três
   tamanhos e o "Mais", calendário (mês inteiro, dia, tocar de novo), extrato (agrupamento por
   dia, filtros, segunda página), investimentos (rosca, clique na fatia e na legenda, troca de
   período, menos de dois dias, tipos à esquerda na tela larga), rosca dos gastos (fina, clicável),
+  Ajustes → Computador e o cartão de atualização pronta,
   saída voluntária.
 
 Além disso, verificado à mão em 2026-10-02 no Chrome (build release) e no emulador

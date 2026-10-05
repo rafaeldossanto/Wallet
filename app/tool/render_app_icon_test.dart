@@ -1,6 +1,6 @@
 // Renders the app icon (the login screen's wallet, white on black and tilted) into every
 // icon file of the web, Android and iOS builds, keeping each file's current pixel size, and
-// into the Windows .ico.
+// into the Windows .ico (the executable's and the tray's).
 //
 // Regenerate, from app/:
 //   flutter test tool/render_app_icon_test.dart
@@ -33,6 +33,9 @@ const _smallWindowsShare = 0.85;
 
 const _windowsIcon = 'windows/runner/resources/app_icon.ico';
 
+/// The same icon in the Windows tray, loaded as an asset by the app.
+const _trayIcon = 'assets/desktop/tray.ico';
+
 /// What Windows picks from for the title bar, taskbar, Start menu and Explorer, at every scaling.
 const _windowsIconSizes = [16, 20, 24, 32, 40, 48, 64, 256];
 
@@ -50,7 +53,9 @@ void main() {
     for (final file in _iconFiles()) {
       await file.writeAsBytes(await _render(_pixelSize(file), _shareFor(file)));
     }
-    await File(_windowsIcon).writeAsBytes(await _ico(_windowsIconSizes));
+    final ico = await _ico(_windowsIconSizes);
+    await File(_windowsIcon).writeAsBytes(ico);
+    await (File(_trayIcon)..parent.createSync(recursive: true)).writeAsBytes(ico);
   });
 }
 

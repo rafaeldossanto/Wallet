@@ -6,6 +6,10 @@ import 'package:provider/single_child_widget.dart';
 
 import 'core/api/api_client.dart';
 import 'core/api/auth_interceptor.dart';
+import 'core/desktop/desktop.dart';
+import 'core/desktop/desktop_settings.dart';
+import 'core/desktop/desktop_views.dart';
+import 'core/desktop/updater.dart';
 import 'core/l10n/l10n.dart';
 import 'core/router/app_router.dart';
 import 'core/security/app_lock.dart';
@@ -27,12 +31,13 @@ import 'features/transactions/data/transactions_api.dart';
 
 /// Everything the screens need, built once. Tests build it with a fake HTTP adapter.
 class AppDependencies {
-  AppDependencies._(this.api, this.session, this.appLock, this.theme);
+  AppDependencies._(this.api, this.session, this.appLock, this.theme, this.desktop);
 
   factory AppDependencies.create({
     ApiClient? api,
     SessionStore? store,
     ThemeController? theme,
+    Desktop? desktop,
     bool withAppLock = !kIsWeb,
   }) {
     final client = api ?? ApiClient.create();
@@ -42,13 +47,16 @@ class AppDependencies {
     );
     client.dio.interceptors.add(AuthInterceptor(session, client.dio));
     return AppDependencies._(client, session, withAppLock ? AppLock(session: session) : null,
-        theme ?? ThemeController(MemoryThemePreference()));
+        theme ?? ThemeController(MemoryThemePreference()), desktop);
   }
 
   final ApiClient api;
   final SessionController session;
   final AppLock? appLock;
   final ThemeController theme;
+
+  /// The Windows app's window settings and updater; null on the phone and in the browser.
+  final Desktop? desktop;
   final DataChanges dataChanges = DataChanges();
 
   List<SingleChildWidget> get providers => [
@@ -56,6 +64,8 @@ class AppDependencies {
         ChangeNotifierProvider.value(value: dataChanges),
         ChangeNotifierProvider.value(value: theme),
         ChangeNotifierProvider<AppLock?>.value(value: appLock),
+        ChangeNotifierProvider<DesktopSettings?>.value(value: desktop?.settings),
+        ChangeNotifierProvider<Updater?>.value(value: desktop?.updater),
         Provider(create: (_) => HomeApi(api)),
         Provider(create: (_) => CalendarApi(api)),
         Provider(create: (_) => TransactionsApi(api)),
@@ -121,7 +131,11 @@ class _WalletAppState extends State<WalletApp> {
             return IdleTimeout(session: dependencies.session, child: app);
           }
           return Consumer<AppLock?>(
-            builder: (context, lock, _) => Stack(children: [app, if (lock?.isLocked ?? false) const LockScreen()]),
+            builder: (context, lock, _) => Stack(children: [
+              app,
+              if (dependencies.desktop != null) const UpdateToast(),
+              if (lock?.isLocked ?? false) const LockScreen(),
+            ]),
           );
         },
       );

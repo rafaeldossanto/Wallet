@@ -115,3 +115,11 @@ atualizado: 2026-10-03
   linguagem. Sessão como no celular (`X-Wallet-Client: desktop`, que o BFF passou a aceitar),
   Windows Hello no lugar da digital, janela de instância única e instalador Inno Setup gerado
   pelo workflow Desktop no GitHub. Ver [[App Flutter]].
+
+## 2026-10-05
+
+- App de Windows como o Discord, pedido do Rafael: o X esconde na bandeja, "Abrir com o Windows"
+  (começa na bandeja) e atualização automática pelos Releases do GitHub, com o instalador
+  conferido por SHA-256 antes de rodar; na bandeja instala sozinho, com a janela aberta avisa.
+  A janela passou para o `window_manager` em Dart; a casca C++ ficou só com a instância única.
+  Primeira versão publicada nos Releases: v0.1.0. Ver [[App Flutter]].

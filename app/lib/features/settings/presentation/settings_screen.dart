@@ -2,6 +2,8 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/config/app_config.dart';
+import '../../../core/desktop/desktop_settings.dart';
+import '../../../core/desktop/desktop_views.dart';
 import '../../../core/l10n/l10n.dart';
 import '../../../core/security/app_lock.dart';
 import '../../../core/session/session_controller.dart';
@@ -17,6 +19,7 @@ class SettingsScreen extends StatelessWidget {
     final session = context.watch<SessionController>();
     final user = session.user;
     final lock = context.watch<AppLock?>();
+    final isDesktop = context.watch<DesktopSettings?>() != null;
     return Scaffold(
       appBar: AppBar(title: Text(l10n.navSettings)),
       body: ListView(
@@ -87,6 +90,10 @@ class SettingsScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (isDesktop) ...[
+                  const SizedBox(height: 16),
+                  const DesktopSettingsCard(),
+                ],
                 const SizedBox(height: 16),
                 Text(l10n.settingsAbout,
                     textAlign: TextAlign.center,

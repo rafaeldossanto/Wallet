@@ -605,6 +605,70 @@ class AppLocalizationsPt extends AppLocalizations {
       'Wallet lê seus dados pelo Open Finance, por meio da Pluggy. Nenhum pagamento sai daqui.';
 
   @override
+  String get settingsDesktop => 'Computador';
+
+  @override
+  String get settingsCloseToTray => 'Ao fechar, continuar na bandeja';
+
+  @override
+  String get settingsCloseToTrayHelp =>
+      'O X esconde o Wallet perto do relógio, onde ele continua se atualizando. Para sair de vez, use Sair no ícone da bandeja.';
+
+  @override
+  String get settingsLaunchAtStartup => 'Abrir com o Windows';
+
+  @override
+  String get settingsLaunchAtStartupHelp =>
+      'Quando você entra no Windows, o Wallet já abre na bandeja.';
+
+  @override
+  String settingsVersion(String version) {
+    return 'Versão $version';
+  }
+
+  @override
+  String get trayOpen => 'Abrir o Wallet';
+
+  @override
+  String get trayQuit => 'Sair';
+
+  @override
+  String get updateDisabled =>
+      'Build de desenvolvimento: não se atualiza sozinho.';
+
+  @override
+  String get updateUpToDate => 'Você está na versão mais nova.';
+
+  @override
+  String get updateChecking => 'Procurando atualizações…';
+
+  @override
+  String updateDownloading(String version) {
+    return 'Baixando a versão $version…';
+  }
+
+  @override
+  String updateReady(String version) {
+    return 'A versão $version já foi baixada.';
+  }
+
+  @override
+  String get updateFailed =>
+      'Não deu para procurar atualizações agora. O Wallet tenta de novo mais tarde.';
+
+  @override
+  String get updateCheckNow => 'Procurar agora';
+
+  @override
+  String get updateRestart => 'Reiniciar e atualizar';
+
+  @override
+  String get updateLater => 'Depois';
+
+  @override
+  String get updateToastTitle => 'Atualização pronta';
+
+  @override
   String get errorNetworkUnreachable =>
       'Sem conexão com o servidor. Confira sua internet.';
 

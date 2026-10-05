@@ -532,7 +532,10 @@ Windows), bloqueio pelo Windows Hello, janela centralizada com tamanho mínimo e
 no GitHub e anexa o instalador (e publica nos Releases numa tag `v*`). Detalhes em
 [[App Flutter]].
 
-**Depois:** atualização automática, assinatura de código, bandeja e abrir com o Windows, macOS.
+**Feito em 2026-10-05:** bandeja (o X esconde ali), "Abrir com o Windows" e atualização
+automática pelos Releases do GitHub, conferida por SHA-256. Primeira versão publicada: v0.1.0.
+
+**Depois:** assinatura de código, macOS.
 
 ## Backlog — antes de abrir para outras pessoas
 

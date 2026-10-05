@@ -46,6 +46,7 @@ jobs:
           }
           "version=$version" >> $env:GITHUB_OUTPUT
 
+      # WALLET_VERSION lets the app compare itself with the newest release and update itself.
       # WALLET_BFF_URL is a repository variable (not a secret): the BFF's public address once it is
       # deployed. Unset, the app talks to the BFF on this PC (http://localhost:8080).
       # On failure the end of the output also becomes an annotation: the run page shows those to
@@ -54,7 +55,7 @@ jobs:
         run: |
           flutter pub get
           New-Item -ItemType Directory -Force build | Out-Null
-          cmd /c "flutter build windows --release --dart-define=WALLET_BFF_URL=${{ vars.WALLET_BFF_URL }} > build\windows-build.log 2>&1"
+          cmd /c "flutter build windows --release --dart-define=WALLET_VERSION=${{ steps.version.outputs.version }} --dart-define=WALLET_BFF_URL=${{ vars.WALLET_BFF_URL }} > build\windows-build.log 2>&1"
           $failed = $LASTEXITCODE -ne 0
           Get-Content build\windows-build.log
           if ($failed) {

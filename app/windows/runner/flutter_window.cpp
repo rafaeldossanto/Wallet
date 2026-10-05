@@ -1,18 +1,8 @@
 #include "flutter_window.h"
 
-#include <flutter_windows.h>
-
 #include <optional>
 
 #include "flutter/generated_plugin_registrant.h"
-
-namespace {
-
-// The smallest window, frame included, in logical pixels.
-constexpr int kMinWidth = 400;
-constexpr int kMinHeight = 640;
-
-}  // namespace
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
@@ -37,13 +27,9 @@ bool FlutterWindow::OnCreate() {
   RegisterPlugins(flutter_controller_->engine());
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
-  flutter_controller_->engine()->SetNextFrameCallback([&]() {
-    this->Show();
-  });
-
-  // Flutter can complete the first frame before the "show window" callback is
-  // registered. The following call ensures a frame is pending to ensure the
-  // window is shown. It is a no-op if the first frame hasn't completed yet.
+  // The window is not shown here: the Dart side (window_manager) shows it once
+  // it has its size and place, or keeps it in the tray when Windows opened the
+  // app at sign-in. This only makes sure a first frame is pending.
   flutter_controller_->ForceRedraw();
 
   return true;
@@ -75,17 +61,6 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
     case WM_FONTCHANGE:
       flutter_controller_->engine()->ReloadSystemFonts();
       break;
-    case WM_GETMINMAXINFO: {
-      // Narrower than a phone, the layouts stop fitting.
-      const double scale =
-          FlutterDesktopGetDpiForMonitor(
-              MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST)) /
-          96.0;
-      auto* limits = reinterpret_cast<MINMAXINFO*>(lparam);
-      limits->ptMinTrackSize.x = static_cast<LONG>(kMinWidth * scale);
-      limits->ptMinTrackSize.y = static_cast<LONG>(kMinHeight * scale);
-      return 0;
-    }
   }
 
   return Win32Window::MessageHandler(hwnd, message, wparam, lparam);

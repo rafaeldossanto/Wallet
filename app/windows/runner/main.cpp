@@ -1,9 +1,6 @@
 #include <flutter/dart_project.h>
 #include <flutter/flutter_view_controller.h>
-#include <flutter_windows.h>
 #include <windows.h>
-
-#include <algorithm>
 
 #include "flutter_window.h"
 #include "utils.h"
@@ -14,8 +11,9 @@ constexpr const wchar_t kTitle[] = L"Wallet";
 constexpr const wchar_t kWindowClass[] = L"FLUTTER_RUNNER_WIN32_WINDOW";
 constexpr const wchar_t kSingleInstanceMutex[] = L"Local\\com.wallet.desktop";
 
-// A second launch (the Start menu, a shortcut) brings the open window forward
-// instead of opening another Wallet. Returns true when one was already open.
+// A second launch (the Start menu, a shortcut) brings the open window forward,
+// out of the tray if it is there, instead of opening another Wallet. Returns
+// true when one was already open.
 bool FocusOpenInstance() {
   ::CreateMutexW(nullptr, TRUE, kSingleInstanceMutex);
   if (::GetLastError() != ERROR_ALREADY_EXISTS) {
@@ -23,31 +21,10 @@ bool FocusOpenInstance() {
   }
   HWND open = ::FindWindowW(kWindowClass, kTitle);
   if (open) {
-    if (::IsIconic(open)) {
-      ::ShowWindow(open, SW_RESTORE);
-    }
+    ::ShowWindow(open, ::IsIconic(open) ? SW_RESTORE : SW_SHOW);
     ::SetForegroundWindow(open);
   }
   return true;
-}
-
-// Centred on the primary monitor's work area (the screen minus the taskbar),
-// and never larger than 90% of it. In logical pixels, as Create() expects.
-void CenterOnPrimaryMonitor(Win32Window::Point& origin, Win32Window::Size& size) {
-  HMONITOR monitor = ::MonitorFromPoint({0, 0}, MONITOR_DEFAULTTOPRIMARY);
-  MONITORINFO info{};
-  info.cbSize = sizeof(MONITORINFO);
-  if (!::GetMonitorInfoW(monitor, &info)) {
-    return;
-  }
-  const double scale = FlutterDesktopGetDpiForMonitor(monitor) / 96.0;
-  const RECT& work = info.rcWork;
-  const double width = (work.right - work.left) / scale;
-  const double height = (work.bottom - work.top) / scale;
-  size.width = std::min(size.width, static_cast<unsigned int>(width * 0.9));
-  size.height = std::min(size.height, static_cast<unsigned int>(height * 0.9));
-  origin.x = static_cast<unsigned int>(work.left / scale + (width - size.width) / 2);
-  origin.y = static_cast<unsigned int>(work.top / scale + (height - size.height) / 2);
 }
 
 }  // namespace
@@ -76,9 +53,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
 
   FlutterWindow window(project);
+  // The Dart side (window_manager) sizes, centres and shows the window, or
+  // keeps it in the tray.
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 800);
-  CenterOnPrimaryMonitor(origin, size);
   if (!window.Create(kTitle, origin, size)) {
     return EXIT_FAILURE;
   }

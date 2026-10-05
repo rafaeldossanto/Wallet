@@ -5,7 +5,8 @@
 ; and the setup lands in build\installer\Wallet-Setup-<version>.exe.
 ;
 ; It installs for the current user only (%LOCALAPPDATA%\Programs\Wallet), like Discord, so it
-; never asks for administrator rights. Updating is running a newer setup over the old one.
+; never asks for administrator rights. Updating is running a newer setup over the old one: the
+; app does it by itself with /VERYSILENT /RELAUNCH=... (lib/core/desktop/installer_io.dart).
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"
@@ -60,3 +61,24 @@ Name: "{autodesktop}\Wallet"; Filename: "{app}\Wallet.exe"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\Wallet.exe"; Description: "{cm:LaunchProgram,Wallet}"; Flags: nowait postinstall skipifsilent
+; A silent setup is the app updating itself (/RELAUNCH=open|tray|none): it opens again as a
+; window, back in the tray, or not at all when the user was quitting.
+Filename: "{app}\Wallet.exe"; Flags: nowait; Check: WizardSilent and RelaunchIs('open')
+Filename: "{app}\Wallet.exe"; Parameters: "--hidden"; Flags: nowait; Check: WizardSilent and RelaunchIs('tray')
+
+[UninstallDelete]
+; Installers the updater downloaded.
+Type: filesandordirs; Name: "{localappdata}\Wallet\updates"
+
+[Code]
+function RelaunchIs(Value: String): Boolean;
+begin
+  Result := CompareText(ExpandConstant('{param:RELAUNCH|none}'), Value) = 0;
+end;
+
+// "Abrir com o Windows" is written by the app, so the uninstaller removes it by hand.
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usPostUninstall then
+    RegDeleteValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', 'Wallet');
+end;

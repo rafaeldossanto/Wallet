@@ -1102,6 +1102,114 @@ abstract class AppLocalizations {
   /// **'Wallet lê seus dados pelo Open Finance, por meio da Pluggy. Nenhum pagamento sai daqui.'**
   String get settingsAbout;
 
+  /// No description provided for @settingsDesktop.
+  ///
+  /// In pt, this message translates to:
+  /// **'Computador'**
+  String get settingsDesktop;
+
+  /// No description provided for @settingsCloseToTray.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ao fechar, continuar na bandeja'**
+  String get settingsCloseToTray;
+
+  /// No description provided for @settingsCloseToTrayHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'O X esconde o Wallet perto do relógio, onde ele continua se atualizando. Para sair de vez, use Sair no ícone da bandeja.'**
+  String get settingsCloseToTrayHelp;
+
+  /// No description provided for @settingsLaunchAtStartup.
+  ///
+  /// In pt, this message translates to:
+  /// **'Abrir com o Windows'**
+  String get settingsLaunchAtStartup;
+
+  /// No description provided for @settingsLaunchAtStartupHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Quando você entra no Windows, o Wallet já abre na bandeja.'**
+  String get settingsLaunchAtStartupHelp;
+
+  /// No description provided for @settingsVersion.
+  ///
+  /// In pt, this message translates to:
+  /// **'Versão {version}'**
+  String settingsVersion(String version);
+
+  /// No description provided for @trayOpen.
+  ///
+  /// In pt, this message translates to:
+  /// **'Abrir o Wallet'**
+  String get trayOpen;
+
+  /// No description provided for @trayQuit.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sair'**
+  String get trayQuit;
+
+  /// No description provided for @updateDisabled.
+  ///
+  /// In pt, this message translates to:
+  /// **'Build de desenvolvimento: não se atualiza sozinho.'**
+  String get updateDisabled;
+
+  /// No description provided for @updateUpToDate.
+  ///
+  /// In pt, this message translates to:
+  /// **'Você está na versão mais nova.'**
+  String get updateUpToDate;
+
+  /// No description provided for @updateChecking.
+  ///
+  /// In pt, this message translates to:
+  /// **'Procurando atualizações…'**
+  String get updateChecking;
+
+  /// No description provided for @updateDownloading.
+  ///
+  /// In pt, this message translates to:
+  /// **'Baixando a versão {version}…'**
+  String updateDownloading(String version);
+
+  /// No description provided for @updateReady.
+  ///
+  /// In pt, this message translates to:
+  /// **'A versão {version} já foi baixada.'**
+  String updateReady(String version);
+
+  /// No description provided for @updateFailed.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não deu para procurar atualizações agora. O Wallet tenta de novo mais tarde.'**
+  String get updateFailed;
+
+  /// No description provided for @updateCheckNow.
+  ///
+  /// In pt, this message translates to:
+  /// **'Procurar agora'**
+  String get updateCheckNow;
+
+  /// No description provided for @updateRestart.
+  ///
+  /// In pt, this message translates to:
+  /// **'Reiniciar e atualizar'**
+  String get updateRestart;
+
+  /// No description provided for @updateLater.
+  ///
+  /// In pt, this message translates to:
+  /// **'Depois'**
+  String get updateLater;
+
+  /// No description provided for @updateToastTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Atualização pronta'**
+  String get updateToastTitle;
+
   /// No description provided for @errorNetworkUnreachable.
   ///
   /// In pt, this message translates to:

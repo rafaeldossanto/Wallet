@@ -148,6 +148,12 @@ cada mudança no `app/`: abra a última execução em Actions → Desktop e baix
 *Releases*.
 
 - Instala só para o seu usuário, sem pedir administrador; atalho no Menu Iniciar.
+- Atualiza sozinho, como o Discord: procura a versão nova nos Releases ao abrir e a cada 6 horas,
+  baixa em segundo plano e confere o SHA-256. Na bandeja, instala sozinho; com a janela aberta,
+  avisa e espera você reiniciar. Publicar uma versão é subir a `version` do `pubspec.yaml` e criar
+  a tag igual (`git tag v0.1.1 && git push origin v0.1.1`).
+- O X esconde o Wallet na bandeja (Ajustes → Computador muda isso), e lá também dá para ligar
+  "Abrir com o Windows".
 - O instalador não é assinado: na primeira vez o Windows avisa "O Windows protegeu o
   computador" (Mais informações → Executar assim mesmo).
 - Até o deploy, o app instalado fala com o BFF deste PC (`localhost:8080`): core e BFF precisam
