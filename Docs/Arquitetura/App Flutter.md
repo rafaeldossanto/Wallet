@@ -89,9 +89,21 @@ projeto Flutter e o mesmo código Dart; o Flutter gera o executável nativo a pa
 - **Bloqueio:** depois de 5 minutos minimizado, pede o Windows Hello (PIN, rosto ou digital),
   como a digital no celular. Dá para desligar em Ajustes.
 - **Janela:** abre centralizada em 1280×800 (no máximo 90% da tela) e não fica menor que
-  400×640, pelo `window_manager`, em Dart (`lib/core/desktop/desktop_start_io.dart`). A casca C++
-  (`windows/runner/main.cpp`) só cuida de uma coisa: abrir de novo pelo Menu Iniciar traz para a
-  frente a janela que já está aberta (ou escondida na bandeja), em vez de abrir outra.
+  400×640, pelo `window_manager`, em Dart (`lib/core/desktop/desktop_start_io.dart`). Abrir de novo
+  pelo Menu Iniciar traz para a frente a janela que já está aberta (ou escondida na bandeja), em
+  vez de abrir outra (`windows/runner/main.cpp`).
+- **Visual de vidro, como no macOS (desde 2026-10-05, pedido do Rafael):** janela sem a moldura do
+  Windows, cantos arredondados (12 px) e, à esquerda, os três botões do Mac (vermelho fecha,
+  amarelo minimiza, verde maximiza; os símbolos aparecem com o mouse em cima). A barra de cima
+  arrasta a janela, duplo clique maximiza, e as bordas redimensionam. Tudo isso é desenhado em
+  Flutter (`lib/core/desktop/window_frame.dart`). Maximizada, os cantos ficam retos.
+  - **Fundo:** Ajustes → Computador → "Fundo da janela": **Translúcido** (padrão) deixa ver,
+    desfocado, o que está atrás; **Sólido** é o fundo normal. No translúcido, as telas não pintam
+    fundo e os cartões ficam 78% opacos, então o texto continua nítido sobre o desfoque.
+  - **Parte nativa** (`windows/runner/window_style.cpp`, chamada pelo canal `wallet/window_style`):
+    no Windows 11 22H2 o desfoque é o acrílico do próprio sistema; no Windows 10 é o desfoque do
+    `SetWindowCompositionAttribute`. O Windows 11 arredonda a janela sozinho; no Windows 10 o
+    recorte arredondado é refeito a cada `WM_SIZE`, sem atraso ao redimensionar.
 - **Bandeja (desde 2026-10-05):** ícone perto do relógio (`tray_manager`); clique abre a janela,
   o botão direito mostra "Abrir o Wallet" e "Sair". O X da janela esconde o Wallet na bandeja,
   como no Discord; dá para desligar em Ajustes → Computador ("Ao fechar, continuar na bandeja").
@@ -102,9 +114,12 @@ projeto Flutter e o mesmo código Dart; o Flutter gera o executável nativo a pa
   Releases do GitHub ao abrir e a cada 6 horas, baixa o instalador em segundo plano para
   `%LOCALAPPDATA%\Wallet\updates` e só o aceita se o SHA-256 bater com o que o GitHub publica.
   - Escondido na bandeja: instala sozinho (Inno Setup em `/VERYSILENT`) e volta para a bandeja.
-  - Com a janela aberta: um cartão no canto avisa "Atualização pronta" (Reiniciar e atualizar ou
-    Depois); "Depois" instala quando a pessoa sair pelo menu da bandeja, ou na próxima vez em que
-    estiver na bandeja.
+  - Com a janela aberta: um aviso no canto, como o do Claude Desktop, diz "Nova versão disponível"
+    com Reiniciar ou Depois. O botão já instala e reabre; ninguém precisa entrar no GitHub.
+    "Depois" instala quando a pessoa sair pelo menu da bandeja, ou na próxima vez em que estiver
+    na bandeja.
+  - Depois de atualizar, o instalador reabre o app com `--updated`, e o mesmo canto avisa "Wallet
+    atualizado" com a versão nova (também quando a atualização aconteceu na bandeja).
   - Ajustes → Computador mostra a versão e "Procurar agora". Um build de desenvolvimento (sem
     `--dart-define=WALLET_VERSION`) nunca se atualiza.
   - O instalador recebe `/RELAUNCH=open|tray|none` e decide se reabre o app. Sem assinatura de
@@ -251,7 +266,7 @@ Ver [[Fluxo de Conexão]].
 
 ## Testes
 
-80 testes com um BFF em memória (`test/support/fake_bff.dart`):
+87 testes com um BFF em memória (`test/support/fake_bff.dart`):
 
 - Unitários: `Money`, sessão (restaurar, recusar, servidor fora), interceptor (duas chamadas
   com 401 geram **um** refresh), bloqueio por biometria, inatividade no navegador,
@@ -264,7 +279,8 @@ Ver [[Fluxo de Conexão]].
   tamanhos e o "Mais", calendário (mês inteiro, dia, tocar de novo), extrato (agrupamento por
   dia, filtros, segunda página), investimentos (rosca, clique na fatia e na legenda, troca de
   período, menos de dois dias, tipos à esquerda na tela larga), rosca dos gastos (fina, clicável),
-  Ajustes → Computador e o cartão de atualização pronta,
+  Ajustes → Computador, os avisos de versão nova e de atualizado, a moldura da janela (os três
+  botões, arrastar, redimensionar, cantos retos maximizada, vidro que segue o tema),
   saída voluntária.
 
 Além disso, verificado à mão em 2026-10-02 no Chrome (build release) e no emulador

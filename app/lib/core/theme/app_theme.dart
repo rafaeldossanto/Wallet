@@ -83,7 +83,10 @@ abstract final class AppTheme {
     Color(0xFF94A3B8),
   ];
 
-  static ThemeData dark() => _build(
+  /// [translucent]: the Windows app's see-through window. The pages leave their background to the
+  /// window, and cards let a little of it through, so the text stays sharp over the blur.
+  static ThemeData dark({bool translucent = false}) => _build(
+        translucent: translucent,
         ColorScheme.fromSeed(seedColor: _blue, brightness: Brightness.dark).copyWith(
           primary: _blue,
           onPrimary: Colors.white,
@@ -117,7 +120,8 @@ abstract final class AppTheme {
         ),
       );
 
-  static ThemeData light() => _build(
+  static ThemeData light({bool translucent = false}) => _build(
+        translucent: translucent,
         ColorScheme.fromSeed(seedColor: _blue).copyWith(
           primary: _blue,
           onPrimary: Colors.white,
@@ -151,11 +155,12 @@ abstract final class AppTheme {
         ),
       );
 
-  static ThemeData _build(ColorScheme scheme, WalletColors colors) {
+  static ThemeData _build(ColorScheme scheme, WalletColors colors, {required bool translucent}) {
     final base = ThemeData(colorScheme: scheme);
     final text = base.textTheme;
+    final page = translucent ? Colors.transparent : scheme.surface;
     return base.copyWith(
-      scaffoldBackgroundColor: scheme.surface,
+      scaffoldBackgroundColor: page,
       extensions: [colors],
       textTheme: text.copyWith(
         displaySmall: text.displaySmall?.copyWith(fontWeight: FontWeight.w700, letterSpacing: -0.5),
@@ -165,7 +170,7 @@ abstract final class AppTheme {
         titleMedium: text.titleMedium?.copyWith(fontWeight: FontWeight.w600),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: scheme.surface,
+        backgroundColor: page,
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
         centerTitle: false,
@@ -174,7 +179,7 @@ abstract final class AppTheme {
       ),
       cardTheme: CardThemeData(
         elevation: 0,
-        color: scheme.surfaceContainer,
+        color: translucent ? scheme.surfaceContainer.withValues(alpha: 0.78) : scheme.surfaceContainer,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),

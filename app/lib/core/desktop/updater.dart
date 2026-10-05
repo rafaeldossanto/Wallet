@@ -115,7 +115,9 @@ class Updater extends ChangeNotifier {
     required this._isAway,
     this.currentVersion = AppVersion.current,
     this.interval = const Duration(hours: 6),
-  }) : _state = currentVersion.isEmpty ? const UpdatesDisabled() : const UpToDate();
+    bool justUpdated = false,
+  })  : _state = currentVersion.isEmpty ? const UpdatesDisabled() : const UpToDate(),
+        _updatedTo = justUpdated && currentVersion.isNotEmpty ? currentVersion : null;
 
   final ReleaseFeed _feed;
   final InstallerStore _store;
@@ -131,10 +133,22 @@ class Updater extends ChangeNotifier {
   final Duration interval;
 
   UpdateState _state;
+  String? _updatedTo;
   Timer? _timer;
   bool _disposed = false;
 
   UpdateState get state => _state;
+
+  /// The version an update just installed (the installer reopens the app with `--updated`), until
+  /// the user closes its notice.
+  String? get updatedTo => _updatedTo;
+
+  void dismissUpdated() {
+    _updatedTo = null;
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
 
   bool get isEnabled => _state is! UpdatesDisabled;
 

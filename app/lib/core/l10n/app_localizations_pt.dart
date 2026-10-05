@@ -666,7 +666,48 @@ class AppLocalizationsPt extends AppLocalizations {
   String get updateLater => 'Depois';
 
   @override
-  String get updateToastTitle => 'Atualização pronta';
+  String get updateToastTitle => 'Nova versão disponível';
+
+  @override
+  String updateToastMessage(String version) {
+    return 'O Wallet $version já foi baixado. Reinicie para atualizar.';
+  }
+
+  @override
+  String get updateRestartShort => 'Reiniciar';
+
+  @override
+  String get updatedToastTitle => 'Wallet atualizado';
+
+  @override
+  String updatedToastMessage(String version) {
+    return 'Agora você está na versão $version.';
+  }
+
+  @override
+  String get updatedToastOk => 'Ok';
+
+  @override
+  String get windowClose => 'Fechar';
+
+  @override
+  String get windowMinimize => 'Minimizar';
+
+  @override
+  String get windowMaximize => 'Maximizar';
+
+  @override
+  String get settingsWindowBackground => 'Fundo da janela';
+
+  @override
+  String get settingsWindowBackgroundHelp =>
+      'Translúcido deixa ver, desfocado, o que está atrás da janela.';
+
+  @override
+  String get settingsWindowTranslucent => 'Translúcido';
+
+  @override
+  String get settingsWindowSolid => 'Sólido';
 
   @override
   String get errorNetworkUnreachable =>

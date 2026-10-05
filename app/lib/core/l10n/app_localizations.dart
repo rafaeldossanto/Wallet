@@ -1207,8 +1207,80 @@ abstract class AppLocalizations {
   /// No description provided for @updateToastTitle.
   ///
   /// In pt, this message translates to:
-  /// **'Atualização pronta'**
+  /// **'Nova versão disponível'**
   String get updateToastTitle;
+
+  /// No description provided for @updateToastMessage.
+  ///
+  /// In pt, this message translates to:
+  /// **'O Wallet {version} já foi baixado. Reinicie para atualizar.'**
+  String updateToastMessage(String version);
+
+  /// No description provided for @updateRestartShort.
+  ///
+  /// In pt, this message translates to:
+  /// **'Reiniciar'**
+  String get updateRestartShort;
+
+  /// No description provided for @updatedToastTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Wallet atualizado'**
+  String get updatedToastTitle;
+
+  /// No description provided for @updatedToastMessage.
+  ///
+  /// In pt, this message translates to:
+  /// **'Agora você está na versão {version}.'**
+  String updatedToastMessage(String version);
+
+  /// No description provided for @updatedToastOk.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ok'**
+  String get updatedToastOk;
+
+  /// No description provided for @windowClose.
+  ///
+  /// In pt, this message translates to:
+  /// **'Fechar'**
+  String get windowClose;
+
+  /// No description provided for @windowMinimize.
+  ///
+  /// In pt, this message translates to:
+  /// **'Minimizar'**
+  String get windowMinimize;
+
+  /// No description provided for @windowMaximize.
+  ///
+  /// In pt, this message translates to:
+  /// **'Maximizar'**
+  String get windowMaximize;
+
+  /// No description provided for @settingsWindowBackground.
+  ///
+  /// In pt, this message translates to:
+  /// **'Fundo da janela'**
+  String get settingsWindowBackground;
+
+  /// No description provided for @settingsWindowBackgroundHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Translúcido deixa ver, desfocado, o que está atrás da janela.'**
+  String get settingsWindowBackgroundHelp;
+
+  /// No description provided for @settingsWindowTranslucent.
+  ///
+  /// In pt, this message translates to:
+  /// **'Translúcido'**
+  String get settingsWindowTranslucent;
+
+  /// No description provided for @settingsWindowSolid.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sólido'**
+  String get settingsWindowSolid;
 
   /// No description provided for @errorNetworkUnreachable.
   ///

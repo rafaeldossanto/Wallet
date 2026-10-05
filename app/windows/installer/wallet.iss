@@ -63,8 +63,9 @@ Name: "{autodesktop}\Wallet"; Filename: "{app}\Wallet.exe"; Tasks: desktopicon
 Filename: "{app}\Wallet.exe"; Description: "{cm:LaunchProgram,Wallet}"; Flags: nowait postinstall skipifsilent
 ; A silent setup is the app updating itself (/RELAUNCH=open|tray|none): it opens again as a
 ; window, back in the tray, or not at all when the user was quitting.
-Filename: "{app}\Wallet.exe"; Flags: nowait; Check: WizardSilent and RelaunchIs('open')
-Filename: "{app}\Wallet.exe"; Parameters: "--hidden"; Flags: nowait; Check: WizardSilent and RelaunchIs('tray')
+; --updated makes the app say "Wallet atualizado" the next time its window shows.
+Filename: "{app}\Wallet.exe"; Parameters: "--updated"; Flags: nowait; Check: WizardSilent and RelaunchIs('open')
+Filename: "{app}\Wallet.exe"; Parameters: "--hidden --updated"; Flags: nowait; Check: WizardSilent and RelaunchIs('tray')
 
 [UninstallDelete]
 ; Installers the updater downloaded.

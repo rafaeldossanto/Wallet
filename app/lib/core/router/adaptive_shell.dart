@@ -88,7 +88,8 @@ class WalletRail extends StatelessWidget {
     return Container(
       width: 72,
       decoration: BoxDecoration(
-        color: scheme.surfaceContainer,
+        // The cards' color, see-through with them in the Windows app's translucent window.
+        color: Theme.of(context).cardTheme.color ?? scheme.surfaceContainer,
         borderRadius: BorderRadius.circular(36),
         border: Border.all(color: scheme.outlineVariant),
       ),

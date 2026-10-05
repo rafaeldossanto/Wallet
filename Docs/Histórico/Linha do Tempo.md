@@ -123,3 +123,8 @@ atualizado: 2026-10-03
   conferido por SHA-256 antes de rodar; na bandeja instala sozinho, com a janela aberta avisa.
   A janela passou para o `window_manager` em Dart; a casca C++ ficou só com a instância única.
   Primeira versão publicada nos Releases: v0.1.0. Ver [[App Flutter]].
+- À tarde, a pedido do Rafael: visual de vidro como o do macOS (cantos arredondados, os três
+  botões coloridos à esquerda e fundo translúcido desfocado, com opção de fundo sólido nos
+  Ajustes) e o aviso de versão nova no canto, como o do Claude Desktop, cujo botão já instala.
+  Achado nos testes: a seção Computador procurava o provider sem o "?" e quebraria os Ajustes no
+  app instalado. Publicada a v0.1.1, que a 0.1.0 instalada baixa sozinha.

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 import 'package:tray_manager/tray_manager.dart' as tray;
 import 'package:win32_registry/win32_registry.dart';
@@ -18,6 +20,9 @@ import 'updater.dart';
 /// tray, without a window.
 const hiddenArgument = '--hidden';
 
+/// Passed by the installer when it reopens the app after an update, so the app says so.
+const updatedArgument = '--updated';
+
 /// Opens the Windows app's window (or keeps it in the tray with [hiddenArgument]), puts the icon
 /// in the tray and starts the updater. Null on the phone, where none of this exists.
 Future<Desktop?> startDesktop(List<String> args) async {
@@ -32,22 +37,27 @@ Future<Desktop?> startDesktop(List<String> args) async {
     launcher: const InnoSetupLauncher(),
     quit: shell.quit,
     isAway: () async => !await windowManager.isVisible(),
+    justUpdated: args.contains(updatedArgument),
   );
   shell.updater = updater;
   updater.start();
-  return Desktop(settings: settings, updater: updater);
+  return Desktop(settings: settings, updater: updater, window: shell);
 }
 
-/// The window and the tray icon. The window's X hides it in the tray while [DesktopSettings.closeToTray]
-/// is on; the tray's menu opens it again or quits for good.
-class _WindowShell with WindowListener {
+/// The frameless window and the tray icon. The window's red button hides it in the tray while
+/// [DesktopSettings.closeToTray] is on; the tray's menu opens it again or quits for good.
+class _WindowShell with WindowListener implements WindowControls {
   _WindowShell._(this._settings);
 
   /// Narrower than a phone, the layouts stop fitting.
   static const _minimumSize = Size(400, 640);
   static const _preferredSize = Size(1280, 800);
 
+  /// windows/runner/window_style.cpp: the blur and the rounded corners.
+  static const _style = MethodChannel('wallet/window_style');
+
   final DesktopSettings _settings;
+  final _maximized = ValueNotifier(false);
   Updater? updater;
 
   // Held for as long as the icon should show: a collected wrapper removes it. The menu stays
@@ -63,16 +73,20 @@ class _WindowShell with WindowListener {
       size: await _fittedSize(),
       minimumSize: _minimumSize,
       center: true,
-      backgroundColor: const Color(0xFF0B0B0C),
+      backgroundColor: const Color(0x00000000),
     );
-    // The runner leaves the window hidden: it shows here, or stays in the tray.
+    // The runner leaves the window hidden: it shows here, already frameless and styled (the theme
+    // corrects the brightness on its first frame), or stays in the tray.
     await windowManager.waitUntilReadyToShow(options, () async {
+      await windowManager.setAsFrameless();
+      await shell.applyStyle(translucent: settings.translucent, dark: true);
       if (!hidden) {
         await windowManager.show();
         await windowManager.focus();
       }
     });
     await windowManager.setPreventClose(true);
+    shell._maximized.value = await windowManager.isMaximized();
     windowManager.addListener(shell);
     shell._createTrayIcon();
     return shell;
@@ -151,9 +165,53 @@ class _WindowShell with WindowListener {
   }
 
   @override
+  ValueListenable<bool> get isMaximized => _maximized;
+
+  @override
+  Future<void> minimize() => windowManager.minimize();
+
+  @override
+  Future<void> toggleMaximize() async =>
+      await windowManager.isMaximized() ? windowManager.unmaximize() : windowManager.maximize();
+
+  /// Goes through the window's close, so [onWindowClose] decides: the tray or out.
+  @override
+  Future<void> close() => windowManager.close();
+
+  @override
+  Future<void> startDragging() => windowManager.startDragging();
+
+  @override
+  Future<void> startResizing(WindowEdge edge) => windowManager.startResizing(switch (edge) {
+        WindowEdge.top => ResizeEdge.top,
+        WindowEdge.bottom => ResizeEdge.bottom,
+        WindowEdge.left => ResizeEdge.left,
+        WindowEdge.right => ResizeEdge.right,
+        WindowEdge.topLeft => ResizeEdge.topLeft,
+        WindowEdge.topRight => ResizeEdge.topRight,
+        WindowEdge.bottomLeft => ResizeEdge.bottomLeft,
+        WindowEdge.bottomRight => ResizeEdge.bottomRight,
+      });
+
+  @override
+  Future<void> applyStyle({required bool translucent, required bool dark}) async {
+    try {
+      await _style.invokeMethod<void>('apply', {'translucent': translucent, 'dark': dark});
+    } on MissingPluginException {
+      // A runner without window_style.cpp: the window stays as it is.
+    }
+  }
+
+  @override
   void onWindowClose() {
     unawaited(_settings.closeToTray ? windowManager.hide() : quit());
   }
+
+  @override
+  void onWindowMaximize() => _maximized.value = true;
+
+  @override
+  void onWindowUnmaximize() => _maximized.value = false;
 }
 
 /// `HKEY_CURRENT_USER\...\Run\Wallet`: Windows opens the app, in the tray, when the user signs in.

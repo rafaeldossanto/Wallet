@@ -9,6 +9,7 @@ import 'core/api/auth_interceptor.dart';
 import 'core/desktop/desktop.dart';
 import 'core/desktop/desktop_settings.dart';
 import 'core/desktop/desktop_views.dart';
+import 'core/desktop/window_frame.dart';
 import 'core/desktop/updater.dart';
 import 'core/l10n/l10n.dart';
 import 'core/router/app_router.dart';
@@ -86,8 +87,13 @@ class WalletApp extends StatefulWidget {
 }
 
 class _WalletAppState extends State<WalletApp> {
-  static final _light = AppTheme.light();
-  static final _dark = AppTheme.dark();
+  /// Light and dark, solid or for the Windows app's see-through window; built once each.
+  static final _themes = <bool, (ThemeData, ThemeData)>{};
+
+  static (ThemeData, ThemeData) _themesFor({required bool translucent}) => _themes.putIfAbsent(
+        translucent,
+        () => (AppTheme.light(translucent: translucent), AppTheme.dark(translucent: translucent)),
+      );
 
   late final GoRouter _router = createRouter(widget.dependencies.session);
 
@@ -109,34 +115,40 @@ class _WalletAppState extends State<WalletApp> {
     final dependencies = widget.dependencies;
     return MultiProvider(
       providers: dependencies.providers,
-      child: Consumer<ThemeController>(
-        builder: (context, theme, _) => _app(dependencies, theme.mode),
+      child: Consumer2<ThemeController, DesktopSettings?>(
+        builder: (context, theme, desktop, _) =>
+            _app(dependencies, theme.mode, translucent: desktop?.translucent ?? false),
       ),
     );
   }
 
-  Widget _app(AppDependencies dependencies, ThemeMode mode) => MaterialApp.router(
-        onGenerateTitle: (context) => context.l10n.appTitle,
-        debugShowCheckedModeBanner: false,
-        theme: _light,
-        darkTheme: _dark,
-        themeMode: mode,
-        locale: const Locale('pt', 'BR'),
-        supportedLocales: AppLocalizations.supportedLocales,
-        localizationsDelegates: const [AppLocalizations.delegate, ...GlobalMaterialLocalizations.delegates],
-        routerConfig: _router,
-        builder: (context, child) {
-          final app = child ?? const SizedBox.shrink();
-          if (kIsWeb) {
-            return IdleTimeout(session: dependencies.session, child: app);
-          }
-          return Consumer<AppLock?>(
-            builder: (context, lock, _) => Stack(children: [
-              app,
-              if (dependencies.desktop != null) const UpdateToast(),
-              if (lock?.isLocked ?? false) const LockScreen(),
-            ]),
-          );
-        },
-      );
+  Widget _app(AppDependencies dependencies, ThemeMode mode, {required bool translucent}) {
+    final (light, dark) = _themesFor(translucent: translucent);
+    return MaterialApp.router(
+      onGenerateTitle: (context) => context.l10n.appTitle,
+      debugShowCheckedModeBanner: false,
+      theme: light,
+      darkTheme: dark,
+      themeMode: mode,
+      locale: const Locale('pt', 'BR'),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [AppLocalizations.delegate, ...GlobalMaterialLocalizations.delegates],
+      routerConfig: _router,
+      builder: (context, child) {
+        final app = child ?? const SizedBox.shrink();
+        if (kIsWeb) {
+          return IdleTimeout(session: dependencies.session, child: app);
+        }
+        final content = Consumer<AppLock?>(
+          builder: (context, lock, _) => Stack(children: [
+            app,
+            if (dependencies.desktop != null) const UpdateToast(),
+            if (lock?.isLocked ?? false) const LockScreen(),
+          ]),
+        );
+        final window = dependencies.desktop?.window;
+        return window == null ? content : DesktopWindowFrame(window: window, child: content);
+      },
+    );
+  }
 }

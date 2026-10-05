@@ -76,6 +76,33 @@ void main() {
       quits = 0;
     });
 
+    test('reopened by the installer it remembers the new version until the notice is closed', () {
+      final subject = Updater(
+        feed: feed,
+        store: store,
+        launcher: launcher,
+        quit: () async {},
+        isAway: () async => false,
+        currentVersion: '0.2.0',
+        justUpdated: true,
+      );
+      expect(subject.updatedTo, '0.2.0');
+
+      subject.dismissUpdated();
+      expect(subject.updatedTo, isNull);
+
+      final dev = Updater(
+        feed: feed,
+        store: store,
+        launcher: launcher,
+        quit: () async {},
+        isAway: () async => false,
+        currentVersion: '',
+        justUpdated: true,
+      );
+      expect(dev.updatedTo, isNull, reason: 'a development build has no version to announce');
+    });
+
     test('a development build never looks for updates', () async {
       final subject = updater(version: '');
 
