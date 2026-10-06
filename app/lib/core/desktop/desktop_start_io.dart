@@ -32,7 +32,9 @@ Future<Desktop?> startDesktop(List<String> args) async {
   final settings = await DesktopSettings.load(RegistryStartupLaunch());
   final shell = await _WindowShell.open(settings, hidden: args.contains(hiddenArgument));
   final updater = Updater(
-    feed: GitHubReleaseFeed(),
+    // The manifest is not limited to 60 requests an hour as the API is; the API covers the
+    // releases published before it.
+    feed: FallbackReleaseFeed(ManifestReleaseFeed(), GitHubReleaseFeed()),
     store: DownloadedInstallers(),
     launcher: const InnoSetupLauncher(),
     quit: shell.quit,

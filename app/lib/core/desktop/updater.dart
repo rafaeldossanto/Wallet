@@ -103,7 +103,7 @@ final class UpdateFailed extends UpdateState {
 }
 
 /// Keeps the Windows app up to date, the way Discord does: it looks for a newer release when it
-/// starts and every few hours, downloads it in the background and checks it. While the window is
+/// starts and every few hours (sooner after a failure), downloads it in the background and checks it. While the window is
 /// in the tray the update installs itself and the app comes back to the tray; with the window open
 /// it waits for the user to restart, or installs when they quit.
 class Updater extends ChangeNotifier {
@@ -115,6 +115,7 @@ class Updater extends ChangeNotifier {
     required this._isAway,
     this.currentVersion = AppVersion.current,
     this.interval = const Duration(hours: 6),
+    this.retryAfterFailure = const Duration(minutes: 30),
     bool justUpdated = false,
   })  : _state = currentVersion.isEmpty ? const UpdatesDisabled() : const UpToDate(),
         _updatedTo = justUpdated && currentVersion.isNotEmpty ? currentVersion : null;
@@ -131,10 +132,12 @@ class Updater extends ChangeNotifier {
 
   final String currentVersion;
   final Duration interval;
+  final Duration retryAfterFailure;
 
   UpdateState _state;
   String? _updatedTo;
   Timer? _timer;
+  int _failures = 0;
   bool _disposed = false;
 
   UpdateState get state => _state;
@@ -156,8 +159,26 @@ class Updater extends ChangeNotifier {
     if (!isEnabled) {
       return;
     }
-    unawaited(check());
-    _timer = Timer.periodic(interval, (_) => check());
+    unawaited(_checkAndSchedule());
+  }
+
+  /// After a failed check (no internet, GitHub refusing) the next one comes sooner: 30 minutes,
+  /// then an hour, two hours..., back to [interval] once a check works.
+  Duration get nextCheckIn {
+    if (_failures == 0) {
+      return interval;
+    }
+    final backoff = retryAfterFailure * (1 << (_failures - 1).clamp(0, 16));
+    return backoff < interval ? backoff : interval;
+  }
+
+  Future<void> _checkAndSchedule() async {
+    await check();
+    if (_disposed) {
+      return;
+    }
+    _timer?.cancel();
+    _timer = Timer(nextCheckIn, () => unawaited(_checkAndSchedule()));
   }
 
   Future<void> check() async {
@@ -171,17 +192,20 @@ class Updater extends ChangeNotifier {
     try {
       final release = await _feed.latest();
       if (release == null || !isNewer(release.version, currentVersion)) {
+        _failures = 0;
         _set(const UpToDate());
         return;
       }
       _set(DownloadingUpdate(release.version));
       final installer = await _store.fetch(release);
+      _failures = 0;
       _set(UpdateReady(release.version, installer));
       if (await _isAway()) {
         await _install(installer, Relaunch.tray);
       }
     } on Exception catch (error) {
       debugPrint('[UPDATE] $error');
+      _failures++;
       _set(const UpdateFailed());
     }
   }

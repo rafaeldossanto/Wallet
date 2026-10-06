@@ -89,10 +89,27 @@ jobs:
             exit 1
           }
 
+      # What the app reads to update itself, through the release download link rather than the
+      # GitHub API (limited to 60 requests an hour per connection). UTF-8 without a BOM.
+      - name: Update manifest
+        run: |
+          $installer = "Wallet-Setup-${{ steps.version.outputs.version }}.exe"
+          $sha256 = (Get-FileHash "build\installer\$installer" -Algorithm SHA256).Hash.ToLowerInvariant()
+          [ordered]@{ version = '${{ steps.version.outputs.version }}'; installer = $installer; sha256 = $sha256 } |
+            ConvertTo-Json | Set-Content -Encoding utf8NoBOM build\installer\latest.json
+          Get-Content build\installer\latest.json
+
       # Not zipped: the run page offers the .exe itself, named after the file.
       - uses: actions/upload-artifact@v7
         with:
           path: app/build/installer/Wallet-Setup-${{ steps.version.outputs.version }}.exe
+          archive: false
+          if-no-files-found: error
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: app/build/installer/latest.json
           archive: false
           if-no-files-found: error
           retention-days: 30
@@ -109,10 +126,14 @@ jobs:
         with:
           name: Wallet-Setup-${{ needs.windows.outputs.version }}.exe
 
+      - uses: actions/download-artifact@v8
+        with:
+          name: latest.json
+
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: >
-          gh release create "$GITHUB_REF_NAME" "Wallet-Setup-${{ needs.windows.outputs.version }}.exe"
+          gh release create "$GITHUB_REF_NAME" "Wallet-Setup-${{ needs.windows.outputs.version }}.exe" latest.json
           --title "Wallet ${{ needs.windows.outputs.version }}" --generate-notes

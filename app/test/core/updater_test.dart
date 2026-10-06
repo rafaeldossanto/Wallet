@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wallet/core/desktop/github_release_feed.dart';
 import 'package:wallet/core/desktop/updater.dart';
@@ -248,4 +251,111 @@ void main() {
       expect(await releases.latest(), isNull);
     });
   });
+
+  group('release manifest', () {
+    const manifestUrl = 'https://github.com/rafaeldossanto/Wallet/releases/latest/download/latest.json';
+    late FakeBff github;
+    late ManifestReleaseFeed manifest;
+
+    setUp(() {
+      github = FakeBff();
+      manifest = ManifestReleaseFeed(dio: Dio()..httpClientAdapter = github);
+    });
+
+    test('latest.json, read through the download link, names the installer and its SHA-256', () async {
+      github.json('GET', manifestUrl, {'version': '0.1.2', 'installer': 'Wallet-Setup-0.1.2.exe', 'sha256': 'AB' * 32});
+
+      final release = await manifest.latest();
+
+      expect(release!.version, '0.1.2');
+      expect(release.installerUrl.toString(),
+          'https://github.com/rafaeldossanto/Wallet/releases/download/v0.1.2/Wallet-Setup-0.1.2.exe');
+      expect(release.sha256, 'ab' * 32);
+      expect(github.requests.single.uri.host, 'github.com', reason: 'never api.github.com');
+    });
+
+    test('a manifest saved with a byte order mark still reads', () async {
+      final bom = Dio()..httpClientAdapter = _Raw('${String.fromCharCode(0xFEFF)}{"version": "0.1.2", '
+          '"installer": "Wallet-Setup-0.1.2.exe", "sha256": "${'ab' * 32}"}');
+
+      expect((await ManifestReleaseFeed(dio: bom).latest())!.version, '0.1.2');
+    });
+
+    test('a release without a manifest, or a manifest that is not one, is nothing to offer', () async {
+      github.error('GET', manifestUrl, 404, 'Not Found');
+      expect(await manifest.latest(), isNull);
+
+      github.json('GET', manifestUrl, {'version': 'next', 'installer': 'x.exe', 'sha256': 'ab' * 32});
+      expect(await manifest.latest(), isNull);
+
+      github.json('GET', manifestUrl, {'version': '0.1.2', 'installer': 'x.exe', 'sha256': 'not-a-hash'});
+      expect(await manifest.latest(), isNull);
+    });
+
+    test('the API answers only when the manifest has nothing to say or fails', () async {
+      final fromManifest = _FakeFeed()..release = _release('0.1.2');
+      final fromApi = _FakeFeed()..release = _release('0.1.1');
+
+      expect((await FallbackReleaseFeed(fromManifest, fromApi).latest())!.version, '0.1.2');
+      expect(fromApi.calls, 0);
+
+      fromManifest.release = null;
+      expect((await FallbackReleaseFeed(fromManifest, fromApi).latest())!.version, '0.1.1');
+
+      fromManifest.failure = DioException(requestOptions: RequestOptions(), type: DioExceptionType.connectionTimeout);
+      expect((await FallbackReleaseFeed(fromManifest, fromApi).latest())!.version, '0.1.1');
+      expect(fromApi.calls, 2);
+    });
+  });
+
+  test('after a failure the next check comes sooner, and back to every 6 hours once one works', () {
+    fakeAsync((async) {
+      final feed = _FakeFeed()
+        ..failure = DioException(requestOptions: RequestOptions(), type: DioExceptionType.connectionError);
+      final subject = Updater(
+        feed: feed,
+        store: _FakeStore(),
+        launcher: _FakeLauncher(),
+        quit: () async {},
+        isAway: () async => false,
+        currentVersion: '0.1.0',
+      );
+
+      subject.start();
+      async.flushMicrotasks();
+      expect(feed.calls, 1);
+      expect(subject.nextCheckIn, const Duration(minutes: 30));
+
+      async.elapse(const Duration(minutes: 30));
+      expect(feed.calls, 2);
+      expect(subject.nextCheckIn, const Duration(hours: 1));
+
+      feed.failure = null;
+      async.elapse(const Duration(hours: 1));
+      expect(feed.calls, 3);
+      expect(subject.state, isA<UpToDate>());
+      expect(subject.nextCheckIn, const Duration(hours: 6));
+
+      async.elapse(const Duration(hours: 5, minutes: 59));
+      expect(feed.calls, 3, reason: 'nothing before the 6 hours');
+      async.elapse(const Duration(minutes: 1));
+      expect(feed.calls, 4);
+
+      subject.dispose();
+    });
+  });
+}
+
+/// Serves [body] as GitHub serves release files: plain bytes, whatever is in them.
+class _Raw implements HttpClientAdapter {
+  _Raw(this.body);
+
+  final String body;
+
+  @override
+  Future<ResponseBody> fetch(RequestOptions options, Stream<Uint8List>? requestStream, Future<void>? cancelFuture) async =>
+      ResponseBody.fromString(body, 200, headers: {Headers.contentTypeHeader: ['application/octet-stream']});
+
+  @override
+  void close({bool force = false}) {}
 }

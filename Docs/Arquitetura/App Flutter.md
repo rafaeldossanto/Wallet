@@ -112,7 +112,14 @@ projeto Flutter e o mesmo código Dart; o Flutter gera o executável nativo a pa
   desinstalador apaga a entrada.
 - **Atualização automática (desde 2026-10-05):** como a do Discord. O app procura a versão nova nos
   Releases do GitHub ao abrir e a cada 6 horas, baixa o instalador em segundo plano para
-  `%LOCALAPPDATA%\Wallet\updates` e só o aceita se o SHA-256 bater com o que o GitHub publica.
+  `%LOCALAPPDATA%\Wallet\updates` e só o aceita se o SHA-256 bater.
+  - **Onde ele lê (desde a 0.1.2):** o `latest.json` que o workflow publica em cada Release
+    (`{version, installer, sha256}`), pelo link `releases/latest/download/latest.json`. Esse link
+    não conta no limite da API do GitHub (60 consultas por hora por conexão, sem login), que
+    estourou em 2026-10-05 de tanto acompanhar builds. A API ficou só de reserva, para Releases sem
+    manifesto.
+  - **Quando falha** (sem internet, GitHub recusando), tenta de novo em 30 min, depois 1 h, 2 h...
+    até voltar às 6 h quando der certo.
   - Escondido na bandeja: instala sozinho (Inno Setup em `/VERYSILENT`) e volta para a bandeja.
   - Com a janela aberta: um aviso no canto, como o do Claude Desktop, diz "Nova versão disponível"
     com Reiniciar ou Depois. O botão já instala e reabre; ninguém precisa entrar no GitHub.
@@ -266,7 +273,7 @@ Ver [[Fluxo de Conexão]].
 
 ## Testes
 
-87 testes com um BFF em memória (`test/support/fake_bff.dart`):
+92 testes com um BFF em memória (`test/support/fake_bff.dart`):
 
 - Unitários: `Money`, sessão (restaurar, recusar, servidor fora), interceptor (duas chamadas
   com 401 geram **um** refresh), bloqueio por biometria, inatividade no navegador,
@@ -274,7 +281,8 @@ Ver [[Fluxo de Conexão]].
   histórico de investimentos (começo no primeiro dia com dado, perda, período abandonado
   descartado, atualização que falha mantendo a linha), estilos CSS dos logos passados para os
   elementos, o app de PC se identificando como `desktop`, o atualizador (quando baixa, quando
-  instala e como reabre; Releases do GitHub; SHA-256 que não bate).
+  instala e como reabre; manifesto `latest.json` com a API de reserva; novas tentativas mais cedo
+  depois de falha; SHA-256 que não bate).
 - Widget: login, visão geral (completa, com parte indisponível, sem conexões), shell nos três
   tamanhos e o "Mais", calendário (mês inteiro, dia, tocar de novo), extrato (agrupamento por
   dia, filtros, segunda página), investimentos (rosca, clique na fatia e na legenda, troca de

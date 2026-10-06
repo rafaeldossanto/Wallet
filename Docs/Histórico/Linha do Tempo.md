@@ -128,3 +128,6 @@ atualizado: 2026-10-03
   Ajustes) e o aviso de versão nova no canto, como o do Claude Desktop, cujo botão já instala.
   Achado nos testes: a seção Computador procurava o provider sem o "?" e quebraria os Ajustes no
   app instalado. Publicada a v0.1.1, que a 0.1.0 instalada baixa sozinha.
+- O atualizador passou a ler o `latest.json` publicado em cada Release, pelo link de download, em
+  vez da API do GitHub (60 consultas por hora por conexão, que estouraram acompanhando builds), e
+  a tentar de novo em 30 min depois de uma falha. Saiu na v0.1.2.
