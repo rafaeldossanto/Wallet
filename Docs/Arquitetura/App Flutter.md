@@ -131,9 +131,8 @@ projeto Flutter e o mesmo código Dart; o Flutter gera o executável nativo a pa
     `--dart-define=WALLET_VERSION`) nunca se atualiza.
   - O instalador recebe `/RELAUNCH=open|tray|none` e decide se reabre o app. Sem assinatura de
     código não há aviso do SmartScreen na atualização, porque o arquivo não vem do navegador.
-- **Ícone:** o mesmo da carteira, num `app_icon.ico` com 8 tamanhos gerado pelo
-  `tool/render_app_icon_test.dart` (de 16 a 32 px a carteira ocupa mais do quadro, para não sumir
-  na barra de tarefas).
+- **Ícone:** os cartões empilhados (ver "Ícone" abaixo), num `app_icon.ico` com 8 tamanhos e cantos
+  arredondados, também usado na bandeja.
 - **Instalador:** Inno Setup (`windows/installer/wallet.iss`). Instala só para o usuário, em
   `%LOCALAPPDATA%\Programs\Wallet`, sem pedir administrador, como o Discord; atalho no Menu
   Iniciar e, se quiser, na área de trabalho; desinstala por Configurações → Aplicativos.
@@ -220,11 +219,19 @@ lida antes do primeiro quadro, então o app nunca abre no tema errado.
 
 ## Ícone
 
-A carteira da tela de login, branca sobre preto e inclinada 20°, em todos os ícones (web,
-favicon, Android e iOS). Gerado por `tool/render_app_icon_test.dart` (fora de `test/`, para o
-`flutter test` normal não rodar): desenha o glifo grande, reduz com média em luz linear (o
-traço não some nos 16 px do favicon) e grava PNG RGB sem transparência, que o iOS exige. O
-maskable do Android usa um desenho menor, para caber na zona segura. Para regerar:
+**Cartões empilhados** (escolha do Rafael em 2026-10-12, entre seis opções): três cartões em leque
+sobre o preto do app, verde-limão atrás, azul no meio e branco com chip na frente, que são os
+bancos e cartões dele juntos num lugar só. Antes era a carteira da tela de login, branca e
+inclinada.
+
+Gerado por `tool/render_app_icon_test.dart` (fora de `test/`, para o `flutter test` normal não
+rodar), que desenha em Canvas e reduz com média em luz linear, cor por cor:
+- iOS, Android e ícones web: quadrado cheio, que o sistema arredonda; PNG RGB sem transparência,
+  como o iOS exige.
+- Windows (`.ico` do executável e da bandeja) e favicon: bloco com cantos arredondados e
+  transparente fora deles, como um app de Mac.
+- De 16 a 32 px os cartões ficam 18% maiores, para os três continuarem separados; o maskable
+  usa 90%, para caber no círculo de 40%. Para regerar:
 `flutter test tool/render_app_icon_test.dart`.
 
 ## Dinheiro

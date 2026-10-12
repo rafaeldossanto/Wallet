@@ -131,3 +131,10 @@ atualizado: 2026-10-03
 - O atualizador passou a ler o `latest.json` publicado em cada Release, pelo link de download, em
   vez da API do GitHub (60 consultas por hora por conexão, que estouraram acompanhando builds), e
   a tentar de novo em 30 min depois de uma falha. Saiu na v0.1.2.
+
+## 2026-10-12
+
+- Ícone novo, escolhido pelo Rafael entre seis opções: cartões empilhados (verde-limão, azul e
+  branco sobre o preto). Aplicado em todos os ícones (Windows, bandeja, favicon, web, Android,
+  iOS) e publicado na v0.1.3. Ele não conseguiu terminar a conexão dos bancos no Meu Pluggy; a
+  T02 segue pendente.
