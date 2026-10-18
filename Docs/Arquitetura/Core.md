@@ -233,6 +233,8 @@ adaptador mudar o que espera, quebra ali primeiro.
 
 - Unitário (`*Test`, pelo Surefire no `mvn test`): sem Docker (mappers, normalização de sinal, regras de sync).
 - Integração (`*IT`, pelo Failsafe no `mvn verify`): Testcontainers com Postgres + WireMock para a Pluggy.
+  No Docker, o banco de cada teste aparece como `wallet-core-test-db-xxxx`; o do `test-run`, como
+  `wallet-core-demo-db-xxxx` (Pluggy de demonstração) ou `wallet-core-pluggy-db-xxxx` (Pluggy de verdade).
 - Teste de modularidade do Spring Modulith.
 - Contrato HTTP das rotas (quem acessa o quê, códigos de erro).
 

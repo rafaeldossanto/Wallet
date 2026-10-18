@@ -172,3 +172,6 @@ atualizado: 2026-10-03
   `PackageInstaller`; na primeira vez o app explica e abre a permissão "Instalar apps
   desconhecidos". O atualizador saiu de `core/desktop` para `core/updates`, dividido pelos dois.
   Vale a partir da 0.1.4, que ainda se instala à mão. Ver [[App Flutter]].
+- Containers com nome claro, pedido do Rafael para entender o que está rodando no Docker: em vez
+  dos nomes aleatórios, o Postgres do core aparece como `wallet-core-demo-db-xxxx` (demo),
+  `wallet-core-pluggy-db-xxxx` (Pluggy de verdade) ou `wallet-core-test-db-xxxx` (testes). Ver [[Core]].

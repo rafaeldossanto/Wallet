@@ -24,7 +24,9 @@ public class TestCoreApplication {
 
     public static void main(String[] args) throws IOException {
         String[] arguments = args;
+        String purpose = "pluggy";
         if (!hasText(System.getenv("PLUGGY_CLIENT_ID"))) {
+            purpose = "demo";
             DemoPluggy pluggy = DemoPluggy.start(Clock.systemUTC());
             Runtime.getRuntime().addShutdownHook(new Thread(pluggy::close));
             log.warn("PLUGGY_CLIENT_ID not set: demo Pluggy with synthetic data at {}. Link items {} in the app.",
@@ -34,6 +36,9 @@ public class TestCoreApplication {
                     "--wallet.pluggy.client-id=demo",
                     "--wallet.pluggy.client-secret=demo")).toArray(String[]::new);
         }
+        // Docker shows the database as wallet-core-demo-db-... or wallet-core-pluggy-db-...
+        arguments = Stream.concat(Arrays.stream(arguments),
+                Stream.of("--" + TestcontainersConfiguration.PURPOSE_PROPERTY + "=" + purpose)).toArray(String[]::new);
         SpringApplication.from(CoreApplication::main)
                 .with(TestcontainersConfiguration.class)
                 .run(arguments);

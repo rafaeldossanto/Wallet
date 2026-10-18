@@ -41,6 +41,17 @@ investimentos) ou os básicos `demo-banco` e `demo-corretora`. Com
 `PLUGGY_CLIENT_ID` e `PLUGGY_CLIENT_SECRET` definidos, o mesmo comando fala com a Pluggy de
 verdade. Tudo some quando o core para.
 
+No Docker, cada container diz o que está rodando:
+
+| Container | O que é |
+|---|---|
+| `wallet-core-demo-db-xxxx` | banco do `test-run` com a Pluggy de demonstração |
+| `wallet-core-pluggy-db-xxxx` | banco do `test-run` falando com a Pluggy de verdade |
+| `wallet-core-test-db-xxxx` | banco de um teste de integração (`./mvnw verify`) |
+| `testcontainers-ryuk-…` | faxineiro do Testcontainers: apaga os outros quando o processo termina |
+
+O sufixo de 4 letras deixa duas execuções ao mesmo tempo sem disputar o nome.
+
 ## Core
 
 Precisa do **JDK 25** no `JAVA_HOME` e do Docker (testes de integração).
