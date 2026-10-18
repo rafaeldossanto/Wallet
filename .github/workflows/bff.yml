@@ -2,7 +2,7 @@ name: BFF
 
 on:
   push:
-    branches: [master]
+    branches: [main, dev]
     paths: ['bff/**', '.github/workflows/bff.yml']
   pull_request:
     paths: ['bff/**', '.github/workflows/bff.yml']

@@ -2,7 +2,7 @@ name: Core
 
 on:
   push:
-    branches: [master]
+    branches: [main, dev]
     paths: ['core/**', '.github/workflows/core.yml']
   pull_request:
     paths: ['core/**', '.github/workflows/core.yml']

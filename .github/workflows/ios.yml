@@ -5,7 +5,7 @@ name: iOS
 # "App no iPhone".
 on:
   push:
-    branches: [master]
+    branches: [main, dev]
     # A version tag (v0.1.4) also attaches the .ipa and the AltStore source to the GitHub release.
     tags: ['v*']
     paths: ['app/**', '.github/workflows/ios.yml']
@@ -29,7 +29,10 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
+      # The whole history, so a tag can be checked against main.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: subosito/flutter-action@v2
         with:
@@ -37,13 +40,20 @@ jobs:
           flutter-version: 3.47.6
           cache: true
 
+      # A tag must carry the pubspec version and sit on main, where releases come from.
       - name: Version
         id: version
         run: |
           version=$(sed -nE 's/^version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' pubspec.yaml)
-          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
-            echo "::error::The tag $GITHUB_REF_NAME does not match the pubspec version $version"
-            exit 1
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+              echo "::error::The tag $GITHUB_REF_NAME does not match the pubspec version $version"
+              exit 1
+            fi
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "::error::The tag $GITHUB_REF_NAME is not on main: releases are tagged on main"
+              exit 1
+            fi
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
@@ -83,7 +93,7 @@ jobs:
             --arg date "$(date -u +%Y-%m-%d)" \
             --arg url "https://github.com/${{ github.repository }}/releases/download/v$version/Wallet-$version.ipa" \
             --argjson size "$(stat -f%z "$ipa")" \
-            --arg icon "https://raw.githubusercontent.com/${{ github.repository }}/master/app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png" \
+            --arg icon "https://raw.githubusercontent.com/${{ github.repository }}/main/app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png" \
             --arg faceId "$(/usr/libexec/PlistBuddy -c 'Print :NSFaceIDUsageDescription' ios/Runner/Info.plist)" \
             --arg localNetwork "$(/usr/libexec/PlistBuddy -c 'Print :NSLocalNetworkUsageDescription' ios/Runner/Info.plist)" \
             '{

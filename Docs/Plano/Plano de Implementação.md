@@ -6,7 +6,8 @@ atualizado: 2026-10-02
 # Plano de Implementação
 
 Tarefas na ordem de execução. Cada uma cabe numa sessão de execução e termina com
-commit na `master`. A arquitetura está em [[Visão Geral]], [[BFF]], [[Core]],
+commit na `dev`; a `main` recebe a `dev` quando uma versão vai para produção (até 2026-10-18
+era tudo na `master`). A arquitetura está em [[Visão Geral]], [[BFF]], [[Core]],
 [[App Flutter]], [[Modelo de Dados]], [[Sincronização]] e [[Autenticação]].
 
 | Fase | Tarefas | Resultado |

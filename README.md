@@ -162,9 +162,22 @@ cada mudança no `app/`: abra a última execução em Actions → Desktop e baix
 - Para rodar com `flutter run -d windows` é preciso o Visual Studio Community (2022 ou 2026) com a carga
   "Desenvolvimento para desktop com C++" (só o compilador é usado).
 
+## Branches
+
+Só duas, desde 2026-10-18:
+
+| Branch | Para quê |
+|---|---|
+| `dev` | Onde o trabalho acontece. Cada push roda os testes e gera os instaladores de teste (em Actions → Artifacts) |
+| `main` | O que vai para produção. Recebe a `dev` quando uma versão está pronta, e só ela gera versões publicadas |
+
+Publicar uma versão: levar a `dev` para a `main`, subir a `version` do `pubspec.yaml` e criar a
+tag igual na `main` (`git tag v0.1.5 && git push origin v0.1.5`). Uma tag fora da `main` é
+recusada pelos workflows, então nada da `dev` vira versão por engano.
+
 ## CI
 
-O GitHub Actions roda a suíte de cada parte a cada push na `master` e em pull request,
+O GitHub Actions roda a suíte de cada parte a cada push na `main` ou na `dev` e em pull request,
 só quando a pasta dela muda (`.github/workflows/`):
 
 | Workflow | O que roda |

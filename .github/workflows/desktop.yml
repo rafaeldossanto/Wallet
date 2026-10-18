@@ -2,7 +2,7 @@ name: Desktop
 
 on:
   push:
-    branches: [master]
+    branches: [main, dev]
     # A version tag (v0.1.0) also publishes the installer as a GitHub release.
     tags: ['v*']
     paths: ['app/**', '.github/workflows/desktop.yml']
@@ -27,7 +27,10 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
+      # The whole history, so a tag can be checked against main.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: subosito/flutter-action@v2
         with:
@@ -36,13 +39,18 @@ jobs:
           cache: true
 
       # The installer carries the pubspec version; a tag must say the same, so a release is never
-      # labelled with a version the app itself does not report.
+      # labelled with a version the app itself does not report. Releases come only from main: dev
+      # is where work happens, main is what gets deployed.
       - name: Version
         id: version
         run: |
           $version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*(\d+\.\d+\.\d+)').Matches[0].Groups[1].Value
-          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$version") {
-            throw "The tag $env:GITHUB_REF_NAME does not match the pubspec version $version"
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            if ($env:GITHUB_REF_NAME -ne "v$version") {
+              throw "The tag $env:GITHUB_REF_NAME does not match the pubspec version $version"
+            }
+            git merge-base --is-ancestor $env:GITHUB_SHA origin/main
+            if ($LASTEXITCODE -ne 0) { throw "The tag $env:GITHUB_REF_NAME is not on main: releases are tagged on main" }
           }
           "version=$version" >> $env:GITHUB_OUTPUT
 
