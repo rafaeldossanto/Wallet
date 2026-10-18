@@ -18,7 +18,7 @@ class AdaptiveShell extends StatelessWidget {
   /// On phones the bar has room for four destinations plus "Mais", which holds the rest.
   static const phonePrimaryCount = 4;
 
-  static const settingsIndex = 6;
+  static const settingsIndex = 7;
 
   final StatefulNavigationShell navigationShell;
 
@@ -54,6 +54,7 @@ class AdaptiveShell extends StatelessWidget {
         ShellDestination(l10n.navTransactions, Icons.receipt_long_outlined, Icons.receipt_long),
         ShellDestination(l10n.navCards, Icons.credit_card_outlined, Icons.credit_card),
         ShellDestination(l10n.navInvestments, Icons.savings_outlined, Icons.savings, shortLabel: l10n.navInvestmentsShort),
+        ShellDestination(l10n.navPlanning, Icons.account_balance_wallet_outlined, Icons.account_balance_wallet),
         ShellDestination(l10n.navInsights, Icons.pie_chart_outline, Icons.pie_chart),
         ShellDestination(l10n.navConnections, Icons.account_balance_outlined, Icons.account_balance),
         ShellDestination(l10n.navSettings, Icons.settings_outlined, Icons.settings),
@@ -93,7 +94,7 @@ class WalletRail extends StatelessWidget {
         borderRadius: BorderRadius.circular(36),
         border: Border.all(color: scheme.outlineVariant),
       ),
-      // Scrolls when seven buttons do not fit the height (a phone held sideways).
+      // Scrolls when the buttons do not fit the height (a phone held sideways).
       child: LayoutBuilder(
         builder: (context, constraints) => SingleChildScrollView(
           child: ConstrainedBox(

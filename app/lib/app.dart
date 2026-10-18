@@ -30,6 +30,7 @@ import 'features/connections/presentation/pluggy_connect_screen.dart';
 import 'features/insights/data/insights_api.dart';
 import 'features/investments/data/investments_api.dart';
 import 'features/overview/data/home_api.dart';
+import 'features/planning/data/planning_api.dart';
 import 'features/transactions/data/transactions_api.dart';
 
 /// Everything the screens need, built once. Tests build it with a fake HTTP adapter.
@@ -92,6 +93,7 @@ class AppDependencies {
         Provider(create: (_) => CardsApi(api)),
         Provider(create: (_) => InvestmentsApi(api)),
         Provider(create: (_) => InsightsApi(api)),
+        Provider(create: (_) => PlanningApi(api)),
         Provider(create: (_) => ConnectionsApi(api)),
         Provider.value(value: pluggyConnect),
       ];

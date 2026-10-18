@@ -59,7 +59,7 @@ app/lib/
     l10n/         app_pt.arb e as classes geradas
     widgets/      LoadableView, SectionCard, StatTile, MoneyText, MoneyLineChart, ThemeToggle...
   features/
-    auth/  overview/  calendar/  transactions/  cards/  investments/  insights/  connections/  settings/
+    auth/  overview/  calendar/  transactions/  cards/  investments/  planning/  insights/  connections/  settings/
 ```
 
 Cada feature tem `data/` (chamadas ao BFF e modelos) e `presentation/` (telas e
@@ -69,11 +69,11 @@ controllers).
 
 | Largura | Navegação |
 |---|---|
-| < 600 px (celular) | Barra inferior: Início, Extrato, Cartões, Investir e **Mais** (Gastos, Conexões, Ajustes) |
+| < 600 px (celular) | Barra inferior: Início, Extrato, Cartões, Investir e **Mais** (Planejamento, Gastos, Conexões, Ajustes) |
 | ≥ 600 px | Trilho flutuante de botões redondos (`WalletRail`): a marca, os destinos com dica ao passar o mouse, a troca de tema e as iniciais do usuário (vão para Ajustes) |
 
 Rotas: `/home`, `/transactions?accountId=`, `/cards`, `/cards/:id?name=` (faturas),
-`/investments`, `/insights`, `/connections`, `/settings`, além de `/splash`, `/login` e
+`/investments`, `/planning`, `/insights`, `/connections`, `/settings`, além de `/splash`, `/login` e
 `/register`. Ninguém vê dado antes de a sessão ser confirmada; um link aberto deslogado volta
 depois do login (`?from=`), menos quando a pessoa saiu de propósito.
 
@@ -270,9 +270,37 @@ lida antes do primeiro quadro, então o app nunca abre no tema errado.
   Sem dia selecionado, a lista ao lado mostra os gastos do **mês inteiro** (com o dia e o banco
   de cada um, paginada com "Ver mais"); tocar num dia mostra só aquele dia; tocar de novo no
   mesmo dia volta ao mês. O total vem do calendário, então lista e calendário batem.
-- Arranjo: duas colunas a partir de 1000 px de conteúdo (patrimônio, mês, contas e últimas
-  movimentações à esquerda; calendário, lista e cartões à direita); entre 720 e 1000 px,
+- Arranjo: duas colunas a partir de 1000 px de conteúdo (patrimônio, mês, sobra do mês, contas e
+  últimas movimentações à esquerda; calendário, lista e cartões à direita); entre 720 e 1000 px,
   calendário e lista lado a lado; uma coluna no celular.
+
+## Planejamento (desde 2026-10-18)
+
+Quanto sobra do salário no mês, pedido do Rafael depois de fazer a conta à mão com o holerite e
+as faturas. Aba **Planejamento** (no trilho e no "Mais" do celular), com o seletor de mês (até o
+mês que vem; depois disso não há fatura para mostrar). As regras estão no [[Core#Planejamento do mês (desde 2026-10-18)]];
+o app não faz conta com dinheiro, só lê os totais.
+
+- **Resumo** (cartão azul, como o que abre a visão geral): a sobra em destaque e uma barra
+  empilhada com o salário dividido entre cada fatura, os gastos fixos e a sobra (verde-limão),
+  com a legenda. O cartão aparece pelo nome do banco ("Nubank"), ou pelo do cartão quando o banco
+  tem dois. Mês no vermelho: a barra divide o que sai e o cartão diz quanto falta.
+- **Salário líquido:** o valor, o selo **Previsto** quando ainda não caiu, e de onde veio (caiu em
+  tal dia, previsto pelo mês anterior, valor que você definiu). **Ajustar** abre o salário esperado
+  (digitado como se escreve aqui: `3.400,00`), e **Usar o automático** volta à previsão.
+- **Uma fatura por cartão:** logo e nome do banco, vencimento, total do banco, as compras da maior
+  para a menor com o dia, a categoria, a parcela ("Parcela 2/3") e "Estorno" em verde; quatro de
+  cada vez e **mais N compras** para ver o resto. "Outros lançamentos" mostra o que o banco cobra
+  além das compras listadas. Fatura que ainda não fechou leva o selo **Aberta**, com o dia em que
+  deve fechar.
+- **Gastos fixos:** a lista com o dia do mês e a categoria, o total, **Adicionar** e, tocando num,
+  editar ou excluir (com confirmação). A categoria é opcional e sai de uma lista curta de
+  categorias da Pluggy (aluguel, moradia, faculdade, contas da casa, plano de saúde...).
+- **Visão geral:** o cartão **Sobra do mês** com a sobra do mês corrente, a mesma barra, a linha
+  "Salário · faturas · fixos" e "Ver planejamento".
+- Mudar um gasto fixo ou o salário toca o `DataChanges`, e a tela e o cartão da visão geral
+  buscam os números novos (o BFF já descartou o cache do planejamento).
+- A partir de 900 px de conteúdo, salário e gastos fixos à esquerda e as faturas à direita.
 
 ## Investimentos (desde 2026-10-03)
 
@@ -372,9 +400,9 @@ Ver [[Fluxo de Conexão]].
 
 ## Testes
 
-135 testes com um BFF em memória (`test/support/fake_bff.dart`):
+157 testes com um BFF em memória (`test/support/fake_bff.dart`):
 
-- Unitários: `Money`, sessão (restaurar, recusar, servidor fora), interceptor (duas chamadas
+- Unitários: `Money` (inclusive o valor digitado num formulário, `1.234,56`), sessão (restaurar, recusar, servidor fora), interceptor (duas chamadas
   com 401 geram **um** refresh), bloqueio por biometria, inatividade no navegador,
   conexões (acompanhamento e aviso às outras telas), patrimônio sem os dias zerados,
   histórico de investimentos (começo no primeiro dia com dado, perda, período abandonado
@@ -395,7 +423,12 @@ Ver [[Fluxo de Conexão]].
   botões, arrastar, redimensionar, cantos retos maximizada, vidro que segue o tema),
   saída voluntária, o Pluggy Connect com uma página falsa no lugar da WebView
   (`test/support/fake_pluggy_connect.dart`: token, abrir o banco e os links, sucesso, fechar antes
-  e depois de autorizar, falhas) e "Conectar banco" vinculando o item.
+  e depois de autorizar, falhas) e "Conectar banco" vinculando o item, o planejamento (sobra,
+  barra e legenda, salário recebido, previsto, definido à mão ou ausente, mês no vermelho, fatura
+  aberta, outros lançamentos, "mais N compras", Ajustar e Usar o automático, gasto fixo criado,
+  editado, excluído com confirmação e recusado pelo servidor, mês anterior e limite do próximo,
+  duas colunas na tela larga), o cartão "Sobra do mês" da visão geral e o Planejamento no "Mais"
+  e no trilho.
 
 Além disso, verificado à mão em 2026-10-02 no Chrome (build release) e no emulador
 `trilha_pixel`, contra o core e o BFF reais com a Pluggy de demonstração.

@@ -41,6 +41,8 @@ extension ErrorMessages on AppLocalizations {
         'sync.in_progress' => errorSyncInProgress,
         'account.not_found' => errorAccountNotFound,
         'period.invalid' || 'period.too_long' || 'page.invalid' || 'request.invalid_parameter' => errorInvalidFilter,
+        'planning.fixed_expense_not_found' => errorFixedExpenseNotFound,
+        'planning.fixed_expense_limit' => errorFixedExpenseLimit,
         _ => errorUnexpected,
       };
 }

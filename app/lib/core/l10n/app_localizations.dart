@@ -130,6 +130,12 @@ abstract class AppLocalizations {
   /// **'Ver mais'**
   String get actionSeeMore;
 
+  /// No description provided for @actionSave.
+  ///
+  /// In pt, this message translates to:
+  /// **'Salvar'**
+  String get actionSave;
+
   /// No description provided for @navOverview.
   ///
   /// In pt, this message translates to:
@@ -165,6 +171,12 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Gastos'**
   String get navInsights;
+
+  /// No description provided for @navPlanning.
+  ///
+  /// In pt, this message translates to:
+  /// **'Planejamento'**
+  String get navPlanning;
 
   /// No description provided for @navConnections.
   ///
@@ -946,6 +958,306 @@ abstract class AppLocalizations {
   /// **'O gráfico começa no primeiro dia de uso e ganha um ponto a cada dia em que o Wallet atualiza seus dados.'**
   String get insightsNetWorthGrowing;
 
+  /// No description provided for @planningLeftover.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sobra do mês'**
+  String get planningLeftover;
+
+  /// No description provided for @planningLeftoverFormula.
+  ///
+  /// In pt, this message translates to:
+  /// **'Salário − faturas − gastos fixos'**
+  String get planningLeftoverFormula;
+
+  /// No description provided for @planningShortfall.
+  ///
+  /// In pt, this message translates to:
+  /// **'Faltam {amount} para fechar o mês.'**
+  String planningShortfall(String amount);
+
+  /// No description provided for @planningNoSalaryHint.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sem salário para este mês. Toque em Ajustar no salário e informe quanto você recebe.'**
+  String get planningNoSalaryHint;
+
+  /// No description provided for @planningLegendFixed.
+  ///
+  /// In pt, this message translates to:
+  /// **'Gastos fixos'**
+  String get planningLegendFixed;
+
+  /// No description provided for @planningLegendLeftover.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sobra'**
+  String get planningLegendLeftover;
+
+  /// No description provided for @planningSalary.
+  ///
+  /// In pt, this message translates to:
+  /// **'Salário líquido'**
+  String get planningSalary;
+
+  /// No description provided for @planningSalaryAdjust.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ajustar'**
+  String get planningSalaryAdjust;
+
+  /// No description provided for @planningSalaryPredicted.
+  ///
+  /// In pt, this message translates to:
+  /// **'Previsto'**
+  String get planningSalaryPredicted;
+
+  /// No description provided for @planningSalaryReceived.
+  ///
+  /// In pt, this message translates to:
+  /// **'Caiu na conta em {date}.'**
+  String planningSalaryReceived(String date);
+
+  /// No description provided for @planningSalaryFromPreviousMonth.
+  ///
+  /// In pt, this message translates to:
+  /// **'Previsto pelo salário do mês anterior. Deve cair por volta de {date}.'**
+  String planningSalaryFromPreviousMonth(String date);
+
+  /// No description provided for @planningSalaryExpected.
+  ///
+  /// In pt, this message translates to:
+  /// **'Valor que você definiu. Vale até o salário do mês cair na conta.'**
+  String get planningSalaryExpected;
+
+  /// No description provided for @planningSalaryNone.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhum salário no extrato deste mês nem dos anteriores.'**
+  String get planningSalaryNone;
+
+  /// No description provided for @planningSalaryDialogTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Salário líquido esperado'**
+  String get planningSalaryDialogTitle;
+
+  /// No description provided for @planningSalaryDialogHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Usado enquanto o salário do mês não cai na conta. Quando ele cair, vale o valor do extrato.'**
+  String get planningSalaryDialogHelp;
+
+  /// No description provided for @planningSalaryField.
+  ///
+  /// In pt, this message translates to:
+  /// **'Valor líquido'**
+  String get planningSalaryField;
+
+  /// No description provided for @planningSalaryUseAutomatic.
+  ///
+  /// In pt, this message translates to:
+  /// **'Usar o automático'**
+  String get planningSalaryUseAutomatic;
+
+  /// No description provided for @planningSalarySaved.
+  ///
+  /// In pt, this message translates to:
+  /// **'Salário esperado salvo.'**
+  String get planningSalarySaved;
+
+  /// No description provided for @planningSalaryCleared.
+  ///
+  /// In pt, this message translates to:
+  /// **'O salário voltou a ser previsto pelo mês anterior.'**
+  String get planningSalaryCleared;
+
+  /// No description provided for @planningAmountInvalid.
+  ///
+  /// In pt, this message translates to:
+  /// **'Digite um valor como 1.234,56.'**
+  String get planningAmountInvalid;
+
+  /// No description provided for @planningBillOpen.
+  ///
+  /// In pt, this message translates to:
+  /// **'Aberta'**
+  String get planningBillOpen;
+
+  /// No description provided for @planningBillOpenHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Fecha por volta de {date} e ainda pode crescer.'**
+  String planningBillOpenHelp(String date);
+
+  /// No description provided for @planningBillMore.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count, plural, =1{mais 1 compra} other{mais {count} compras}}'**
+  String planningBillMore(int count);
+
+  /// No description provided for @planningBillLess.
+  ///
+  /// In pt, this message translates to:
+  /// **'Mostrar menos'**
+  String get planningBillLess;
+
+  /// No description provided for @planningBillRefund.
+  ///
+  /// In pt, this message translates to:
+  /// **'Estorno'**
+  String get planningBillRefund;
+
+  /// No description provided for @planningBillOtherCharges.
+  ///
+  /// In pt, this message translates to:
+  /// **'Outros lançamentos'**
+  String get planningBillOtherCharges;
+
+  /// No description provided for @planningBillOtherChargesHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tarifas, juros ou compras que o banco não detalhou.'**
+  String get planningBillOtherChargesHelp;
+
+  /// No description provided for @planningBillOtherCreditsHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Créditos que o banco não detalhou.'**
+  String get planningBillOtherCreditsHelp;
+
+  /// No description provided for @planningBillNoItems.
+  ///
+  /// In pt, this message translates to:
+  /// **'O banco não detalhou as compras desta fatura.'**
+  String get planningBillNoItems;
+
+  /// No description provided for @planningBills.
+  ///
+  /// In pt, this message translates to:
+  /// **'Faturas'**
+  String get planningBills;
+
+  /// No description provided for @planningNoBills.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhuma fatura de cartão vence neste mês.'**
+  String get planningNoBills;
+
+  /// No description provided for @planningFixed.
+  ///
+  /// In pt, this message translates to:
+  /// **'Gastos fixos'**
+  String get planningFixed;
+
+  /// No description provided for @planningFixedAdd.
+  ///
+  /// In pt, this message translates to:
+  /// **'Adicionar'**
+  String get planningFixedAdd;
+
+  /// No description provided for @planningFixedEmpty.
+  ///
+  /// In pt, this message translates to:
+  /// **'Mensalidade, aluguel, boletos: o que não passa no cartão. Adicione uma vez e ele entra em todo mês.'**
+  String get planningFixedEmpty;
+
+  /// No description provided for @planningFixedDay.
+  ///
+  /// In pt, this message translates to:
+  /// **'Todo dia {day}'**
+  String planningFixedDay(int day);
+
+  /// No description provided for @planningFixedTotal.
+  ///
+  /// In pt, this message translates to:
+  /// **'Total'**
+  String get planningFixedTotal;
+
+  /// No description provided for @planningFixedNew.
+  ///
+  /// In pt, this message translates to:
+  /// **'Novo gasto fixo'**
+  String get planningFixedNew;
+
+  /// No description provided for @planningFixedEdit.
+  ///
+  /// In pt, this message translates to:
+  /// **'Editar gasto fixo'**
+  String get planningFixedEdit;
+
+  /// No description provided for @planningFixedHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ele se repete todo mês. Nos dias 29, 30 e 31, cai no último dia dos meses mais curtos.'**
+  String get planningFixedHelp;
+
+  /// No description provided for @planningFixedAmount.
+  ///
+  /// In pt, this message translates to:
+  /// **'Valor'**
+  String get planningFixedAmount;
+
+  /// No description provided for @planningFixedDayField.
+  ///
+  /// In pt, this message translates to:
+  /// **'Dia do mês'**
+  String get planningFixedDayField;
+
+  /// No description provided for @planningFixedDayInvalid.
+  ///
+  /// In pt, this message translates to:
+  /// **'Um dia de 1 a 31.'**
+  String get planningFixedDayInvalid;
+
+  /// No description provided for @planningFixedCategory.
+  ///
+  /// In pt, this message translates to:
+  /// **'Categoria (opcional)'**
+  String get planningFixedCategory;
+
+  /// No description provided for @planningFixedDelete.
+  ///
+  /// In pt, this message translates to:
+  /// **'Excluir'**
+  String get planningFixedDelete;
+
+  /// No description provided for @planningFixedDeleteConfirm.
+  ///
+  /// In pt, this message translates to:
+  /// **'Excluir {name}? Ele sai de todos os meses.'**
+  String planningFixedDeleteConfirm(String name);
+
+  /// No description provided for @planningFixedSaved.
+  ///
+  /// In pt, this message translates to:
+  /// **'Gasto fixo salvo.'**
+  String get planningFixedSaved;
+
+  /// No description provided for @planningFixedDeleted.
+  ///
+  /// In pt, this message translates to:
+  /// **'Gasto fixo excluído.'**
+  String get planningFixedDeleted;
+
+  /// No description provided for @overviewLeftoverDetail.
+  ///
+  /// In pt, this message translates to:
+  /// **'Salário {salary} · faturas {bills} · fixos {fixed}'**
+  String overviewLeftoverDetail(String salary, String bills, String fixed);
+
+  /// No description provided for @overviewLeftoverPredicted.
+  ///
+  /// In pt, this message translates to:
+  /// **'Com o salário previsto.'**
+  String get overviewLeftoverPredicted;
+
+  /// No description provided for @overviewSeePlanning.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ver planejamento'**
+  String get overviewSeePlanning;
+
   /// No description provided for @connectionsEmpty.
   ///
   /// In pt, this message translates to:
@@ -1551,6 +1863,18 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Filtro inválido.'**
   String get errorInvalidFilter;
+
+  /// No description provided for @errorFixedExpenseNotFound.
+  ///
+  /// In pt, this message translates to:
+  /// **'Esse gasto fixo não existe mais.'**
+  String get errorFixedExpenseNotFound;
+
+  /// No description provided for @errorFixedExpenseLimit.
+  ///
+  /// In pt, this message translates to:
+  /// **'Você chegou ao limite de 100 gastos fixos.'**
+  String get errorFixedExpenseLimit;
 
   /// No description provided for @errorUnexpected.
   ///

@@ -40,6 +40,25 @@ class ScreenCacheTest {
     }
 
     @Test
+    void evictingAScreenDropsEveryVariantOfItAndNothingElse() {
+        UUID user = UUID.randomUUID();
+        UUID other = UUID.randomUUID();
+        for (String month : new String[] {"2026-10", "2026-11"}) {
+            cache.get(user, "planning", month, () -> "plan " + loads.incrementAndGet());
+        }
+        cache.get(other, "planning", "2026-10", () -> "plan " + loads.incrementAndGet());
+        load(user);
+
+        cache.evictScreen(user, "planning");
+        cache.get(user, "planning", "2026-10", () -> "plan " + loads.incrementAndGet());
+        cache.get(user, "planning", "2026-11", () -> "plan " + loads.incrementAndGet());
+        cache.get(other, "planning", "2026-10", () -> "plan " + loads.incrementAndGet());
+        load(user);
+
+        assertThat(loads).hasValue(6);
+    }
+
+    @Test
     void doesNotKeepAnswersMarkedAsNotCacheable() {
         UUID user = UUID.randomUUID();
 

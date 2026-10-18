@@ -12,6 +12,8 @@ PostgreSQL 18, migrations com **Flyway**, nomes em inglês. Dinheiro em
 erDiagram
     users ||--o{ refresh_tokens : "tem"
     users ||--o{ connections : "tem"
+    users ||--o{ fixed_expenses : "cadastra"
+    users ||--o| planning_settings : "ajusta"
     connections ||--o{ accounts : "tem"
     connections ||--o{ investments : "tem"
     connections ||--o{ sync_runs : "registra"
@@ -83,6 +85,15 @@ seria carregada para a frente para sempre.
 em (`connection_id`, `called_at`). **Sem chave estrangeira**, por isso fica fora do diagrama:
 o registro precisa sobreviver ao desvínculo e à exclusão do usuário. Nenhum dado financeiro,
 token ou credencial. Apagado depois de 180 dias. Ver [[Core#Auditoria das chamadas à Pluggy (desde 2026-10-18)]].
+
+**fixed_expenses** — os gastos fixos do planejamento (o que não passa no cartão): `id`,
+`user_id` (FK `users`, cascata), `name`, `amount` (maior que zero), `day_of_month` (1 a 31; nos
+meses mais curtos cai no último dia), `category` (uma categoria da Pluggy, opcional),
+`created_at`, `updated_at`. Repetem em todo mês. Ver [[Core#Planejamento do mês (desde 2026-10-18)]].
+
+**planning_settings** — uma linha por usuário que ajustou o planejamento: `user_id` (chave e FK
+`users`, cascata), `expected_salary` (maior que zero; vazio = prever pelo mês anterior),
+`created_at`, `updated_at`.
 
 > [!warning] Validação do Hibernate
 > `ddl-auto: validate` recusa `CHAR(n)` e `TEXT` onde a entidade tem `String`, porque

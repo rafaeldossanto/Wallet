@@ -1,6 +1,6 @@
 ---
 tags: [plano, tarefas]
-atualizado: 2026-10-02
+atualizado: 2026-10-18
 ---
 
 # Plano de Implementação
@@ -537,6 +537,37 @@ no GitHub e anexa o instalador (e publica nos Releases numa tag `v*`). Detalhes 
 automática pelos Releases do GitHub, conferida por SHA-256. Primeira versão publicada: v0.1.0.
 
 **Depois:** assinatura de código, macOS.
+
+---
+
+### T20 — Planejamento do mês
+
+**Pedido do Rafael em 2026-10-18:** um "facilitador" para a conta que ele faz à mão todo mês com
+o holerite e a fatura de cada banco: salário líquido − cada fatura de cartão (compra por compra)
+− os gastos fixos = o que sobra. Mockup aprovado por ele antes.
+
+- Salário lido do extrato (entrada com a categoria de salário numa conta, não cartão), líquido
+  porque é o que o Open Finance vê. Sem salário no mês ainda, o do mês anterior como previsão,
+  marcada; a pessoa pode definir um salário esperado no lugar da previsão.
+- Cada cartão com a fatura que vence no mês e as compras dela (categoria, parcela, data). O total
+  é o do banco; o que as compras não explicam aparece como outros lançamentos.
+- Gastos fixos (o que não passa no cartão) cadastrados uma vez e repetidos todo mês: criar,
+  editar, excluir. Sugestões a partir dos débitos recorrentes ficam para depois.
+- Tela Planejamento no app e um cartão "Sobra do mês" na visão geral.
+
+**Feito em 2026-10-18:** módulo `planning` no core (migration V8, `fixed_expenses` e
+`planning_settings`; `GET /internal/planning/month`, gastos fixos e salário esperado), a regra
+de qual compra é de qual fatura no `banking` (ligação da Pluggy ou ciclo da fatura), rotas
+`/api/planning` no BFF com cache por mês, e a tela no app. A fatura que ainda não fechou entra
+estimada pelo ciclo da última, marcada como aberta. A Pluggy de demonstração ganhou a ligação das
+compras às faturas fechadas e uma compra parcelada no cartão do Itaú. Testes: `BillCyclesTest`,
+`MonthPlannerTest`, `PlanningFlowIT` (8 cenários), `PlanningRoutesTest` (9) e os de widget do
+app; conferido de ponta a ponta no navegador com `demo-nubank` e `demo-itau`. Detalhes em
+[[Core]], [[BFF]] e [[App Flutter]].
+
+**Depois:** sugerir gastos fixos a partir dos débitos que se repetem; marcar à mão qual entrada é
+o salário quando a Pluggy não a categoriza como `Salary`; conferir com dados reais (T02) se a
+ligação `billId` das parcelas vem como na documentação.
 
 ## Backlog — antes de abrir para outras pessoas
 

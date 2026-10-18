@@ -175,3 +175,10 @@ atualizado: 2026-10-03
 - Containers com nome claro, pedido do Rafael para entender o que está rodando no Docker: em vez
   dos nomes aleatórios, o Postgres do core aparece como `wallet-core-demo-db-xxxx` (demo),
   `wallet-core-pluggy-db-xxxx` (Pluggy de verdade) ou `wallet-core-test-db-xxxx` (testes). Ver [[Core]].
+- Planejamento do mês, pedido do Rafael depois de fazer à mão, com o holerite e as faturas, a
+  conta de quanto sobra do salário: salário líquido − faturas − gastos fixos. O salário vem do
+  extrato (previsto pelo mês anterior até cair, ou o valor que ele definir), cada cartão mostra a
+  fatura que vence no mês com as compras e parcelas (o total é o do banco; a diferença aparece
+  como outros lançamentos), e os gastos fixos fora do cartão (mensalidade, aluguel, boletos) são
+  cadastrados uma vez. Nova aba Planejamento e um cartão "Sobra do mês" na visão geral. Ver
+  [[Core]] e [[App Flutter]].

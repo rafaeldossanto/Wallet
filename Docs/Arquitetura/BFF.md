@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, backend, bff]
-atualizado: 2026-10-03
+atualizado: 2026-10-18
 porta: 8080
 repo: Work/Wallet/bff
 ---
@@ -36,12 +36,12 @@ bff/src/main/java/com/wallet/bff/
   client/       CoreClient (HTTP + circuit breaker), CoreApi (uma chamada por rota)
   config/       RestClientConfig, interceptors de Bearer e trace, RequestContextExecutor
   controller/   Auth, Me, Home, Screen (extrato, cartões, investimentos, insights),
-                Connection
+                Calendar, Connection, Planning
   exception/    GlobalExceptionHandler (repassa o erro do core byte a byte)
   model/dto/    request/ e response/ (os contratos do app)
   ratelimit/    janela fixa por IP (auth) e por usuário
   service/      AuthService, SessionDelivery, HomeService, ScreenService,
-                ConnectionService
+                CalendarService, ConnectionService, PlanningService
   trace/        X-Trace-Id
 ```
 
@@ -67,6 +67,10 @@ bff/src/main/java/com/wallet/bff/
 | GET, POST, DELETE | `/api/connections...` | `/internal/connections...`; POST e DELETE limpam o cache do usuário |
 | POST | `/api/connections/{id}/sync` | `/internal/connections/{id}/sync` (202) e limpa o cache |
 | POST | `/api/connections/connect-token` | `/internal/connections/connect-token`: o token do widget Pluggy Connect no Android |
+| GET | `/api/planning?month=` | `/internal/planning/month` + `connections` em paralelo: o planejamento do mês com o nome e o logo do banco de cada fatura; cache por mês |
+| GET, POST | `/api/planning/fixed-expenses` | `/internal/planning/fixed-expenses`; POST limpa o planejamento em cache |
+| PUT, DELETE | `/api/planning/fixed-expenses/{id}` | `/internal/planning/fixed-expenses/{id}`; limpam o planejamento em cache |
+| PUT, DELETE | `/api/planning/expected-salary` | `/internal/planning/expected-salary`; limpam o planejamento em cache |
 
 ### A home
 
@@ -79,6 +83,16 @@ bff/src/main/java/com/wallet/bff/
   home. Se as cinco falham, o erro sobe como veio.
 - Só a home **completa** entra no cache. Uma home pela metade nunca é reaproveitada.
 - `institutions` agrupa as contas (sem cartão) por conexão, na ordem das conexões.
+
+### O planejamento (desde 2026-10-18)
+
+- O core manda o plano pronto, totais e "outros lançamentos" de cada fatura incluídos; o BFF só
+  junta o banco de cada cartão (`institutionName`, `institutionImageUrl`) pelas conexões, lidas
+  em paralelo. Sem as conexões, o plano volta sem os nomes e não entra no cache.
+- Cache por usuário e mês. Criar, alterar ou excluir um gasto fixo e mexer no salário esperado
+  descartam **todos os meses** do planejamento daquele usuário (`ScreenCache.evictScreen`), sem
+  tocar nas outras telas. Ler as conexões também alimenta a detecção de sincronização no fundo
+  (abaixo), e um plano montado com conexão sincronizando não entra no cache.
 
 ### Valores
 
@@ -144,7 +158,7 @@ entrava no cache e ficava vazia por um minuto. Desde 2026-10-02:
 
 ## Testes
 
-41 testes, todos com o core simulado no **WireMock** e tokens assinados de verdade:
+55 testes, todos com o core simulado no **WireMock** e tokens assinados de verdade:
 
 - `BffEdgeTest`: token ausente, vencido, de outra chave ou de outro emissor; Bearer e
   trace chegando ao core; erro do core intacto; core fora do ar e circuito aberto; CORS.
@@ -156,6 +170,10 @@ entrava no cache e ficava vazia por um minuto. Desde 2026-10-02:
   cartões, contas e conexões, calendário (mês em cache, período com nome da conta e do
   banco, dia que volta mesmo sem os nomes, data inválida recusada) e o histórico dos
   investimentos por período, com cache por período.
+- `PlanningRoutesTest`: o plano com o banco de cada cartão, cache por usuário e mês, gasto fixo e
+  salário esperado descartando todos os meses em cache, sincronização no fundo descartando o
+  plano, plano sem os nomes ou montado durante uma sincronização fora do cache, códigos do core
+  repassados e todas as rotas exigindo sessão.
 - `RateLimitTest`: orçamento por usuário e login por IP.
 - `CoreKeyRotationTest`: chave nova no core é aceita sem reiniciar o BFF.
 

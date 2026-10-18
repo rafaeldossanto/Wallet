@@ -11,4 +11,6 @@ public interface CreditCardBillRepository extends JpaRepository<CreditCardBill, 
     List<CreditCardBill> findByAccountId(UUID accountId);
 
     List<CreditCardBill> findByAccountIdOrderByDueDateDesc(UUID accountId);
+
+    List<CreditCardBill> findByAccountIdOrderByDueDateAsc(UUID accountId);
 }

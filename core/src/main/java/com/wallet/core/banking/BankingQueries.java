@@ -2,10 +2,11 @@ package com.wallet.core.banking;
 
 import com.wallet.core.shared.time.DateRange;
 
+import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 
-/** The banking module's read API for the insight module. Every call is scoped to one user. */
+/** The banking module's read API for the insight and planning modules. Every call is scoped to one user. */
 public interface BankingQueries {
 
     List<AccountSummary> accounts(UUID userId);
@@ -23,4 +24,16 @@ public interface BankingQueries {
 
     /** One point per day; a day without a snapshot repeats the last known balance. */
     List<BalancePoint> balanceHistory(UUID userId, DateRange period);
+
+    /** Inflows into bank accounts categorized as salary by the provider, oldest first. */
+    List<SalaryPayment> salaryPayments(UUID userId, DateRange period);
+
+    /**
+     * Every credit card's bill due in {@code month}, with its purchases, earliest due first. A
+     * purchase belongs to a bill when the provider linked it to that bill or, without a link,
+     * when it was made in the bill's cycle (the day after the previous closing to this closing).
+     * A card whose bill for the month has not closed yet gets its open bill, estimated from the
+     * last bill's cycle.
+     */
+    List<CardBill> billsDueIn(UUID userId, YearMonth month);
 }

@@ -27,6 +27,7 @@ módulo usar a parte interna de outro.
 | `sync` | Orquestra a leitura do provedor e grava nos módulos de dados | `provider`, `connection`, `banking`, `investment` |
 | `provider` | Porta `FinancialDataProvider`, o adaptador da Pluggy e a auditoria das chamadas | `shared` |
 | `insight` | Visão geral, patrimônio, gasto por categoria | `banking`, `investment` |
+| `planning` | Planejamento do mês: salário − faturas − gastos fixos, os gastos fixos e o salário esperado | `banking`, `shared` |
 | `shared` | Dinheiro, erros, paginação, criptografia de coluna, relógio | — |
 
 Dentro de cada módulo, o mesmo layout do Trilha: `controller`, `service`,
@@ -151,6 +152,10 @@ login, cadastro e refresh, exige o JWT do usuário, que o BFF repassa.
 | GET | `/internal/investments` | Posições abertas e total por tipo |
 | GET | `/internal/insights/spending-by-category?month=2026-09` | Gasto por categoria no mês (padrão: mês corrente) |
 | GET | `/internal/insights/net-worth?from=&to=` | Patrimônio dia a dia (padrão: últimos 30 dias, máx. 731) |
+| GET | `/internal/planning/month?month=2026-10` | O planejamento do mês (padrão: mês corrente): salário, faturas com as compras, gastos fixos e o que sobra |
+| GET, POST | `/internal/planning/fixed-expenses` | Lista e cria gastos fixos (`{ name, amount, dayOfMonth, category }`) |
+| PUT, DELETE | `/internal/planning/fixed-expenses/{id}` | Altera e exclui um gasto fixo |
+| PUT, DELETE | `/internal/planning/expected-salary` | Define o salário esperado (`{ amount }`) ou volta à previsão automática |
 
 O core **não sabe** se o usuário está no celular ou no navegador: sempre devolve os
 tokens no corpo. Cookie e CORS são assunto do [[BFF]].
@@ -228,6 +233,44 @@ adaptador mudar o que espera, quebra ali primeiro.
   corrente, porque as compras já estão no cartão).
 - `spending=true` no `/internal/transactions` aplica a mesma regra à lista, então os gastos de
   um dia somam exatamente o total do calendário naquele dia.
+
+## Planejamento do mês (desde 2026-10-18)
+
+Pedido do Rafael depois de fazer a conta à mão, com o holerite e a fatura de cada banco: quanto
+sobra do salário no mês. **Sobra = salário líquido − faturas dos cartões − gastos fixos.** Toda a
+conta é feita no core, com `Money`; o BFF só repassa.
+
+- **Salário:** as entradas numa conta bancária (não cartão) com a categoria `Salary` da Pluggy
+  no mês, somadas (adiantamento e restante viram um salário só); a data é a do último depósito.
+  O Open Finance só vê o que cai na conta, então é o salário **líquido**. Enquanto o do mês não
+  cai, vale o salário esperado que a pessoa definiu ("Ajustar") ou, sem ele, o último salário
+  recebido nos três meses anteriores, previsto para o mesmo dia do mês (`predicted: true`,
+  `source`: `RECEIVED`, `EXPECTED`, `PREVIOUS_MONTH` ou `NONE`). O salário esperado nunca passa
+  por cima do que caiu de verdade.
+- **Faturas:** de cada cartão, a fatura que **vence** no mês, com as compras. O total é o valor
+  do banco, então bate sempre com o que vai ser cobrado; o que as compras listadas não explicam
+  (tarifas, juros, compra que o banco não detalhou) vem em `otherCharges`, negativo quando um
+  crédito reduz a fatura. Uma compra é da fatura quando a Pluggy a ligou a ela
+  (`creditCardMetadata.billId`, que liga uma parcela lançada meses atrás à fatura que a cobra
+  agora) ou, sem ligação, quando foi feita no ciclo dela: do dia seguinte ao fechamento anterior
+  até o fechamento desta (sem data de fechamento, 7 dias antes do vencimento). O pagamento da
+  fatura anterior aparece no cartão mas não entra; estorno entra, reduzindo. Compras da maior
+  para a menor, estornos no fim. A regra mora no `banking` (`BillCycles`, exposta por
+  `BankingQueries.billsDueIn`), dono das faturas e das transações.
+- **Fatura aberta:** a Pluggy só entrega faturas fechadas. Quando a fatura do mês ainda não
+  fechou, o core estima a próxima pelo ciclo da última (fecha e vence um mês depois) e lista o
+  que já foi comprado nele, com `open: true`; o total é a soma das compras e ainda pode crescer.
+  Só um ciclo à frente: dois meses adiante não tem fatura.
+- **Gastos fixos:** o que não passa no cartão (mensalidade, aluguel, boletos). Cadastrados uma
+  vez (nome, valor, dia do mês, categoria opcional da Pluggy) e repetidos em todo mês; o dia 31
+  cai no último dia dos meses mais curtos. Até 100 por pessoa. Sugestões a partir dos débitos
+  recorrentes ficam para depois.
+- **Erros:** `planning.fixed_expense_not_found` (404, também para o gasto de outra pessoa),
+  `planning.fixed_expense_limit` (422), `validation.failed` (valor que não é positivo ou tem
+  mais de dois decimais, dia fora de 1 a 31, nome vazio) e `request.invalid_parameter` (mês que
+  não é `yyyy-MM`).
+- **Os nomes dos bancos** não vêm do core: cada fatura traz o `connectionId` e o BFF põe o nome
+  e o logo, como no resto.
 
 ## Testes
 

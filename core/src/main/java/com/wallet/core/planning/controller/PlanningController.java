@@ -1,0 +1,86 @@
+package com.wallet.core.planning.controller;
+
+import com.wallet.core.planning.dto.ExpectedSalaryRequest;
+import com.wallet.core.planning.dto.ExpectedSalaryResponse;
+import com.wallet.core.planning.dto.FixedExpenseRequest;
+import com.wallet.core.planning.dto.FixedExpenseResponse;
+import com.wallet.core.planning.dto.MonthPlanResponse;
+import com.wallet.core.planning.service.FixedExpenseService;
+import com.wallet.core.planning.service.PlanningService;
+import com.wallet.core.shared.security.CurrentUserId;
+import com.wallet.core.shared.time.WalletTime;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.time.Clock;
+import java.time.YearMonth;
+import java.util.List;
+import java.util.UUID;
+
+import static java.util.Objects.isNull;
+
+@RestController
+@RequestMapping("/internal/planning")
+@RequiredArgsConstructor
+public class PlanningController {
+
+    private final PlanningService planningService;
+    private final FixedExpenseService fixedExpenseService;
+    private final Clock clock;
+
+    /** {@code month=2026-10}; defaults to the current month. */
+    @GetMapping("/month")
+    public MonthPlanResponse month(@CurrentUserId UUID userId,
+                                   @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM") YearMonth month) {
+        return planningService.month(userId, isNull(month) ? WalletTime.currentMonth(clock) : month);
+    }
+
+    @GetMapping("/fixed-expenses")
+    public List<FixedExpenseResponse> fixedExpenses(@CurrentUserId UUID userId) {
+        return fixedExpenseService.list(userId);
+    }
+
+    @PostMapping("/fixed-expenses")
+    @ResponseStatus(HttpStatus.CREATED)
+    public FixedExpenseResponse createFixedExpense(@CurrentUserId UUID userId,
+                                                   @Valid @RequestBody FixedExpenseRequest request) {
+        return fixedExpenseService.create(userId, request);
+    }
+
+    @PutMapping("/fixed-expenses/{id}")
+    public FixedExpenseResponse updateFixedExpense(@CurrentUserId UUID userId, @PathVariable UUID id,
+                                                   @Valid @RequestBody FixedExpenseRequest request) {
+        return fixedExpenseService.update(userId, id, request);
+    }
+
+    @DeleteMapping("/fixed-expenses/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteFixedExpense(@CurrentUserId UUID userId, @PathVariable UUID id) {
+        fixedExpenseService.delete(userId, id);
+    }
+
+    /** Replaces the prediction from the previous month while the month's salary has not landed. */
+    @PutMapping("/expected-salary")
+    public ExpectedSalaryResponse setExpectedSalary(@CurrentUserId UUID userId,
+                                                    @Valid @RequestBody ExpectedSalaryRequest request) {
+        return planningService.setExpectedSalary(userId, request);
+    }
+
+    @DeleteMapping("/expected-salary")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void clearExpectedSalary(@CurrentUserId UUID userId) {
+        planningService.clearExpectedSalary(userId);
+    }
+}

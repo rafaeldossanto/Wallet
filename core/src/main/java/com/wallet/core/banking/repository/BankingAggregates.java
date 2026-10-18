@@ -2,6 +2,7 @@ package com.wallet.core.banking.repository;
 
 import com.wallet.core.banking.CategorySpending;
 import com.wallet.core.banking.DailySpending;
+import com.wallet.core.banking.SalaryPayment;
 import com.wallet.core.shared.finance.AccountKind;
 import com.wallet.core.shared.finance.Direction;
 import com.wallet.core.shared.money.Money;
@@ -28,6 +29,9 @@ public class BankingAggregates {
 
     /** Pluggy's category for paying a card bill from a bank account. To confirm in the T02 spike. */
     public static final String CARD_PAYMENT_CATEGORY = "credit card payment";
+
+    /** Pluggy's category for a salary (01010000), compared in lower case. */
+    public static final String SALARY_CATEGORY = "salary";
 
     private final JdbcTemplate jdbc;
 
@@ -68,6 +72,20 @@ public class BankingAggregates {
                 (row, index) -> new DailySpending(row.getDate("booked_on").toLocalDate(),
                         Money.of(row.getBigDecimal("total")), row.getInt("count")),
                 userId, Date.valueOf(period.from()), Date.valueOf(period.to()), CARD_PAYMENT_CATEGORY);
+    }
+
+    /** Open Finance only sees what lands in the account, so this is the net salary. */
+    public List<SalaryPayment> salaryPayments(UUID userId, DateRange period) {
+        return jdbc.query("""
+                SELECT t.booked_on, t.amount
+                  FROM transactions t JOIN accounts a ON a.id = t.account_id
+                 WHERE t.user_id = ? AND t.deleted_at IS NULL AND a.kind <> 'CREDIT_CARD'
+                   AND t.direction = 'INFLOW' AND LOWER(t.category) = ?
+                   AND t.booked_on BETWEEN ? AND ?
+                 ORDER BY t.booked_on, t.created_at
+                """,
+                (row, index) -> new SalaryPayment(row.getDate("booked_on").toLocalDate(), Money.of(row.getBigDecimal("amount"))),
+                userId, SALARY_CATEGORY, Date.valueOf(period.from()), Date.valueOf(period.to()));
     }
 
     /** Every snapshot up to {@code to}, oldest first: the ones before the period seed the first day. */

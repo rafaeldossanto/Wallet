@@ -147,6 +147,36 @@ class DemoPluggyCompatibilityTest {
         assertThat(card).anySatisfy(transaction -> assertThat(transaction.direction()).isEqualTo(Direction.INFLOW));
     }
 
+    /**
+     * What the planning screen needs from the demo: a salary, and two cards whose closed bills have
+     * their purchases linked to them (installments included); purchases of the open cycle have no
+     * bill yet.
+     */
+    @Test
+    void theRealLookingBanksGiveAMonthToPlan() {
+        assertThat(provider.listTransactions("itau-checking", AccountKind.CHECKING, TODAY.minusDays(31), TODAY))
+                .anySatisfy(transaction -> {
+                    assertThat(transaction.category()).isEqualTo("Salary");
+                    assertThat(transaction.direction()).isEqualTo(Direction.INFLOW);
+                });
+        for (String cardId : List.of("nubank-card", "itau-card")) {
+            List<ProviderBill> bills = provider.listBills(cardId);
+            List<String> billIds = bills.stream().map(ProviderBill::id).toList();
+            LocalDate lastClosing = bills.getLast().closingDate();
+            List<ProviderTransaction> charges = provider.listTransactions(cardId, AccountKind.CREDIT_CARD,
+                    TODAY.minusDays(60), TODAY).stream()
+                    .filter(transaction -> Direction.OUTFLOW.equals(transaction.direction()))
+                    .toList();
+
+            assertThat(charges).as(cardId).anySatisfy(charge -> assertThat(billIds).contains(charge.billId()));
+            assertThat(charges).as(cardId).anySatisfy(charge -> assertThat(charge.installmentNumber()).isNotNull());
+            assertThat(charges).as(cardId)
+                    .filteredOn(charge -> charge.bookedOn().isAfter(lastClosing))
+                    .isNotEmpty()
+                    .allSatisfy(charge -> assertThat(charge.billId()).isNull());
+        }
+    }
+
     @Test
     void cardBillsAndInvestmentsArePresent() {
         List<ProviderBill> bills = provider.listBills("demo-card");

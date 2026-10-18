@@ -28,6 +28,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get actionSeeMore => 'Ver mais';
 
   @override
+  String get actionSave => 'Salvar';
+
+  @override
   String get navOverview => 'Início';
 
   @override
@@ -44,6 +47,9 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get navInsights => 'Gastos';
+
+  @override
+  String get navPlanning => 'Planejamento';
 
   @override
   String get navConnections => 'Conexões';
@@ -514,6 +520,188 @@ class AppLocalizationsPt extends AppLocalizations {
       'O gráfico começa no primeiro dia de uso e ganha um ponto a cada dia em que o Wallet atualiza seus dados.';
 
   @override
+  String get planningLeftover => 'Sobra do mês';
+
+  @override
+  String get planningLeftoverFormula => 'Salário − faturas − gastos fixos';
+
+  @override
+  String planningShortfall(String amount) {
+    return 'Faltam $amount para fechar o mês.';
+  }
+
+  @override
+  String get planningNoSalaryHint =>
+      'Sem salário para este mês. Toque em Ajustar no salário e informe quanto você recebe.';
+
+  @override
+  String get planningLegendFixed => 'Gastos fixos';
+
+  @override
+  String get planningLegendLeftover => 'Sobra';
+
+  @override
+  String get planningSalary => 'Salário líquido';
+
+  @override
+  String get planningSalaryAdjust => 'Ajustar';
+
+  @override
+  String get planningSalaryPredicted => 'Previsto';
+
+  @override
+  String planningSalaryReceived(String date) {
+    return 'Caiu na conta em $date.';
+  }
+
+  @override
+  String planningSalaryFromPreviousMonth(String date) {
+    return 'Previsto pelo salário do mês anterior. Deve cair por volta de $date.';
+  }
+
+  @override
+  String get planningSalaryExpected =>
+      'Valor que você definiu. Vale até o salário do mês cair na conta.';
+
+  @override
+  String get planningSalaryNone =>
+      'Nenhum salário no extrato deste mês nem dos anteriores.';
+
+  @override
+  String get planningSalaryDialogTitle => 'Salário líquido esperado';
+
+  @override
+  String get planningSalaryDialogHelp =>
+      'Usado enquanto o salário do mês não cai na conta. Quando ele cair, vale o valor do extrato.';
+
+  @override
+  String get planningSalaryField => 'Valor líquido';
+
+  @override
+  String get planningSalaryUseAutomatic => 'Usar o automático';
+
+  @override
+  String get planningSalarySaved => 'Salário esperado salvo.';
+
+  @override
+  String get planningSalaryCleared =>
+      'O salário voltou a ser previsto pelo mês anterior.';
+
+  @override
+  String get planningAmountInvalid => 'Digite um valor como 1.234,56.';
+
+  @override
+  String get planningBillOpen => 'Aberta';
+
+  @override
+  String planningBillOpenHelp(String date) {
+    return 'Fecha por volta de $date e ainda pode crescer.';
+  }
+
+  @override
+  String planningBillMore(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'mais $count compras',
+      one: 'mais 1 compra',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get planningBillLess => 'Mostrar menos';
+
+  @override
+  String get planningBillRefund => 'Estorno';
+
+  @override
+  String get planningBillOtherCharges => 'Outros lançamentos';
+
+  @override
+  String get planningBillOtherChargesHelp =>
+      'Tarifas, juros ou compras que o banco não detalhou.';
+
+  @override
+  String get planningBillOtherCreditsHelp =>
+      'Créditos que o banco não detalhou.';
+
+  @override
+  String get planningBillNoItems =>
+      'O banco não detalhou as compras desta fatura.';
+
+  @override
+  String get planningBills => 'Faturas';
+
+  @override
+  String get planningNoBills => 'Nenhuma fatura de cartão vence neste mês.';
+
+  @override
+  String get planningFixed => 'Gastos fixos';
+
+  @override
+  String get planningFixedAdd => 'Adicionar';
+
+  @override
+  String get planningFixedEmpty =>
+      'Mensalidade, aluguel, boletos: o que não passa no cartão. Adicione uma vez e ele entra em todo mês.';
+
+  @override
+  String planningFixedDay(int day) {
+    return 'Todo dia $day';
+  }
+
+  @override
+  String get planningFixedTotal => 'Total';
+
+  @override
+  String get planningFixedNew => 'Novo gasto fixo';
+
+  @override
+  String get planningFixedEdit => 'Editar gasto fixo';
+
+  @override
+  String get planningFixedHelp =>
+      'Ele se repete todo mês. Nos dias 29, 30 e 31, cai no último dia dos meses mais curtos.';
+
+  @override
+  String get planningFixedAmount => 'Valor';
+
+  @override
+  String get planningFixedDayField => 'Dia do mês';
+
+  @override
+  String get planningFixedDayInvalid => 'Um dia de 1 a 31.';
+
+  @override
+  String get planningFixedCategory => 'Categoria (opcional)';
+
+  @override
+  String get planningFixedDelete => 'Excluir';
+
+  @override
+  String planningFixedDeleteConfirm(String name) {
+    return 'Excluir $name? Ele sai de todos os meses.';
+  }
+
+  @override
+  String get planningFixedSaved => 'Gasto fixo salvo.';
+
+  @override
+  String get planningFixedDeleted => 'Gasto fixo excluído.';
+
+  @override
+  String overviewLeftoverDetail(String salary, String bills, String fixed) {
+    return 'Salário $salary · faturas $bills · fixos $fixed';
+  }
+
+  @override
+  String get overviewLeftoverPredicted => 'Com o salário previsto.';
+
+  @override
+  String get overviewSeePlanning => 'Ver planejamento';
+
+  @override
   String get connectionsEmpty =>
       'Nenhuma conexão ainda. Conecte seu banco no Meu Pluggy e vincule aqui pelo Item ID.';
 
@@ -869,6 +1057,13 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get errorInvalidFilter => 'Filtro inválido.';
+
+  @override
+  String get errorFixedExpenseNotFound => 'Esse gasto fixo não existe mais.';
+
+  @override
+  String get errorFixedExpenseLimit =>
+      'Você chegou ao limite de 100 gastos fixos.';
 
   @override
   String get errorUnexpected => 'Algo deu errado. Tente de novo.';
