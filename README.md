@@ -200,6 +200,57 @@ Para usar (até o deploy):
 O Apple ID gratuito assina até 3 apps por vez. Quando houver deploy (HTTPS público), a variável
 `WALLET_BFF_URL` do repositório entra no build e nada disso de endereço é preciso.
 
+### App no tablet Android
+
+O workflow **Android** gera um `Wallet-<versão>.apk` a cada mudança no `app/`: abra a última
+execução em Actions → Android e baixe o arquivo em *Artifacts* (exige estar logado no GitHub).
+Uma tag `v<versão>` também anexa o APK aos *Releases*, que qualquer um baixa.
+
+Para instalar:
+
+1. Baixe o `.apk` no próprio tablet e toque nele.
+2. Na primeira vez, o Android pede para o navegador (ou o app de arquivos) poder instalar apps:
+   Configurações → **Instalar apps desconhecidos** → permitir. Se o Play Protect avisar que não
+   conhece o app, *Instalar mesmo assim*.
+3. Uma versão nova instala por cima da antiga, sem perder os dados, porque todo APK sai assinado
+   com a mesma chave. Um APK gerado sem os segredos de assinatura (o workflow avisa) usa outra
+   chave, e o Android só o aceita depois de desinstalar o anterior.
+
+Com o tablet no cabo e a depuração USB ligada, `adb install -r Wallet-<versão>.apk` também instala.
+
+Para usar (até o deploy):
+
+- Core e BFF rodando no PC, e o tablet na mesma Wi-Fi.
+- Na primeira vez que o BFF sobe, o Windows pergunta se o Java pode usar a rede: permita em redes
+  privadas. A Wi-Fi precisa estar como rede **Privada** no Windows; se a pergunta já passou, é em
+  Firewall do Windows → Permitir um aplicativo → Java, coluna Privada.
+- Descubra o endereço do PC com `ipconfig` (Endereço IPv4, algo como `192.168.0.10`).
+- Na tela de login do Wallet, **Servidor: … · Alterar** → digite o endereço → Salvar.
+
+O app aceita HTTP (`res/xml/network_security_config.xml`) porque o BFF no PC não tem HTTPS; com o
+deploy, volta a ser só HTTPS.
+
+**A chave de assinatura** é uma keystore que fica fora do git, em `%USERPROFILE%\.wallet\android`:
+`wallet-release.jks`, o `key.properties` com as senhas e o alias, e `wallet-release.jks.base64.txt`
+(a keystore em texto, para o GitHub). Guarde uma cópia: perder a chave obriga a desinstalar o app
+para trocar. O
+workflow a recebe por quatro segredos do repositório (Settings → Secrets and variables → Actions):
+
+| Segredo | Valor |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | O conteúdo de `wallet-release.jks.base64.txt` |
+| `ANDROID_KEYSTORE_PASSWORD` | `storePassword` do `key.properties` |
+| `ANDROID_KEY_ALIAS` | `keyAlias` do `key.properties` (`wallet`) |
+| `ANDROID_KEY_PASSWORD` | `keyPassword` do `key.properties` |
+
+Gerar o APK aqui no PC, com a mesma chave (sai em `build/app/outputs/flutter-apk/`):
+
+```powershell
+cd app
+$env:ANDROID_KEY_PROPERTIES = "$HOME\.wallet\android\key.properties"
+flutter build apk --release --dart-define=WALLET_VERSION=0.1.4
+```
+
 ## Branches
 
 Só duas, desde 2026-10-18:
@@ -224,11 +275,15 @@ só quando a pasta dela muda (`.github/workflows/`):
 | BFF | `./mvnw -B verify` com JDK 25 (core simulado no WireMock) |
 | App | Flutter 3.47.6: traduções geradas batendo com o `.arb`, `flutter analyze` e `flutter test` |
 | Desktop | Em Windows: compila o app, monta o instalador (Inno Setup) e anexa o `.exe` à execução; numa tag `v*`, publica nos Releases |
+| Android | Em Linux, com JDK 21: compila o APK assinado e anexa o `.apk` à execução; numa tag `v*`, anexa aos Releases |
 
-Nenhum workflow precisa de segredo. Quando um teste falha, os relatórios ficam 7 dias como
-artefato da execução.
+Só o Android usa segredos: os quatro `ANDROID_*` da chave de assinatura ("App no tablet
+Android"). Sem eles o APK sai com a chave de debug, e a execução avisa. Quando um teste falha, os
+relatórios ficam 7 dias como artefato da execução.
 
 ## Segredos
 
 Segredos (senha do banco, Pluggy, chaves de JWT e de criptografia) vêm só de variáveis
-de ambiente. O `.gitignore` também bloqueia `application-local.yaml`, `.env` e `.pem`.
+de ambiente. O `.gitignore` também bloqueia `application-local.yaml`, `.env` e `.pem`, e o de
+`app/android` bloqueia keystores e `key.properties`. A chave de assinatura do Android fica em
+`%USERPROFILE%\.wallet\android`, fora do repositório, e no GitHub só como segredo.

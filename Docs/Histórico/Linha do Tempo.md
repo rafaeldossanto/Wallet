@@ -147,3 +147,8 @@ atualizado: 2026-10-03
   celular falar com o BFF no PC pela Wi-Fi. O tablet Android ganha um APK numa sessão paralela.
 - Branches: a `master` virou `main` (produção, de onde saem as versões) e há a `dev` (trabalho).
   Os workflows recusam tag de versão fora da `main`.
+- Tablet Android: o workflow Android gera um APK a cada mudança no `app/` e o anexa aos Releases
+  numa tag. Ganhou uma chave de assinatura própria, fora do git, para as versões novas instalarem
+  por cima sem perder os dados, e o app passou a aceitar HTTP para falar com o BFF no PC pela
+  Wi-Fi até o deploy com HTTPS. Faltam os quatro segredos `ANDROID_*` no GitHub, que o Rafael
+  cria. Ver [[App Flutter]].

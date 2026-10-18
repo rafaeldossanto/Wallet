@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, flutter, app]
-atualizado: 2026-10-03
+atualizado: 2026-10-18
 ---
 
 # App Flutter
@@ -74,8 +74,9 @@ depois do login (`?from=`), menos quando a pessoa saiu de propósito.
 ## Com quem o app fala
 
 Só com o [[BFF]]: `http://localhost:8080` no navegador, no Windows e no iOS,
-`http://10.0.2.2:8080` no emulador Android (HTTP liberado só no build de debug). Muda com
-`--dart-define=WALLET_BFF_URL=`. Toda chamada leva `X-Wallet-Client: mobile`, `desktop` ou
+`http://10.0.2.2:8080` no emulador Android. Muda com `--dart-define=WALLET_BFF_URL=`, e no
+celular e no tablet pelo endereço digitado na tela de login. O Android aceita HTTP em todos os
+builds até o deploy com HTTPS (ver "App no tablet Android"). Toda chamada leva `X-Wallet-Client: mobile`, `desktop` ou
 `web`.
 
 ## App de Windows (desde 2026-10-04)
@@ -177,6 +178,28 @@ Pedido do Rafael, que tem um iPhone 11 e não quer pagar o Apple Developer Progr
 - `NSLocalNetworkUsageDescription` no `Info.plist`: sem ele o iOS 14+ bloqueia o acesso ao PC na
   rede local. O HTTP para a rede local já era liberado (`NSAllowsLocalNetworking`).
 - Passo a passo para instalar no README ("App no iPhone").
+
+## App no tablet Android (desde 2026-10-18)
+
+Pedido do Rafael, para o tablet Android dele. Sem Play Store: um APK instalado à mão.
+
+- O workflow **Android** compila em Linux (JDK 21) um `Wallet-<versão>.apk` e o anexa à execução;
+  numa tag `v<versão>`, espera o Release que o Desktop cria e anexa o APK a ele.
+- **Assinatura:** o Android só instala uma versão nova por cima se as duas tiverem a mesma chave.
+  O modelo do Flutter assinava o release com a chave de debug, que muda de máquina para máquina.
+  Agora há uma keystore própria (RSA 4096, alias `wallet`), gerada em 2026-10-18 e guardada fora do
+  git em `%USERPROFILE%\.wallet\android` com o `key.properties`. O `android/app/build.gradle.kts`
+  lê a chave de `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` e
+  `ANDROID_KEY_PASSWORD`, ou de um `key.properties` apontado por `ANDROID_KEY_PROPERTIES`; sem
+  nenhum dos dois, cai na chave de debug. No CI, os quatro segredos `ANDROID_*` do repositório
+  (a keystore vai em base64); faltando, o APK sai com a de debug e a execução avisa.
+- **HTTP:** o tablet fala com o BFF no PC pela Wi-Fi, em `http://192.168.x.x:8080`. O
+  `res/xml/network_security_config.xml` libera HTTP para qualquer endereço, porque o da rede local
+  não se sabe na hora do build e o arquivo não aceita faixa de IP. Antes só o build de debug
+  (emulador) aceitava HTTP. Com o deploy em HTTPS, volta a ser só HTTPS.
+- O endereço do PC se digita na tela de login, como no iPhone. O firewall do Windows precisa
+  deixar o Java receber conexões na rede privada.
+- Passo a passo para instalar e os segredos no README ("App no tablet Android").
 
 ## Tema
 
