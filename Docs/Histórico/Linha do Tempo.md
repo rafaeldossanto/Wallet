@@ -138,3 +138,12 @@ atualizado: 2026-10-03
   branco sobre o preto). Aplicado em todos os ícones (Windows, bandeja, favicon, web, Android,
   iOS) e publicado na v0.1.3. Ele não conseguiu terminar a conexão dos bancos no Meu Pluggy; a
   T02 segue pendente.
+
+## 2026-10-18
+
+- iPhone sem a conta paga da Apple: o workflow iOS gera um `.ipa` sem assinatura, que o AltStore
+  assina com um Apple ID gratuito (7 dias, renovação automática), e uma fonte do AltStore para
+  instalar e atualizar pelo celular. A tela de login ganhou o endereço do servidor, para o
+  celular falar com o BFF no PC pela Wi-Fi. O tablet Android ganha um APK numa sessão paralela.
+- Branches: a `master` virou `main` (produção, de onde saem as versões) e há a `dev` (trabalho).
+  Os workflows recusam tag de versão fora da `main`.

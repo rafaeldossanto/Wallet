@@ -162,6 +162,44 @@ cada mudança no `app/`: abra a última execução em Actions → Desktop e baix
 - Para rodar com `flutter run -d windows` é preciso o Visual Studio Community (2022 ou 2026) com a carga
   "Desenvolvimento para desktop com C++" (só o compilador é usado).
 
+### App no iPhone (sem a conta paga da Apple)
+
+O workflow **iOS** gera, num Mac do GitHub, um `Wallet-<versão>.ipa` sem assinatura. Quem assina
+é o AltStore (ou o Sideloadly) na hora de instalar, com um Apple ID comum e gratuito. Sem o Apple
+Developer Program, a assinatura vale **7 dias**; o AltStore renova sozinho.
+
+Uma vez, no PC (Windows):
+
+1. Instale o **iTunes** e o **iCloud** baixados do site da Apple, não os da Microsoft Store.
+2. Instale o **AltServer** (altstore.io). Com o iPhone no cabo, clique no ícone dele na bandeja →
+   *Install AltStore* → escolha o iPhone. Ele pede um Apple ID: pode ser um secundário, criado só
+   para isso.
+3. No iPhone: Ajustes → Geral → VPN e Gerenciamento de Dispositivos → confie no seu Apple ID. E
+   Ajustes → Privacidade e Segurança → **Modo de Desenvolvedor** → ligar (o iPhone reinicia).
+
+No iPhone:
+
+4. Abra o AltStore → *Sources* → **+** → cole
+   `https://github.com/rafaeldossanto/Wallet/releases/latest/download/altstore.json` e instale o
+   Wallet. As versões novas aparecem ali mesmo, para atualizar.
+5. A renovação dos 7 dias acontece sozinha quando o iPhone e o PC (com o AltServer aberto) estão
+   na mesma Wi-Fi. Se vencer, o Wallet não abre até você abrir o AltStore e tocar em *Refresh*.
+
+Sem AltStore: o **Sideloadly** (sideloadly.io) instala o `.ipa` baixado dos Releases com o iPhone
+no cabo, mas aí a renovação dos 7 dias é manual.
+
+Para usar (até o deploy):
+
+- Core e BFF rodando no PC, e o iPhone na mesma Wi-Fi.
+- Na primeira vez que o BFF sobe, o Windows pergunta se o Java pode usar a rede: permita em redes
+  privadas.
+- Descubra o endereço do PC com `ipconfig` (Endereço IPv4, algo como `192.168.0.10`).
+- Na tela de login do Wallet, **Servidor: … · Alterar** → digite o endereço → Salvar. O iPhone
+  pergunta se o Wallet pode acessar a rede local: permita.
+
+O Apple ID gratuito assina até 3 apps por vez. Quando houver deploy (HTTPS público), a variável
+`WALLET_BFF_URL` do repositório entra no build e nada disso de endereço é preciso.
+
 ## Branches
 
 Só duas, desde 2026-10-18:

@@ -159,6 +159,25 @@ projeto Flutter e o mesmo código Dart; o Flutter gera o executável nativo a pa
   Windows instalado; este PC não tem Visual Studio. O que é lógica (quando atualizar, a
   conferência do SHA-256, os Ajustes) tem teste; o resto é conferido pelo Rafael no app instalado.
 
+## App no iPhone (desde 2026-10-18)
+
+Pedido do Rafael, que tem um iPhone 11 e não quer pagar o Apple Developer Program por enquanto.
+
+- O workflow **iOS** compila num Mac do GitHub um `.ipa` **sem assinatura**. Quem assina é o
+  AltStore (ou o Sideloadly) na instalação, com um Apple ID gratuito; a assinatura vale 7 dias e o
+  AltStore renova sozinho quando o iPhone e o PC com o AltServer estão na mesma Wi-Fi.
+- Cada versão publica junto um `altstore.json` (fonte do AltStore), lido pelo link
+  `releases/latest/download/altstore.json`: o Wallet aparece no AltStore para instalar e
+  atualizar pelo celular. As permissões listadas ali precisam bater com o `Info.plist`, senão o
+  AltStore recusa; o workflow tira os textos do próprio `Info.plist`.
+- **Servidor:** no celular, `localhost` é o próprio celular. A tela de login mostra "Servidor: … ·
+  Alterar", onde se digita o endereço do PC na Wi-Fi (`192.168.0.10` vira
+  `http://192.168.0.10:8080`). Fica salvo no aparelho e vale já na próxima requisição
+  (`lib/core/config/server_address.dart`). No navegador não aparece.
+- `NSLocalNetworkUsageDescription` no `Info.plist`: sem ele o iOS 14+ bloqueia o acesso ao PC na
+  rede local. O HTTP para a rede local já era liberado (`NSAllowsLocalNetworking`).
+- Passo a passo para instalar no README ("App no iPhone").
+
 ## Tema
 
 Claro e escuro; escuro por padrão. Troca no botão de sol/lua (no trilho, ou no topo da
