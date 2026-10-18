@@ -9,9 +9,7 @@ import 'core/api/auth_interceptor.dart';
 import 'core/config/server_address.dart';
 import 'core/desktop/desktop.dart';
 import 'core/desktop/desktop_settings.dart';
-import 'core/desktop/desktop_views.dart';
 import 'core/desktop/window_frame.dart';
-import 'core/desktop/updater.dart';
 import 'core/l10n/l10n.dart';
 import 'core/router/app_router.dart';
 import 'core/security/app_lock.dart';
@@ -23,6 +21,8 @@ import 'core/session/session_store.dart';
 import 'core/state/data_changes.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
+import 'core/updates/update_views.dart';
+import 'core/updates/updater.dart';
 import 'features/calendar/data/calendar_api.dart';
 import 'features/cards/data/cards_api.dart';
 import 'features/connections/data/connections_api.dart';
@@ -34,13 +34,15 @@ import 'features/transactions/data/transactions_api.dart';
 
 /// Everything the screens need, built once. Tests build it with a fake HTTP adapter.
 class AppDependencies {
-  AppDependencies._(this.api, this.session, this.appLock, this.theme, this.desktop, this.server, this.pluggyConnect);
+  AppDependencies._(
+      this.api, this.session, this.appLock, this.theme, this.desktop, this.updater, this.server, this.pluggyConnect);
 
   factory AppDependencies.create({
     ApiClient? api,
     SessionStore? store,
     ThemeController? theme,
     Desktop? desktop,
+    Updater? updater,
     ServerAddress? server,
     PluggyConnectHost pluggyConnect = const PluggyConnectHost(),
     bool withAppLock = !kIsWeb,
@@ -54,7 +56,7 @@ class AppDependencies {
     );
     client.dio.interceptors.add(AuthInterceptor(session, client.dio));
     return AppDependencies._(client, session, withAppLock ? AppLock(session: session) : null,
-        theme ?? ThemeController(MemoryThemePreference()), desktop, server, pluggyConnect);
+        theme ?? ThemeController(MemoryThemePreference()), desktop, updater ?? desktop?.updater, server, pluggyConnect);
   }
 
   final ApiClient api;
@@ -64,6 +66,10 @@ class AppDependencies {
 
   /// The Windows app's window settings and updater; null on the phone and in the browser.
   final Desktop? desktop;
+
+  /// The installed app's updater: the Windows one or the Android one; null on the iPhone and in
+  /// the browser.
+  final Updater? updater;
 
   /// The BFF's address, typed on the login screen; null in the browser.
   final ServerAddress? server;
@@ -78,7 +84,7 @@ class AppDependencies {
         ChangeNotifierProvider.value(value: theme),
         ChangeNotifierProvider<AppLock?>.value(value: appLock),
         ChangeNotifierProvider<DesktopSettings?>.value(value: desktop?.settings),
-        ChangeNotifierProvider<Updater?>.value(value: desktop?.updater),
+        ChangeNotifierProvider<Updater?>.value(value: updater),
         ChangeNotifierProvider<ServerAddress?>.value(value: server),
         Provider(create: (_) => HomeApi(api)),
         Provider(create: (_) => CalendarApi(api)),
@@ -156,7 +162,7 @@ class _WalletAppState extends State<WalletApp> {
         final content = Consumer<AppLock?>(
           builder: (context, lock, _) => Stack(children: [
             app,
-            if (dependencies.desktop != null) const UpdateToast(),
+            if (dependencies.updater != null) const UpdateToast(),
             if (lock?.isLocked ?? false) const LockScreen(),
           ]),
         );

@@ -116,10 +116,28 @@ jobs:
           mkdir -p build/apk
           cp build/app/outputs/flutter-apk/app-release.apk "build/apk/Wallet-${{ steps.version.outputs.version }}.apk"
 
+      # What the app on the tablet reads to update itself (lib/core/android/), through the link
+      # releases/latest/download/latest-android.json. The desktop's latest.json is the Desktop
+      # workflow's. jq writes UTF-8 without a byte order mark.
+      - name: Manifest
+        run: |
+          apk="Wallet-${{ steps.version.outputs.version }}.apk"
+          sha256=$(sha256sum "build/apk/$apk" | cut -d ' ' -f 1)
+          jq -n --arg version "${{ steps.version.outputs.version }}" --arg apk "$apk" --arg sha256 "$sha256" \
+            '{version: $version, apk: $apk, sha256: $sha256}' > build/apk/latest-android.json
+          cat build/apk/latest-android.json
+
       # Not zipped: the run page offers the .apk itself, named after the file.
       - uses: actions/upload-artifact@v7
         with:
           path: app/build/apk/Wallet-${{ steps.version.outputs.version }}.apk
+          archive: false
+          if-no-files-found: error
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: app/build/apk/latest-android.json
           archive: false
           if-no-files-found: error
           retention-days: 30
@@ -136,7 +154,12 @@ jobs:
         with:
           name: Wallet-${{ needs.apk.outputs.version }}.apk
 
-      # The Desktop workflow creates the release; this one waits for it and adds the APK.
+      - uses: actions/download-artifact@v8
+        with:
+          name: latest-android.json
+
+      # The Desktop workflow creates the release; this one waits for it and adds the APK, then the
+      # manifest, so the tablet never reads a manifest whose APK is not there yet.
       - name: Upload
         env:
           GH_TOKEN: ${{ github.token }}
@@ -147,3 +170,4 @@ jobs:
             sleep 30
           done
           gh release upload "$GITHUB_REF_NAME" "Wallet-${{ needs.apk.outputs.version }}.apk" --clobber
+          gh release upload "$GITHUB_REF_NAME" latest-android.json --clobber

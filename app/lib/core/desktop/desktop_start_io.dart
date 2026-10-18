@@ -10,11 +10,12 @@ import 'package:win32_registry/win32_registry.dart';
 import 'package:window_manager/window_manager.dart';
 
 import '../l10n/l10n.dart';
+import '../updates/github_release_feed.dart';
+import '../updates/installer_io.dart';
+import '../updates/updater.dart';
 import 'desktop.dart';
 import 'desktop_settings.dart';
-import 'github_release_feed.dart';
-import 'installer_io.dart';
-import 'updater.dart';
+import 'inno_setup_launcher.dart';
 
 /// Passed by the Windows sign-in entry (and by an update that happened in the tray): start in the
 /// tray, without a window.

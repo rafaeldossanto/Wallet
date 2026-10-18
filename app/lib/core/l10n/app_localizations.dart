@@ -1324,6 +1324,72 @@ abstract class AppLocalizations {
   /// **'Ok'**
   String get updatedToastOk;
 
+  /// No description provided for @settingsUpdates.
+  ///
+  /// In pt, this message translates to:
+  /// **'Atualizações'**
+  String get settingsUpdates;
+
+  /// No description provided for @updateInstall.
+  ///
+  /// In pt, this message translates to:
+  /// **'Atualizar'**
+  String get updateInstall;
+
+  /// No description provided for @updateToastMessageConfirm.
+  ///
+  /// In pt, this message translates to:
+  /// **'O Wallet {version} já foi baixado. Toque em Atualizar para instalar.'**
+  String updateToastMessageConfirm(String version);
+
+  /// No description provided for @updateAllowTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Permita as atualizações'**
+  String get updateAllowTitle;
+
+  /// No description provided for @updateAllowMessage.
+  ///
+  /// In pt, this message translates to:
+  /// **'Na primeira vez, o Android pede para o Wallet poder instalar a versão {version}. Em Configurações, ligue Permitir desta fonte e volte para o Wallet.'**
+  String updateAllowMessage(String version);
+
+  /// No description provided for @updateAllowOpen.
+  ///
+  /// In pt, this message translates to:
+  /// **'Abrir configurações'**
+  String get updateAllowOpen;
+
+  /// No description provided for @updateNotAllowed.
+  ///
+  /// In pt, this message translates to:
+  /// **'Para instalar a versão {version}, o Wallet precisa da sua permissão: em Configurações, ligue Permitir desta fonte.'**
+  String updateNotAllowed(String version);
+
+  /// No description provided for @updateRefusedTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Atualização não instalada'**
+  String get updateRefusedTitle;
+
+  /// No description provided for @updateConflict.
+  ///
+  /// In pt, this message translates to:
+  /// **'O Android recusou a versão {version} porque ela foi assinada com outra chave. Desinstale o Wallet e instale o APK dos Releases.'**
+  String updateConflict(String version);
+
+  /// No description provided for @updateInstallFailed.
+  ///
+  /// In pt, this message translates to:
+  /// **'O Android não instalou a versão {version}. Tente de novo.'**
+  String updateInstallFailed(String version);
+
+  /// No description provided for @updateRetry.
+  ///
+  /// In pt, this message translates to:
+  /// **'Tentar de novo'**
+  String get updateRetry;
+
   /// No description provided for @windowClose.
   ///
   /// In pt, this message translates to:

@@ -736,6 +736,49 @@ class AppLocalizationsPt extends AppLocalizations {
   String get updatedToastOk => 'Ok';
 
   @override
+  String get settingsUpdates => 'Atualizações';
+
+  @override
+  String get updateInstall => 'Atualizar';
+
+  @override
+  String updateToastMessageConfirm(String version) {
+    return 'O Wallet $version já foi baixado. Toque em Atualizar para instalar.';
+  }
+
+  @override
+  String get updateAllowTitle => 'Permita as atualizações';
+
+  @override
+  String updateAllowMessage(String version) {
+    return 'Na primeira vez, o Android pede para o Wallet poder instalar a versão $version. Em Configurações, ligue Permitir desta fonte e volte para o Wallet.';
+  }
+
+  @override
+  String get updateAllowOpen => 'Abrir configurações';
+
+  @override
+  String updateNotAllowed(String version) {
+    return 'Para instalar a versão $version, o Wallet precisa da sua permissão: em Configurações, ligue Permitir desta fonte.';
+  }
+
+  @override
+  String get updateRefusedTitle => 'Atualização não instalada';
+
+  @override
+  String updateConflict(String version) {
+    return 'O Android recusou a versão $version porque ela foi assinada com outra chave. Desinstale o Wallet e instale o APK dos Releases.';
+  }
+
+  @override
+  String updateInstallFailed(String version) {
+    return 'O Android não instalou a versão $version. Tente de novo.';
+  }
+
+  @override
+  String get updateRetry => 'Tentar de novo';
+
+  @override
   String get windowClose => 'Fechar';
 
   @override

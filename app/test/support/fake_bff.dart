@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:wallet/app.dart';
 import 'package:wallet/core/api/api_client.dart';
 import 'package:wallet/core/session/session_store.dart';
+import 'package:wallet/core/updates/updater.dart';
 import 'package:wallet/features/connections/presentation/pluggy_connect_screen.dart';
 
 class FakeResponse {
@@ -88,11 +89,17 @@ class MemorySessionStore implements SessionStore {
 
 ApiClient fakeClient(FakeBff bff) => ApiClient.create(baseUrl: 'http://bff.test', adapter: bff);
 
-AppDependencies fakeDependencies(FakeBff bff, {String? storedRefreshToken = 'refresh-1', PluggyConnectHost? pluggyConnect}) =>
+AppDependencies fakeDependencies(
+  FakeBff bff, {
+  String? storedRefreshToken = 'refresh-1',
+  PluggyConnectHost? pluggyConnect,
+  Updater? updater,
+}) =>
     AppDependencies.create(
       api: fakeClient(bff),
       store: MemorySessionStore(storedRefreshToken),
       pluggyConnect: pluggyConnect ?? const PluggyConnectHost(),
+      updater: updater,
       withAppLock: false,
     );
 

@@ -219,6 +219,22 @@ Para instalar:
 
 Com o tablet no cabo e a depuração USB ligada, `adb install -r Wallet-<versão>.apk` também instala.
 
+**Atualizações (desde a 0.1.4):** depois da primeira instalação, não precisa mais entrar no GitHub.
+O Wallet procura a versão nova nos Releases ao abrir e a cada 6 horas (pelo `latest-android.json`
+que o workflow publica junto do APK), baixa em segundo plano e confere o SHA-256. Aí o canto da
+tela avisa "Nova versão disponível":
+
+1. Toque em **Atualizar**. Na primeira vez, o Wallet explica que o Android precisa de uma
+   permissão: **Abrir configurações** → ligue **Permitir desta fonte** → volte para o Wallet.
+2. O Android pergunta se quer atualizar o app: **Atualizar**. Ele fecha o Wallet para trocar a
+   versão; abra de novo, e o canto confirma "Wallet atualizado".
+
+Nada instala sem você tocar em Atualizar e confirmar. Ajustes → Atualizações mostra a versão,
+o que está acontecendo e "Procurar agora". Um APK de desenvolvimento (sem
+`--dart-define=WALLET_VERSION`) nunca se atualiza. Se o Android recusar a versão nova porque ela
+foi assinada com outra chave (um APK de debug instalado, ou um Release gerado sem os segredos), o
+Wallet avisa: aí é desinstalar e instalar o APK dos Releases à mão.
+
 Para usar (até o deploy):
 
 - Core e BFF rodando no PC, e o tablet na mesma Wi-Fi.
@@ -307,7 +323,7 @@ só quando a pasta dela muda (`.github/workflows/`):
 | BFF | `./mvnw -B verify` com JDK 25 (core simulado no WireMock) |
 | App | Flutter 3.47.6: traduções geradas batendo com o `.arb`, `flutter analyze` e `flutter test` |
 | Desktop | Em Windows: compila o app, monta o instalador (Inno Setup) e anexa o `.exe` à execução; numa tag `v*`, publica nos Releases |
-| Android | Em Linux, com JDK 21: compila o APK assinado e anexa o `.apk` à execução; numa tag `v*`, anexa aos Releases |
+| Android | Em Linux, com JDK 21: compila o APK assinado e anexa o `.apk` e o `latest-android.json` à execução; numa tag `v*`, anexa os dois aos Releases |
 
 Só o Android usa segredos: os quatro `ANDROID_*` da chave de assinatura ("App no tablet
 Android"). Sem eles o APK sai com a chave de debug, e a execução avisa. Quando um teste falha, os

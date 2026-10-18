@@ -164,3 +164,11 @@ atualizado: 2026-10-03
   vai para o app do banco e volta por `com.wallet.wallet://pluggy-connect`. O vínculo pelo Item ID
   continua para o Meu Pluggy, a demo, o iOS, o PC e o navegador. Para testar no trial, que acaba
   por volta de 2026-10-21. Ver [[Fluxo de Conexão]].
+- O tablet Android passou a se atualizar pelo próprio app, como o Windows, pedido do Rafael para
+  as versões novas chegarem com um toque, sem entrar no GitHub. O workflow Android publica um
+  `latest-android.json` junto do APK; o app o lê pelo link de download (nunca pela API), baixa o
+  APK em segundo plano para a pasta privada e confere o SHA-256. Nada instala sozinho: o aviso do
+  canto oferece Atualizar, que entrega o APK ao instalador do Android pela API de sessão do
+  `PackageInstaller`; na primeira vez o app explica e abre a permissão "Instalar apps
+  desconhecidos". O atualizador saiu de `core/desktop` para `core/updates`, dividido pelos dois.
+  Vale a partir da 0.1.4, que ainda se instala à mão. Ver [[App Flutter]].

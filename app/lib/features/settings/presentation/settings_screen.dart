@@ -8,6 +8,8 @@ import '../../../core/l10n/l10n.dart';
 import '../../../core/security/app_lock.dart';
 import '../../../core/session/session_controller.dart';
 import '../../../core/theme/theme_controller.dart';
+import '../../../core/updates/update_views.dart';
+import '../../../core/updates/updater.dart';
 import '../../../core/widgets/common.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -20,6 +22,8 @@ class SettingsScreen extends StatelessWidget {
     final user = session.user;
     final lock = context.watch<AppLock?>();
     final isDesktop = context.watch<DesktopSettings?>() != null;
+    // Android: the updater without the window's settings.
+    final updates = context.watch<Updater?>() != null;
     return Scaffold(
       appBar: AppBar(title: Text(l10n.navSettings)),
       body: ListView(
@@ -93,6 +97,9 @@ class SettingsScreen extends StatelessWidget {
                 if (isDesktop) ...[
                   const SizedBox(height: 16),
                   const DesktopSettingsCard(),
+                ] else if (updates) ...[
+                  const SizedBox(height: 16),
+                  SectionCard(title: l10n.settingsUpdates, flush: true, child: const UpdateTile()),
                 ],
                 const SizedBox(height: 16),
                 Text(l10n.settingsAbout,

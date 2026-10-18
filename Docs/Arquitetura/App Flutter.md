@@ -27,7 +27,8 @@ Construído em 2026-10-02 (T12 a T18 do [[Plano de Implementação]]), em `Work/
 | `window_manager`, `screen_retriever` | Janela do Windows: tamanho, centro, esconder na bandeja |
 | `tray_manager` | Ícone e menu na bandeja do Windows |
 | `win32_registry` | "Abrir com o Windows" |
-| `crypto` | SHA-256 do instalador baixado pelo atualizador |
+| `crypto` | SHA-256 do instalador (ou do APK) baixado pelo atualizador |
+| `path_provider` | A pasta privada do app no Android, onde o atualizador guarda o APK |
 | `shared_preferences` | A escolha de tema (`SharedPreferencesAsync`, a API atual) |
 | `webview_flutter` | O widget Pluggy Connect no Android ("Conectar banco") |
 | `url_launcher` | Abrir a autorização do Open Finance no app do banco (ou no navegador) |
@@ -46,6 +47,9 @@ app/lib/
     api/          ApiClient (dio), ApiException, AuthInterceptor, Json, adaptador web/io
     session/      SessionApi, SessionController, SessionStore (celular · web)
     security/     AppLock (biometria), LockScreen, IdleTimeout (web)
+    desktop/      só o Windows: janela, bandeja, "Abrir com o Windows", Inno Setup
+    android/      só o Android: o atualizador e o canal para o instalador do sistema
+    updates/      o atualizador dos dois (Updater, manifestos, download com SHA-256, avisos)
     router/       rotas e shell adaptativo
     state/        Loadable, LoadController, DataChanges
     models/       Account, Transaction, CreditCard, Bill
@@ -134,6 +138,8 @@ projeto Flutter e o mesmo código Dart; o Flutter gera o executável nativo a pa
     `--dart-define=WALLET_VERSION`) nunca se atualiza.
   - O instalador recebe `/RELAUNCH=open|tray|none` e decide se reabre o app. Sem assinatura de
     código não há aviso do SmartScreen na atualização, porque o arquivo não vem do navegador.
+  - Desde 2026-10-18 o atualizador fica em `lib/core/updates/`, dividido com o Android; o que é
+    só do Windows (Inno Setup, janela, bandeja) continua em `lib/core/desktop/`.
 - **Ícone:** os cartões empilhados (ver "Ícone" abaixo), num `app_icon.ico` com 8 tamanhos e cantos
   arredondados, também usado na bandeja.
 - **Instalador:** Inno Setup (`windows/installer/wallet.iss`). Instala só para o usuário, em
@@ -201,6 +207,40 @@ Pedido do Rafael, para o tablet Android dele. Sem Play Store: um APK instalado �
   (emulador) aceitava HTTP. Com o deploy em HTTPS, volta a ser só HTTPS.
 - O endereço do PC se digita na tela de login, como no iPhone. O firewall do Windows precisa
   deixar o Java receber conexões na rede privada.
+- **Atualização pelo próprio app (desde 2026-10-18, a partir da 0.1.4):** pedido do Rafael, para
+  as versões novas chegarem ao tablet com um toque, como no Windows, sem entrar no GitHub. É o
+  mesmo `Updater` do Windows (ao abrir e a cada 6 horas, mais cedo depois de falha), com outras
+  peças (`lib/core/android/`):
+  - **Onde lê:** o `latest-android.json` (`{version, apk, sha256}`) que o workflow Android publica
+    junto do APK, pelo link `releases/latest/download/latest-android.json`. Nunca a API do GitHub
+    (60 consultas por hora sem login). O `latest.json` do Windows continua só do Desktop. Numa
+    tag, o APK sobe antes do manifesto, para ninguém ler um manifesto sem o APK.
+  - **Download:** em segundo plano, para a pasta privada do app (`path_provider`, `files/updates`),
+    e só fica se o SHA-256 bater. O APK de uma versão já instalada é apagado na primeira vez que
+    ela abre.
+  - **Instalação, nunca sozinha:** o aviso do canto diz "Nova versão disponível" com **Atualizar**,
+    que entrega o APK ao instalador do Android pela API de sessão do `PackageInstaller`
+    (`android/app/src/main/kotlin/com/wallet/wallet/UpdateInstaller.kt`, canal
+    `wallet/package_installer`); o `ACTION_INSTALL_PACKAGE` está depreciado. O APK é copiado para a
+    sessão, então nenhum arquivo é compartilhado com outro app (sem `FileProvider`). No Android 12+
+    a sessão exige a confirmação do usuário (`USER_ACTION_REQUIRED`), mesmo podendo dispensá-la.
+  - **Permissão:** o manifesto declara `REQUEST_INSTALL_PACKAGES`. Na primeira vez o Android não
+    deixa o Wallet instalar apps: o aviso explica e **Abrir configurações** leva direto a Instalar
+    apps desconhecidos → Wallet ("Permitir desta fonte"); de volta ao app, a confirmação do
+    Android aparece sozinha.
+  - **Depois:** o Android fecha o Wallet para trocar a versão e não o reabre. Na abertura seguinte o
+    app compara com a versão que rodou da última vez (guardada nas preferências) e avisa "Wallet
+    atualizado".
+  - **Recusas:** se o usuário cancela, a atualização continua esperando. Se o APK tem outra
+    assinatura (um APK de debug instalado, ou um Release gerado sem os segredos), o Android recusa
+    e o aviso diz para desinstalar e instalar o dos Releases. Outra falha oferece "Tentar de novo".
+  - Ajustes → Atualizações mostra a versão, o estado e "Procurar agora". Um APK sem
+    `--dart-define=WALLET_VERSION` nunca se atualiza.
+  - Verificado no emulador `trilha_pixel` (Android 15), com um app de teste chamando o canal: sem a
+    permissão vem a recusa; "Abrir configurações" cai direto em Instalar apps desconhecidos →
+    Wallet e volta com a resposta, sem reiniciar o app; a confirmação do Android aparece;
+    Cancelar devolve a atualização à espera; Atualizar instala a versão nova por cima, e o Android
+    fecha o app sem reabrir. O Wallet passa a constar como instalador dele mesmo.
 - Passo a passo para instalar e os segredos no README ("App no tablet Android").
 
 ## Tema
@@ -332,7 +372,7 @@ Ver [[Fluxo de Conexão]].
 
 ## Testes
 
-113 testes com um BFF em memória (`test/support/fake_bff.dart`):
+135 testes com um BFF em memória (`test/support/fake_bff.dart`):
 
 - Unitários: `Money`, sessão (restaurar, recusar, servidor fora), interceptor (duas chamadas
   com 401 geram **um** refresh), bloqueio por biometria, inatividade no navegador,
@@ -341,13 +381,17 @@ Ver [[Fluxo de Conexão]].
   descartado, atualização que falha mantendo a linha), estilos CSS dos logos passados para os
   elementos, o app de PC se identificando como `desktop`, o atualizador (quando baixa, quando
   instala e como reabre; manifesto `latest.json` com a API de reserva; novas tentativas mais cedo
-  depois de falha; SHA-256 que não bate), o protocolo do Pluggy Connect (URL, mensagens,
-  evento repetido, quando um item já vale vincular).
+  depois de falha; SHA-256 que não bate), o do Android (`latest-android.json` sem a API,
+  download conferido e entregue ao instalador só no toque, a permissão da primeira vez, recusa
+  por outra chave, o canal com o lado nativo, a versão lembrada para o aviso de atualizado), o
+  protocolo do Pluggy Connect (URL, mensagens, evento repetido, quando um item já vale vincular).
 - Widget: login, visão geral (completa, com parte indisponível, sem conexões), shell nos três
   tamanhos e o "Mais", calendário (mês inteiro, dia, tocar de novo), extrato (agrupamento por
   dia, filtros, segunda página), investimentos (rosca, clique na fatia e na legenda, troca de
   período, menos de dois dias, tipos à esquerda na tela larga), rosca dos gastos (fina, clicável),
-  Ajustes → Computador, os avisos de versão nova e de atualizado, a moldura da janela (os três
+  Ajustes → Computador, Ajustes → Atualizações no Android (sem os ajustes da janela), os avisos
+  de versão nova e de atualizado (Reiniciar no Windows, Atualizar e a permissão no Android), a
+  moldura da janela (os três
   botões, arrastar, redimensionar, cantos retos maximizada, vidro que segue o tema),
   saída voluntária, o Pluggy Connect com uma página falsa no lugar da WebView
   (`test/support/fake_pluggy_connect.dart`: token, abrir o banco e os links, sucesso, fechar antes
