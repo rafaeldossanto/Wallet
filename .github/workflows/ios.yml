@@ -1,0 +1,162 @@
+name: iOS
+
+# The iPhone app without the Apple Developer Program: an unsigned .ipa that AltStore or Sideloadly
+# signs on install with the user's free Apple ID (valid 7 days, refreshed by AltStore). README,
+# "App no iPhone".
+on:
+  push:
+    branches: [master]
+    # A version tag (v0.1.4) also attaches the .ipa and the AltStore source to the GitHub release.
+    tags: ['v*']
+    paths: ['app/**', '.github/workflows/ios.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ipa:
+    name: Unsigned .ipa
+    runs-on: macos-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: app
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.6
+          cache: true
+
+      - name: Version
+        id: version
+        run: |
+          version=$(sed -nE 's/^version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' pubspec.yaml)
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::The tag $GITHUB_REF_NAME does not match the pubspec version $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # The app is built for the device but left unsigned: the installer signs it. On failure the
+      # end of the output becomes an annotation, readable without a GitHub login.
+      - name: Build
+        run: |
+          flutter pub get
+          set +e
+          flutter build ios --release --no-codesign \
+            --dart-define=WALLET_VERSION=${{ steps.version.outputs.version }} \
+            --dart-define=WALLET_BFF_URL=${{ vars.WALLET_BFF_URL }} > build-ios.log 2>&1
+          status=$?
+          set -e
+          cat build-ios.log
+          if [ $status -ne 0 ]; then
+            echo "::error title=flutter build ios failed::$(tail -n 40 build-ios.log | sed 's/%/%25/g' | awk 'BEGIN{ORS="%0A"} {print}')"
+            exit 1
+          fi
+
+      # An .ipa is the app bundle zipped inside a Payload folder.
+      - name: Package the .ipa
+        run: |
+          mkdir -p build/ipa/Payload
+          cp -R build/ios/iphoneos/Runner.app build/ipa/Payload/
+          cd build/ipa && zip -qry "Wallet-${{ steps.version.outputs.version }}.ipa" Payload
+
+      # AltStore installs and updates the app from this file:
+      # https://github.com/rafaeldossanto/Wallet/releases/latest/download/altstore.json
+      # The permissions must match the app's Info.plist, or AltStore refuses it.
+      - name: AltStore source
+        run: |
+          version='${{ steps.version.outputs.version }}'
+          ipa="build/ipa/Wallet-$version.ipa"
+          jq -n \
+            --arg version "$version" \
+            --arg date "$(date -u +%Y-%m-%d)" \
+            --arg url "https://github.com/${{ github.repository }}/releases/download/v$version/Wallet-$version.ipa" \
+            --argjson size "$(stat -f%z "$ipa")" \
+            --arg icon "https://raw.githubusercontent.com/${{ github.repository }}/master/app/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png" \
+            --arg faceId "$(/usr/libexec/PlistBuddy -c 'Print :NSFaceIDUsageDescription' ios/Runner/Info.plist)" \
+            --arg localNetwork "$(/usr/libexec/PlistBuddy -c 'Print :NSLocalNetworkUsageDescription' ios/Runner/Info.plist)" \
+            '{
+              name: "Wallet",
+              identifier: "io.github.rafaeldossanto.wallet",
+              subtitle: "Suas contas, cartões e investimentos num lugar só.",
+              iconURL: $icon,
+              tintColor: "#3D5AFE",
+              apps: [{
+                name: "Wallet",
+                bundleIdentifier: "com.wallet.wallet",
+                developerName: "Rafael Santos",
+                subtitle: "Suas finanças pelo Open Finance.",
+                localizedDescription: "Contas, cartões e investimentos de todos os seus bancos num lugar só.",
+                iconURL: $icon,
+                tintColor: "#3D5AFE",
+                versions: [{
+                  version: $version,
+                  date: $date,
+                  downloadURL: $url,
+                  size: $size,
+                  minOSVersion: "15.0"
+                }],
+                appPermissions: {
+                  entitlements: [],
+                  privacy: {
+                    NSFaceIDUsageDescription: $faceId,
+                    NSLocalNetworkUsageDescription: $localNetwork
+                  }
+                }
+              }],
+              news: []
+            }' > build/ipa/altstore.json
+          cat build/ipa/altstore.json
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: app/build/ipa/Wallet-${{ steps.version.outputs.version }}.ipa
+          archive: false
+          if-no-files-found: error
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: app/build/ipa/altstore.json
+          archive: false
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Attach to the GitHub release
+    if: github.ref_type == 'tag'
+    needs: ipa
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: Wallet-${{ needs.ipa.outputs.version }}.ipa
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: altstore.json
+
+      # The Desktop workflow creates the release; this one waits for it and adds its files.
+      - name: Upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for attempt in $(seq 1 60); do
+            gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1 && break
+            sleep 30
+          done
+          gh release upload "$GITHUB_REF_NAME" "Wallet-${{ needs.ipa.outputs.version }}.ipa" altstore.json --clobber

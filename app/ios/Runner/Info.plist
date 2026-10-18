@@ -68,6 +68,8 @@
 	</array>
 	<key>NSFaceIDUsageDescription</key>
 	<string>O Wallet usa o Face ID para proteger suas finanças quando você volta ao app.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>O Wallet usa a rede local para falar com o servidor que roda no seu computador.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

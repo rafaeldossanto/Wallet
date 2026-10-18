@@ -262,6 +262,54 @@ abstract class AppLocalizations {
   /// **'Ainda não tenho conta'**
   String get loginGoToRegister;
 
+  /// No description provided for @serverLine.
+  ///
+  /// In pt, this message translates to:
+  /// **'Servidor: {address}'**
+  String serverLine(String address);
+
+  /// No description provided for @serverChange.
+  ///
+  /// In pt, this message translates to:
+  /// **'Alterar'**
+  String get serverChange;
+
+  /// No description provided for @serverDialogTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Endereço do servidor'**
+  String get serverDialogTitle;
+
+  /// No description provided for @serverDialogHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'No celular, use o endereço do computador onde o Wallet está rodando, na mesma rede Wi-Fi. Exemplo: 192.168.0.10:8080.'**
+  String get serverDialogHelp;
+
+  /// No description provided for @serverFieldLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Endereço'**
+  String get serverFieldLabel;
+
+  /// No description provided for @serverInvalid.
+  ///
+  /// In pt, this message translates to:
+  /// **'Digite um endereço como 192.168.0.10:8080.'**
+  String get serverInvalid;
+
+  /// No description provided for @serverSave.
+  ///
+  /// In pt, this message translates to:
+  /// **'Salvar'**
+  String get serverSave;
+
+  /// No description provided for @serverUseDefault.
+  ///
+  /// In pt, this message translates to:
+  /// **'Usar o padrão'**
+  String get serverUseDefault;
+
   /// No description provided for @loginSessionExpired.
   ///
   /// In pt, this message translates to:

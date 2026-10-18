@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
 import 'app.dart';
+import 'core/config/server_address.dart';
 import 'core/desktop/desktop.dart';
 import 'core/format/dates.dart';
 import 'core/theme/theme_controller.dart';
@@ -14,5 +16,6 @@ Future<void> main(List<String> args) async {
   Intl.defaultLocale = Dates.locale;
   await initializeDateFormatting(Dates.locale);
   final theme = await ThemeController.load(SharedThemePreference());
-  runApp(WalletApp(dependencies: AppDependencies.create(theme: theme, desktop: desktop)));
+  final server = kIsWeb ? null : await ServerAddress.load();
+  runApp(WalletApp(dependencies: AppDependencies.create(theme: theme, desktop: desktop, server: server)));
 }

@@ -122,6 +122,33 @@ class AppLocalizationsPt extends AppLocalizations {
   String get loginGoToRegister => 'Ainda não tenho conta';
 
   @override
+  String serverLine(String address) {
+    return 'Servidor: $address';
+  }
+
+  @override
+  String get serverChange => 'Alterar';
+
+  @override
+  String get serverDialogTitle => 'Endereço do servidor';
+
+  @override
+  String get serverDialogHelp =>
+      'No celular, use o endereço do computador onde o Wallet está rodando, na mesma rede Wi-Fi. Exemplo: 192.168.0.10:8080.';
+
+  @override
+  String get serverFieldLabel => 'Endereço';
+
+  @override
+  String get serverInvalid => 'Digite um endereço como 192.168.0.10:8080.';
+
+  @override
+  String get serverSave => 'Salvar';
+
+  @override
+  String get serverUseDefault => 'Usar o padrão';
+
+  @override
   String get loginSessionExpired => 'Sua sessão expirou. Entre de novo.';
 
   @override

@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api/api_exception.dart';
+import '../../../core/config/server_address.dart';
 import '../../../core/l10n/l10n.dart';
 import '../../../core/session/session_controller.dart';
 import 'auth_layout.dart';
@@ -100,6 +101,107 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         const SizedBox(height: 12),
         TextButton(onPressed: () => context.go('/register'), child: Text(l10n.loginGoToRegister)),
+        if (context.watch<ServerAddress?>() case final server?) ...[
+          const SizedBox(height: 8),
+          _ServerLine(server: server),
+        ],
+      ],
+    );
+  }
+}
+
+/// Which BFF the app talks to, and the way to point a phone at the one on the user's PC.
+class _ServerLine extends StatelessWidget {
+  const _ServerLine({required this.server});
+
+  final ServerAddress server;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final address = Uri.parse(server.current).authority;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Flexible(
+          child: Text(
+            context.l10n.serverLine(address),
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        TextButton(
+          onPressed: () => showDialog<void>(context: context, builder: (_) => _ServerDialog(server: server)),
+          child: Text(context.l10n.serverChange),
+        ),
+      ],
+    );
+  }
+}
+
+class _ServerDialog extends StatefulWidget {
+  const _ServerDialog({required this.server});
+
+  final ServerAddress server;
+
+  @override
+  State<_ServerDialog> createState() => _ServerDialogState();
+}
+
+class _ServerDialogState extends State<_ServerDialog> {
+  late final _address = TextEditingController(text: Uri.parse(widget.server.current).authority);
+  String? _error;
+
+  @override
+  void dispose() {
+    _address.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!await widget.server.set(_address.text)) {
+      setState(() => _error = context.l10n.serverInvalid);
+      return;
+    }
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return AlertDialog(
+      title: Text(l10n.serverDialogTitle),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(l10n.serverDialogHelp),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _address,
+            autofocus: true,
+            keyboardType: TextInputType.url,
+            decoration: InputDecoration(labelText: l10n.serverFieldLabel, errorText: _error),
+            onChanged: (_) => setState(() => _error = null),
+            onSubmitted: (_) => _save(),
+          ),
+        ],
+      ),
+      actions: [
+        if (widget.server.isCustom)
+          TextButton(
+            onPressed: () async {
+              await widget.server.reset();
+              if (context.mounted) {
+                Navigator.of(context).pop();
+              }
+            },
+            child: Text(l10n.serverUseDefault),
+          ),
+        TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.actionCancel)),
+        FilledButton(onPressed: _save, child: Text(l10n.serverSave)),
       ],
     );
   }

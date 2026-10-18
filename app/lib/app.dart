@@ -6,6 +6,7 @@ import 'package:provider/single_child_widget.dart';
 
 import 'core/api/api_client.dart';
 import 'core/api/auth_interceptor.dart';
+import 'core/config/server_address.dart';
 import 'core/desktop/desktop.dart';
 import 'core/desktop/desktop_settings.dart';
 import 'core/desktop/desktop_views.dart';
@@ -32,23 +33,26 @@ import 'features/transactions/data/transactions_api.dart';
 
 /// Everything the screens need, built once. Tests build it with a fake HTTP adapter.
 class AppDependencies {
-  AppDependencies._(this.api, this.session, this.appLock, this.theme, this.desktop);
+  AppDependencies._(this.api, this.session, this.appLock, this.theme, this.desktop, this.server);
 
   factory AppDependencies.create({
     ApiClient? api,
     SessionStore? store,
     ThemeController? theme,
     Desktop? desktop,
+    ServerAddress? server,
     bool withAppLock = !kIsWeb,
   }) {
-    final client = api ?? ApiClient.create();
+    final client = api ?? ApiClient.create(baseUrl: server?.current);
+    // A new address on the login screen applies to the next request, without a restart.
+    server?.addListener(() => client.dio.options.baseUrl = server.current);
     final session = SessionController(
       api: SessionApi(client),
       store: store ?? (kIsWeb ? const CookieSessionStore() : SecureSessionStore()),
     );
     client.dio.interceptors.add(AuthInterceptor(session, client.dio));
     return AppDependencies._(client, session, withAppLock ? AppLock(session: session) : null,
-        theme ?? ThemeController(MemoryThemePreference()), desktop);
+        theme ?? ThemeController(MemoryThemePreference()), desktop, server);
   }
 
   final ApiClient api;
@@ -58,6 +62,9 @@ class AppDependencies {
 
   /// The Windows app's window settings and updater; null on the phone and in the browser.
   final Desktop? desktop;
+
+  /// The BFF's address, typed on the login screen; null in the browser.
+  final ServerAddress? server;
   final DataChanges dataChanges = DataChanges();
 
   List<SingleChildWidget> get providers => [
@@ -67,6 +74,7 @@ class AppDependencies {
         ChangeNotifierProvider<AppLock?>.value(value: appLock),
         ChangeNotifierProvider<DesktopSettings?>.value(value: desktop?.settings),
         ChangeNotifierProvider<Updater?>.value(value: desktop?.updater),
+        ChangeNotifierProvider<ServerAddress?>.value(value: server),
         Provider(create: (_) => HomeApi(api)),
         Provider(create: (_) => CalendarApi(api)),
         Provider(create: (_) => TransactionsApi(api)),
