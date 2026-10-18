@@ -7,6 +7,7 @@ import com.wallet.bff.model.dto.request.RegisterRequest;
 import com.wallet.bff.model.dto.response.AccountResponse;
 import com.wallet.bff.model.dto.response.BillResponse;
 import com.wallet.bff.model.dto.response.CalendarResponse;
+import com.wallet.bff.model.dto.response.ConnectTokenResponse;
 import com.wallet.bff.model.dto.response.ConnectionResponse;
 import com.wallet.bff.model.dto.response.CreditCardResponse;
 import com.wallet.bff.model.dto.response.NetWorthResponse;
@@ -62,6 +63,10 @@ public class CoreApi {
 
     public ConnectionResponse link(LinkConnectionRequest request) {
         return client.post("/internal/connections", request, new ParameterizedTypeReference<>() {});
+    }
+
+    public ConnectTokenResponse connectToken() {
+        return client.post("/internal/connections/connect-token", null, new ParameterizedTypeReference<>() {});
     }
 
     public void unlink(UUID connectionId) {

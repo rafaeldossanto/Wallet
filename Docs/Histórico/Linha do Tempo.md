@@ -158,3 +158,9 @@ atualizado: 2026-10-03
   segredos), cada requisição do core à Pluggy vira uma linha em `provider_calls` e uma linha de
   log `chave=valor`: quando, quem, qual conexão, qual operação, por quê, status e duração, sem
   nenhum dado financeiro ou credencial. Guardada por 180 dias. Ver [[Core]].
+- "Conectar banco" no Android com o widget Pluggy Connect, pedido do Rafael para cair direto no
+  app do banco onde ele já está logado. O core cria o connect token (com o id do usuário e o deep
+  link de volta), o BFF repassa, e o app abre o widget numa WebView; a autorização do Open Finance
+  vai para o app do banco e volta por `com.wallet.wallet://pluggy-connect`. O vínculo pelo Item ID
+  continua para o Meu Pluggy, a demo, o iOS, o PC e o navegador. Para testar no trial, que acaba
+  por volta de 2026-10-21. Ver [[Fluxo de Conexão]].

@@ -2,6 +2,7 @@ package com.wallet.core.demo;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
@@ -47,6 +48,7 @@ public final class DemoPluggy implements AutoCloseable {
     public static final String ITAU_ITEM = "demo-itau";
     public static final String XP_ITEM = "demo-xp";
     public static final List<String> ITEMS = List.of(NUBANK_ITEM, ITAU_ITEM, XP_ITEM, BANK_ITEM, BROKER_ITEM);
+    public static final String CONNECT_TOKEN = "demo-connect-token";
 
     private static final ZoneId BRAZIL = ZoneId.of("America/Sao_Paulo");
 
@@ -180,6 +182,10 @@ public final class DemoPluggy implements AutoCloseable {
         try (exchange) {
             String method = exchange.getRequestMethod();
             String path = exchange.getRequestURI().getPath();
+            if ("POST".equals(method) && "/connect_token".equals(path)) {
+                connectToken(exchange);
+                return;
+            }
             Map<String, String> query = query(exchange.getRequestURI().getRawQuery());
             Object body = route(method, path, query);
             if (isNull(body)) {
@@ -213,6 +219,22 @@ public final class DemoPluggy implements AutoCloseable {
             case "/investments" -> page(investments(query.get("itemId"), today));
             default -> null;
         };
+    }
+
+    /**
+     * Answers like Pluggy, including its rule for the redirect: HTTPS or a deep link, never plain
+     * HTTP or localhost. The real widget does not accept the demo token, so in the app the demo
+     * items are still linked by their Item IDs.
+     */
+    private void connectToken(HttpExchange exchange) throws IOException {
+        JsonNode options = json.readTree(exchange.getRequestBody()).path("options");
+        String redirectUri = options.path("oauthRedirectUri").asString("");
+        if (options.path("clientUserId").asString("").isEmpty()
+                || redirectUri.startsWith("http://") || redirectUri.contains("localhost") || redirectUri.contains("127.0.0.1")) {
+            send(exchange, 400, Map.of("code", 400, "message", "Invalid connect token options"));
+            return;
+        }
+        send(exchange, 200, Map.of("accessToken", CONNECT_TOKEN));
     }
 
     private void send(HttpExchange exchange, int status, Object body) throws IOException {

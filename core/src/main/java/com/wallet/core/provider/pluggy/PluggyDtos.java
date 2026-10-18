@@ -24,6 +24,16 @@ final class PluggyDtos {
     record AuthResponse(String apiKey) {
     }
 
+    record ConnectTokenRequest(ConnectTokenOptions options) {
+    }
+
+    record ConnectTokenOptions(String clientUserId, String oauthRedirectUri) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record ConnectTokenResponse(String accessToken) {
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Page<T>(List<T> results, Integer page, Integer total, Integer totalPages) {
     }

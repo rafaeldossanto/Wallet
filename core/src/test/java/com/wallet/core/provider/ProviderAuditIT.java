@@ -146,6 +146,23 @@ class ProviderAuditIT {
         assertThat(lines).noneMatch(line -> line.contains(API_KEY) || line.contains(CLIENT_SECRET));
     }
 
+    /** The Pluggy Connect token: recorded for the user who asked for it, and never written to the log. */
+    @Test
+    void theConnectTokenIsRecordedForTheUserWithoutTheToken(CapturedOutput output) throws Exception {
+        pluggy.stubFor(WireMock.post("/connect_token").willReturn(okJson("{\"accessToken\":\"it-connect-token\"}")));
+
+        mockMvc.perform(post("/internal/connections/connect-token").with(as(userId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.connectToken").value("it-connect-token"));
+
+        assertThat(callsOf(userId))
+                .extracting(Call::reason, Call::operation, Call::connectionId, Call::itemId, Call::outcome, Call::httpStatus)
+                .containsExactly(tuple("CONNECT", "CREATE_CONNECT_TOKEN", null, null, "SUCCESS", 200));
+        assertThat(output.getAll().lines().filter(line -> line.contains("[PROVIDER_CALL]")))
+                .anyMatch(line -> line.contains("operation=CREATE_CONNECT_TOKEN") && line.contains("userId=" + userId))
+                .noneMatch(line -> line.contains("it-connect-token"));
+    }
+
     @Test
     void aFailedCallIsRecordedWithItsStatus() {
         pluggy.stubFor(get(urlPathEqualTo("/accounts")).willReturn(serviceUnavailable()));

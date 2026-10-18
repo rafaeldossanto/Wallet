@@ -259,6 +259,28 @@ class PluggyFinancialDataProviderTest {
         pluggy.verify(deleteRequestedFor(urlEqualTo("/items/" + ITEM_ID)).withHeader("X-API-KEY", equalTo(API_KEY)));
     }
 
+    @Test
+    void createsAConnectTokenForTheUserThatBringsThemBackToTheApp() {
+        pluggy.stubFor(post("/connect_token")
+                .withHeader("X-API-KEY", equalTo(API_KEY))
+                .withRequestBody(equalToJson("""
+                        {"options":{"clientUserId":"user-1","oauthRedirectUri":"com.wallet.wallet://pluggy-connect"}}
+                        """))
+                .willReturn(okJson("{\"accessToken\":\"connect-token-1\"}")));
+
+        assertThat(provider.createConnectToken("user-1", "com.wallet.wallet://pluggy-connect")).isEqualTo("connect-token-1");
+    }
+
+    /** Pluggy refuses a redirect it does not accept (plain HTTP, localhost) when the token is created. */
+    @Test
+    void aRefusedConnectTokenIsUnavailable() {
+        pluggy.stubFor(post("/connect_token").willReturn(aResponse().withStatus(400)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"code\":400,\"message\":\"oauthRedirectUri is invalid\"}")));
+
+        assertErrorCode(() -> provider.createConnectToken("user-1", "http://localhost"), ProviderErrors.UNAVAILABLE);
+    }
+
     private PluggyFinancialDataProvider providerWith(String clientId, String clientSecret) {
         PluggyProperties properties = new PluggyProperties(
                 pluggy.baseUrl(), clientId, clientSecret, Duration.ofSeconds(2), Duration.ofHours(2));

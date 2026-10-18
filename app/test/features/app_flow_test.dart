@@ -143,7 +143,8 @@ void main() {
       await tester.tap(find.text('Conectar banco'));
       await tester.pumpAndSettle();
 
-      expect(find.widgetWithText(FloatingActionButton, 'Vincular conexão'), findsOneWidget);
+      // Tests run as Android, where the bank is connected through Pluggy Connect.
+      expect(find.widgetWithText(FloatingActionButton, 'Conectar banco'), findsOneWidget);
     });
   });
 

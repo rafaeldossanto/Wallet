@@ -59,6 +59,16 @@ class PluggyConnectModeIT {
                 .andExpect(jsonPath("$.code").value("connection.item_not_found"));
     }
 
+    /** A Meu Pluggy item has no owner, and in production every item must have one. */
+    @Test
+    void anItemWithoutAnOwnerCannotBeLinked() throws Exception {
+        String itemId = stubItem(null);
+
+        link(itemId)
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("connection.item_not_found"));
+    }
+
     @Test
     void ownItemIsLinkedAndUnlinkingRevokesItAtTheProvider() throws Exception {
         String itemId = stubItem(userId.toString());

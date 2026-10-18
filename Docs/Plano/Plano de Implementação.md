@@ -540,7 +540,9 @@ automática pelos Releases do GitHub, conferida por SHA-256. Primeira versão pu
 
 ## Backlog — antes de abrir para outras pessoas
 
-- Plano Dados da Pluggy, widget Pluggy Connect no celular e `connect_token`.
+- Plano Dados da Pluggy. (~~Widget Pluggy Connect e `connect_token`~~ feitos no Android em
+  2026-10-18, ver [[Fluxo de Conexão]]; faltam o iOS e o `webhookUrl` no token, junto com os
+  webhooks.)
 - Webhooks no core com header secreto, lista de IPs e fila de eventos idempotente. O
   BFF encaminha a rota pública do webhook para o core.
 - Segundo fator no login web (passkey ou TOTP).

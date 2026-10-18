@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api/api_exception.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/format/dates.dart';
 import '../../../core/l10n/l10n.dart';
 import '../../../core/theme/app_theme.dart';
@@ -10,6 +11,7 @@ import '../../../core/widgets/common.dart';
 import '../../../core/widgets/loadable_view.dart';
 import '../data/connections_api.dart';
 import 'connections_controller.dart';
+import 'pluggy_connect_screen.dart';
 
 class ConnectionsScreen extends StatelessWidget {
   const ConnectionsScreen({super.key});
@@ -18,20 +20,44 @@ class ConnectionsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final controller = context.watch<ConnectionsController>();
     final l10n = context.l10n;
+    // On Android the bank is connected through Pluggy Connect; the Item ID stays one tap away, for
+    // Meu Pluggy and the demo Pluggy.
+    final connect = AppConfig.usesPluggyConnect;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.navConnections)),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showLinkDialog(context),
-        icon: const Icon(Icons.add_link),
-        label: Text(l10n.connectionsLink),
+      appBar: AppBar(
+        title: Text(l10n.navConnections),
+        actions: [
+          if (connect)
+            IconButton(
+              onPressed: () => _showLinkDialog(context),
+              icon: const Icon(Icons.add_link),
+              tooltip: l10n.connectionsLinkByItemId,
+            ),
+        ],
       ),
+      floatingActionButton: connect
+          ? FloatingActionButton.extended(
+              onPressed: () => _connect(context),
+              icon: const Icon(Icons.account_balance_outlined),
+              label: Text(l10n.connectionsConnect),
+            )
+          : FloatingActionButton.extended(
+              onPressed: () => _showLinkDialog(context),
+              icon: const Icon(Icons.add_link),
+              label: Text(l10n.connectionsLink),
+            ),
       body: RefreshIndicator(
         onRefresh: controller.refresh,
         child: LoadableView(
           state: controller.state,
           onRetry: controller.load,
           builder: (context, connections) => connections.isEmpty
-              ? ListView(children: [EmptyState(icon: Icons.account_balance_outlined, message: l10n.connectionsEmpty)])
+              ? ListView(children: [
+                  EmptyState(
+                    icon: Icons.account_balance_outlined,
+                    message: connect ? l10n.connectionsEmptyConnect : l10n.connectionsEmpty,
+                  ),
+                ])
               : ListView(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
                   children: [
@@ -56,6 +82,19 @@ class ConnectionsScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Pluggy Connect, then the same link as the Item ID; the list then follows the first sync.
+  static Future<void> _connect(BuildContext context) async {
+    final controller = context.read<ConnectionsController>();
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
+    final itemId = await PluggyConnectScreen.open(context);
+    if (itemId == null) {
+      return;
+    }
+    final error = await controller.link(itemId);
+    messenger.showSnackBar(SnackBar(content: Text(error == null ? l10n.connectionsConnected : l10n.errorMessage(error))));
   }
 
   static Future<void> _showLinkDialog(BuildContext context) async {

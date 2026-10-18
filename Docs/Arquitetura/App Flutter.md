@@ -29,6 +29,8 @@ Construído em 2026-10-02 (T12 a T18 do [[Plano de Implementação]]), em `Work/
 | `win32_registry` | "Abrir com o Windows" |
 | `crypto` | SHA-256 do instalador baixado pelo atualizador |
 | `shared_preferences` | A escolha de tema (`SharedPreferencesAsync`, a API atual) |
+| `webview_flutter` | O widget Pluggy Connect no Android ("Conectar banco") |
+| `url_launcher` | Abrir a autorização do Open Finance no app do banco (ou no navegador) |
 
 O `flutter_localizations` fica só porque o `gen-l10n` exige; os delegates usados vêm do
 `material_ui` (`GlobalMaterialLocalizations.delegates`). O `fl_chart` ainda importa o
@@ -307,10 +309,18 @@ sozinhas. O BFF usa a mesma consulta para descartar o cache das telas daquele us
 
 ## Conectar banco
 
-- **Agora (Meu Pluggy):** Conexões → "Vincular conexão" pede o Item ID copiado do painel da
-  Pluggy. Em debug, o diálogo lembra os IDs da Pluggy de demonstração (`demo-nubank`,
-  `demo-itau`, `demo-xp` e os básicos `demo-banco` e `demo-corretora`).
-- **Produção:** widget `flutter_pluggy_connect` no celular (backlog).
+- **Android (desde 2026-10-18, pedido do Rafael):** Conexões → **Conectar banco** abre o widget
+  Pluggy Connect em tela cheia (uma WebView, `pluggy_connect_screen.dart`). A pessoa escolhe o
+  banco, a autorização do Open Finance abre no **app do banco** (onde já está logada), e o banco
+  devolve para o Wallet pelo deep link `com.wallet.wallet://pluggy-connect`. Quando os dados
+  chegam, o app vincula o item e a lista acompanha a primeira sincronização. O tema do widget
+  segue o do app. Detalhes, protocolo e por que não o pacote `flutter_pluggy_connect` em
+  [[Fluxo de Conexão]].
+- **Item ID (Meu Pluggy e a demo):** "Vincular conexão" pede o Item ID copiado do painel da
+  Pluggy; no Android fica no ícone de link no topo de Conexões ("Vincular pelo Item ID"), e é o
+  único caminho no iOS (pausado), no PC e no navegador. Em debug, o diálogo lembra os IDs da
+  Pluggy de demonstração (`demo-nubank`, `demo-itau`, `demo-xp` e os básicos `demo-banco` e
+  `demo-corretora`).
 
 Ver [[Fluxo de Conexão]].
 
@@ -322,7 +332,7 @@ Ver [[Fluxo de Conexão]].
 
 ## Testes
 
-92 testes com um BFF em memória (`test/support/fake_bff.dart`):
+113 testes com um BFF em memória (`test/support/fake_bff.dart`):
 
 - Unitários: `Money`, sessão (restaurar, recusar, servidor fora), interceptor (duas chamadas
   com 401 geram **um** refresh), bloqueio por biometria, inatividade no navegador,
@@ -331,14 +341,17 @@ Ver [[Fluxo de Conexão]].
   descartado, atualização que falha mantendo a linha), estilos CSS dos logos passados para os
   elementos, o app de PC se identificando como `desktop`, o atualizador (quando baixa, quando
   instala e como reabre; manifesto `latest.json` com a API de reserva; novas tentativas mais cedo
-  depois de falha; SHA-256 que não bate).
+  depois de falha; SHA-256 que não bate), o protocolo do Pluggy Connect (URL, mensagens,
+  evento repetido, quando um item já vale vincular).
 - Widget: login, visão geral (completa, com parte indisponível, sem conexões), shell nos três
   tamanhos e o "Mais", calendário (mês inteiro, dia, tocar de novo), extrato (agrupamento por
   dia, filtros, segunda página), investimentos (rosca, clique na fatia e na legenda, troca de
   período, menos de dois dias, tipos à esquerda na tela larga), rosca dos gastos (fina, clicável),
   Ajustes → Computador, os avisos de versão nova e de atualizado, a moldura da janela (os três
   botões, arrastar, redimensionar, cantos retos maximizada, vidro que segue o tema),
-  saída voluntária.
+  saída voluntária, o Pluggy Connect com uma página falsa no lugar da WebView
+  (`test/support/fake_pluggy_connect.dart`: token, abrir o banco e os links, sucesso, fechar antes
+  e depois de autorizar, falhas) e "Conectar banco" vinculando o item.
 
 Além disso, verificado à mão em 2026-10-02 no Chrome (build release) e no emulador
 `trilha_pixel`, contra o core e o BFF reais com a Pluggy de demonstração.

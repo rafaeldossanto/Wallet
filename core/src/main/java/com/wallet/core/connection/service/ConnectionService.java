@@ -2,6 +2,7 @@ package com.wallet.core.connection.service;
 
 import com.wallet.core.connection.ConnectionLinked;
 import com.wallet.core.connection.config.ConnectionProperties;
+import com.wallet.core.connection.dto.ConnectTokenResponse;
 import com.wallet.core.connection.dto.ConnectionResponse;
 import com.wallet.core.connection.dto.LinkConnectionRequest;
 import com.wallet.core.connection.entity.Connection;
@@ -24,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.util.List;
 import java.util.UUID;
+
+import static java.util.Objects.isNull;
 
 @Slf4j
 @Service
@@ -52,6 +55,16 @@ public class ConnectionService {
         }
     }
 
+    /**
+     * The widget creates the item for this user ({@code clientUserId}), so linking it afterwards
+     * passes the ownership check in either connection mode.
+     */
+    public ConnectTokenResponse createConnectToken(UUID userId) {
+        String connectToken = new ProviderCallContext(userId, null, null, ProviderCallReason.CONNECT)
+                .call(() -> provider.createConnectToken(userId.toString(), properties.oauthRedirectUri()));
+        return new ConnectTokenResponse(connectToken);
+    }
+
     @Transactional(readOnly = true)
     public List<ConnectionResponse> list(UUID userId) {
         return repository.findByUserIdOrderByCreatedAtAsc(userId).stream().map(ConnectionMapper::toResponse).toList();
@@ -65,16 +78,34 @@ public class ConnectionService {
     @Transactional
     public void unlink(UUID userId, UUID connectionId) {
         Connection connection = repository.findByIdAndUserId(connectionId, userId).orElseThrow(ConnectionService::notFound);
-        if (properties.isPluggyConnect()) {
-            new ProviderCallContext(userId, connectionId, connection.getProviderItemId(), ProviderCallReason.UNLINK)
-                    .run(() -> revokeAtProvider(connection.getProviderItemId()));
-        }
+        String itemId = connection.getProviderItemId();
+        new ProviderCallContext(userId, connectionId, itemId, ProviderCallReason.UNLINK).run(() -> {
+            if (properties.isPluggyConnect() || createdByTheWidgetFor(userId, itemId)) {
+                revokeAtProvider(itemId);
+            }
+        });
         repository.delete(connection);
     }
 
     /**
-     * In production each item was created for one Wallet user ({@code clientUserId}); somebody else's
-     * item looks exactly like one that does not exist. Meu Pluggy items carry no user.
+     * While developing, Meu Pluggy items and widget items live side by side. A widget item holds a
+     * consent the Wallet asked for, so it is revoked as in production. When Pluggy cannot say whose
+     * item it is, the Wallet only lets go of it rather than refuse to unlink.
+     */
+    private boolean createdByTheWidgetFor(UUID userId, String itemId) {
+        try {
+            return userId.toString().equals(provider.findItem(itemId).clientUserId());
+        } catch (DomainException ex) {
+            log.warn("[CONNECTION] Item {} unlinked without revoking it: the provider did not answer ({})", itemId, ex.getCode());
+            return false;
+        }
+    }
+
+    /**
+     * An item created by the Pluggy Connect widget belongs to one Wallet user ({@code clientUserId});
+     * somebody else's item looks exactly like one that does not exist. Meu Pluggy items carry no
+     * user, so they are accepted only while developing (MEU_PLUGGY), where widget items may be
+     * linked too.
      */
     private ProviderItem findItemOwnedBy(UUID userId, String itemId) {
         ProviderItem item;
@@ -87,7 +118,9 @@ public class ConnectionService {
             }
             throw ex;
         }
-        if (properties.isPluggyConnect() && !userId.toString().equals(item.clientUserId())) {
+        String owner = item.clientUserId();
+        boolean ownedByAnother = isNull(owner) ? properties.isPluggyConnect() : !userId.toString().equals(owner);
+        if (ownedByAnother) {
             log.warn("[SECURITY] User {} tried to link item {} created for another user", userId, itemId);
             throw itemNotFound();
         }

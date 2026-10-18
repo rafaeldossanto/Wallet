@@ -53,6 +53,9 @@ wallet:
     # MEU_PLUGGY: items are pasted from the Meu Pluggy dashboard (development).
     # PLUGGY_CONNECT: items come from the widget and must belong to the user (production).
     connection-mode: ${WALLET_CONNECTION_MODE:MEU_PLUGGY}
+    # Where the bank sends the user back after authorizing in the Pluggy Connect widget: the Android
+    # app's deep link. Changing it means changing the intent filter in the app's AndroidManifest.xml.
+    oauth-redirect-uri: com.wallet.wallet://pluggy-connect
     audit:
       # Every call to Pluggy is recorded in provider_calls; older records are deleted nightly.
       retention: 180d

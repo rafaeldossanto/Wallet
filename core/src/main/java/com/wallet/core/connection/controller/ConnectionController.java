@@ -1,5 +1,6 @@
 package com.wallet.core.connection.controller;
 
+import com.wallet.core.connection.dto.ConnectTokenResponse;
 import com.wallet.core.connection.dto.ConnectionResponse;
 import com.wallet.core.connection.dto.LinkConnectionRequest;
 import com.wallet.core.connection.service.ConnectionService;
@@ -35,6 +36,12 @@ public class ConnectionController {
     @ResponseStatus(HttpStatus.CREATED)
     public ConnectionResponse link(@CurrentUserId UUID userId, @Valid @RequestBody LinkConnectionRequest request) {
         return connectionService.link(userId, request);
+    }
+
+    /** Opens the Pluggy Connect widget in the app; the item it creates is then linked with {@link #link}. */
+    @PostMapping("/connect-token")
+    public ConnectTokenResponse connectToken(@CurrentUserId UUID userId) {
+        return connectionService.createConnectToken(userId);
     }
 
     @DeleteMapping("/{connectionId}")

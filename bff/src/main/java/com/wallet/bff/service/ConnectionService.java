@@ -3,6 +3,7 @@ package com.wallet.bff.service;
 import com.wallet.bff.cache.ScreenCache;
 import com.wallet.bff.client.CoreApi;
 import com.wallet.bff.model.dto.request.LinkConnectionRequest;
+import com.wallet.bff.model.dto.response.ConnectTokenResponse;
 import com.wallet.bff.model.dto.response.ConnectionResponse;
 import com.wallet.bff.model.dto.response.SyncStartedResponse;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,11 @@ public class ConnectionService {
         List<ConnectionResponse> connections = coreApi.connections();
         cache.noteSyncState(userId, SyncStates.of(connections));
         return connections;
+    }
+
+    /** Nothing to evict: the connection only exists once the app links the item the widget created. */
+    public ConnectTokenResponse connectToken() {
+        return coreApi.connectToken();
     }
 
     public ConnectionResponse link(UUID userId, LinkConnectionRequest request) {

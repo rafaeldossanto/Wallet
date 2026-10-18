@@ -30,4 +30,13 @@ public interface FinancialDataProvider {
 
     /** Revokes the connection at the provider (and the Open Finance consent with it). */
     void deleteItem(String itemId);
+
+    /**
+     * A short-lived token for the provider's connect widget, where the user picks the bank and
+     * authorizes. The item the widget creates carries {@code clientUserId}.
+     *
+     * @param oauthRedirectUri where the bank sends the user back after an Open Finance
+     *                         authorization: the app's deep link
+     */
+    String createConnectToken(String clientUserId, String oauthRedirectUri);
 }

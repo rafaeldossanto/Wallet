@@ -86,7 +86,7 @@ linha de log `[PROVIDER_CALL]`, para monitorar o uso e investigar problemas.
 | Quem | `user_id` | O usuário do Wallet, quando há um |
 | Qual conexão | `connection_id`, `provider_item_id` | Vazio no vínculo, antes de a conexão existir |
 | O quê | `operation` | `AUTH`, `FIND_ITEM`, `LIST_ACCOUNTS`, `LIST_TRANSACTIONS`, `LIST_BILLS`, `LIST_INVESTMENTS`, `DELETE_ITEM`, `CREATE_CONNECT_TOKEN` |
-| Por quê | `reason` | `LINK`, `UNLINK`, `INITIAL_SYNC`, `SCHEDULED_SYNC`, `MANUAL_SYNC`, `WEBHOOK_SYNC` |
+| Por quê | `reason` | `CONNECT` (token do Pluggy Connect), `LINK`, `UNLINK`, `INITIAL_SYNC`, `SCHEDULED_SYNC`, `MANUAL_SYNC`, `WEBHOOK_SYNC` |
 | Resultado | `outcome`, `http_status`, `error_code` | `SUCCESS` ou `FAILURE`; status vazio quando não veio resposta |
 | Duração | `duration_ms` | Do envio até ler o corpo inteiro |
 
@@ -140,6 +140,7 @@ login, cadastro e refresh, exige o JWT do usuário, que o BFF repassa.
 | GET | `/internal/me` | Usuário logado |
 | GET | `/internal/connections` | Conexões do usuário e o estado de cada uma |
 | POST | `/internal/connections` | Vincula um item (`{ "providerItemId": "..." }`) |
+| POST | `/internal/connections/connect-token` | Token do widget Pluggy Connect para o usuário (`{ "connectToken": "..." }`, 30 min, uma conexão) |
 | DELETE | `/internal/connections/{id}` | Desvincula (em produção, revoga na Pluggy) |
 | POST | `/internal/connections/{id}/sync` | Pede sincronização agora (máx. 1 a cada 15 min) |
 | GET | `/internal/overview` | Patrimônio, saldo, dívida do cartão, investimentos, entradas e saídas do mês, última sincronização |
@@ -197,6 +198,7 @@ Erros de leitura: `period.invalid`, `period.too_long` e `page.invalid` (422),
 | `WALLET_JWT_PRIVATE_KEY` | Chave privada RS256 que assina os access tokens. Só o core tem |
 | `WALLET_DATA_KEY` | Chave AES da criptografia de coluna |
 | `wallet.provider.connection-mode` | `MEU_PLUGGY` (dev) ou `PLUGGY_CONNECT` |
+| `wallet.provider.oauth-redirect-uri` | Para onde o banco devolve o usuário depois de autorizar no Pluggy Connect: o deep link do app Android (`com.wallet.wallet://pluggy-connect`) |
 | `wallet.sync.interval` | Intervalo do polling (padrão 6 h) |
 | `wallet.sync.scheduler-enabled` | Liga o agendador nesta instância (padrão `true`) |
 | `wallet.provider.audit.retention` | Quanto tempo o registro de cada chamada à Pluggy fica (padrão 180 dias) |

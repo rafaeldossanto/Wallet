@@ -53,4 +53,9 @@ class PluggyFinancialDataProvider implements FinancialDataProvider {
     public void deleteItem(String itemId) {
         client.deleteItem(itemId);
     }
+
+    @Override
+    public String createConnectToken(String clientUserId, String oauthRedirectUri) {
+        return client.createConnectToken(clientUserId, oauthRedirectUri);
+    }
 }

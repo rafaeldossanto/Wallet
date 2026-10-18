@@ -66,6 +66,7 @@ bff/src/main/java/com/wallet/bff/
 | GET | `/api/insights?month=` | `spending-by-category` do mês + `net-worth` dos últimos 6 meses |
 | GET, POST, DELETE | `/api/connections...` | `/internal/connections...`; POST e DELETE limpam o cache do usuário |
 | POST | `/api/connections/{id}/sync` | `/internal/connections/{id}/sync` (202) e limpa o cache |
+| POST | `/api/connections/connect-token` | `/internal/connections/connect-token`: o token do widget Pluggy Connect no Android |
 
 ### A home
 

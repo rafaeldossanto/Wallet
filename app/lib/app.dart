@@ -26,6 +26,7 @@ import 'core/theme/theme_controller.dart';
 import 'features/calendar/data/calendar_api.dart';
 import 'features/cards/data/cards_api.dart';
 import 'features/connections/data/connections_api.dart';
+import 'features/connections/presentation/pluggy_connect_screen.dart';
 import 'features/insights/data/insights_api.dart';
 import 'features/investments/data/investments_api.dart';
 import 'features/overview/data/home_api.dart';
@@ -33,7 +34,7 @@ import 'features/transactions/data/transactions_api.dart';
 
 /// Everything the screens need, built once. Tests build it with a fake HTTP adapter.
 class AppDependencies {
-  AppDependencies._(this.api, this.session, this.appLock, this.theme, this.desktop, this.server);
+  AppDependencies._(this.api, this.session, this.appLock, this.theme, this.desktop, this.server, this.pluggyConnect);
 
   factory AppDependencies.create({
     ApiClient? api,
@@ -41,6 +42,7 @@ class AppDependencies {
     ThemeController? theme,
     Desktop? desktop,
     ServerAddress? server,
+    PluggyConnectHost pluggyConnect = const PluggyConnectHost(),
     bool withAppLock = !kIsWeb,
   }) {
     final client = api ?? ApiClient.create(baseUrl: server?.current);
@@ -52,7 +54,7 @@ class AppDependencies {
     );
     client.dio.interceptors.add(AuthInterceptor(session, client.dio));
     return AppDependencies._(client, session, withAppLock ? AppLock(session: session) : null,
-        theme ?? ThemeController(MemoryThemePreference()), desktop, server);
+        theme ?? ThemeController(MemoryThemePreference()), desktop, server, pluggyConnect);
   }
 
   final ApiClient api;
@@ -65,6 +67,9 @@ class AppDependencies {
 
   /// The BFF's address, typed on the login screen; null in the browser.
   final ServerAddress? server;
+
+  /// How "Conectar banco" shows Pluggy Connect on Android.
+  final PluggyConnectHost pluggyConnect;
   final DataChanges dataChanges = DataChanges();
 
   List<SingleChildWidget> get providers => [
@@ -82,6 +87,7 @@ class AppDependencies {
         Provider(create: (_) => InvestmentsApi(api)),
         Provider(create: (_) => InsightsApi(api)),
         Provider(create: (_) => ConnectionsApi(api)),
+        Provider.value(value: pluggyConnect),
       ];
 }
 

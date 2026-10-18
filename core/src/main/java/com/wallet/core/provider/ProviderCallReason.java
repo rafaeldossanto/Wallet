@@ -2,6 +2,8 @@ package com.wallet.core.provider;
 
 /** Why the Wallet called the provider. Recorded with every call in the audit trail. */
 public enum ProviderCallReason {
+    /** A token for the Pluggy Connect widget, where the user picks the bank and authorizes. */
+    CONNECT,
     /** Checking an item before linking it. */
     LINK,
     /** Revoking the item at the provider when the user unlinks it. */

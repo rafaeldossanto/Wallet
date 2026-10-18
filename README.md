@@ -34,7 +34,8 @@ cd app && flutter run -d chrome --web-port 5000
 
 Sem `PLUGGY_CLIENT_ID` definido, o `test-run` do core sobe um Postgres descartável e uma
 **Pluggy de demonstração** com dados sintéticos gerados a partir da data de hoje. No app,
-crie uma conta, vá em Conexões → Vincular conexão e use os Item IDs `demo-nubank`, `demo-itau`
+crie uma conta, vá em Conexões → Vincular conexão (no Android, o ícone de link no topo) e use os
+Item IDs `demo-nubank`, `demo-itau`
 e `demo-xp` (bancos com cara de reais: conta, poupança, cartões com faturas e parcelas,
 investimentos) ou os básicos `demo-banco` e `demo-corretora`. Com
 `PLUGGY_CLIENT_ID` e `PLUGGY_CLIENT_SECRET` definidos, o mesmo comando fala com a Pluggy de
@@ -250,6 +251,37 @@ cd app
 $env:ANDROID_KEY_PROPERTIES = "$HOME\.wallet\android\key.properties"
 flutter build apk --release --dart-define=WALLET_VERSION=0.1.4
 ```
+
+#### Conectar banco pelo Pluggy Connect (Android)
+
+No tablet, Conexões → **Conectar banco** abre o widget da Pluggy; escolhido o banco, a autorização
+abre no app do banco e, confirmada, o Android volta ao Wallet, que vincula a conexão. Precisa da
+Pluggy de verdade com o widget liberado (o trial do plano Dados, até ~2026-10-21, ou o plano pago);
+a Pluggy de demonstração não serve aqui, use o Item ID. Para testar:
+
+1. **Credenciais no PC:** crie `PLUGGY_CLIENT_ID` e `PLUGGY_CLIENT_SECRET` como variáveis de
+   ambiente do Windows (Configurações → Sistema → Sobre → Configurações avançadas do sistema →
+   Variáveis de Ambiente), com o Client ID e o Client Secret da aplicação do trial no painel da
+   Pluggy. Feche e abra o terminal, e suba core e BFF como de costume.
+2. **No painel da Pluggy (dashboard.pluggy.ai), na aplicação do trial:**
+   - Os conectores dos bancos que você vai ligar precisam estar ativos, nas versões **Open
+     Finance** (as que abrem o app do banco). Se o banco só aparece sem "Open Finance" no widget,
+     o acesso ao Open Finance ainda não está liberado na aplicação: peça à Pluggy.
+   - O redirect não se cadastra: o core manda `com.wallet.wallet://pluggy-connect` em cada token
+     (`wallet.provider.oauth-redirect-uri`). Se o painel tiver uma lista de URIs de redirecionamento
+     permitidas, inclua esse endereço. Se a Pluggy recusar, o log do core mostra
+     `[PLUGGY] Request failed: 400 ...` e o app diz que o serviço está fora do ar.
+   - Webhook ainda não: o BFF não tem endereço público.
+3. **No tablet:** o APK novo (do workflow Android da `dev`), o app do banco instalado e logado, e
+   o endereço do PC na tela de login.
+4. Conexões → Conectar banco → escolha o banco → autorize no app dele. Se o navegador perguntar
+   se pode abrir o Wallet, permita. De volta, espere o widget terminar de buscar os dados: a
+   conexão aparece como "Atualizando" e vira "Ativa" quando a primeira sincronização termina.
+
+O core continua em `WALLET_CONNECTION_MODE=MEU_PLUGGY` (o padrão), em que valem os dois caminhos:
+os itens do widget só podem ser vinculados pelo dono, e os do Meu Pluggy continuam entrando pelo
+Item ID. `PLUGGY_CONNECT` (produção) aceita só itens do widget. Detalhes em
+`Docs/Arquitetura/Fluxo de Conexão.md`.
 
 ## Branches
 

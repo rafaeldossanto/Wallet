@@ -994,6 +994,42 @@ abstract class AppLocalizations {
   /// **'Conexão vinculada. Os dados chegam em instantes.'**
   String get connectionsLinked;
 
+  /// No description provided for @connectionsConnect.
+  ///
+  /// In pt, this message translates to:
+  /// **'Conectar banco'**
+  String get connectionsConnect;
+
+  /// No description provided for @connectionsEmptyConnect.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nenhuma conexão ainda. Toque em Conectar banco, escolha o banco e autorize no app dele.'**
+  String get connectionsEmptyConnect;
+
+  /// No description provided for @connectionsLinkByItemId.
+  ///
+  /// In pt, this message translates to:
+  /// **'Vincular pelo Item ID'**
+  String get connectionsLinkByItemId;
+
+  /// No description provided for @connectionsConnected.
+  ///
+  /// In pt, this message translates to:
+  /// **'Banco conectado. Os dados chegam em instantes.'**
+  String get connectionsConnected;
+
+  /// No description provided for @connectOpening.
+  ///
+  /// In pt, this message translates to:
+  /// **'Abrindo a Pluggy…'**
+  String get connectOpening;
+
+  /// No description provided for @connectPageFailed.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível abrir a Pluggy. Confira sua internet e tente de novo.'**
+  String get connectPageFailed;
+
   /// No description provided for @connectionNeverSynced.
   ///
   /// In pt, this message translates to:

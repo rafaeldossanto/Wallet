@@ -543,6 +543,27 @@ class AppLocalizationsPt extends AppLocalizations {
       'Conexão vinculada. Os dados chegam em instantes.';
 
   @override
+  String get connectionsConnect => 'Conectar banco';
+
+  @override
+  String get connectionsEmptyConnect =>
+      'Nenhuma conexão ainda. Toque em Conectar banco, escolha o banco e autorize no app dele.';
+
+  @override
+  String get connectionsLinkByItemId => 'Vincular pelo Item ID';
+
+  @override
+  String get connectionsConnected =>
+      'Banco conectado. Os dados chegam em instantes.';
+
+  @override
+  String get connectOpening => 'Abrindo a Pluggy…';
+
+  @override
+  String get connectPageFailed =>
+      'Não foi possível abrir a Pluggy. Confira sua internet e tente de novo.';
+
+  @override
   String get connectionNeverSynced => 'Ainda não sincronizou';
 
   @override
