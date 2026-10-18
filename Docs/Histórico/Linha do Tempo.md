@@ -152,3 +152,9 @@ atualizado: 2026-10-03
   por cima sem perder os dados, e o app passou a aceitar HTTP para falar com o BFF no PC pela
   Wi-Fi até o deploy com HTTPS. Faltam os quatro segredos `ANDROID_*` no GitHub, que o Rafael
   cria. Ver [[App Flutter]].
+- Auditoria das chamadas à Pluggy, pedido do Rafael depois de discutir a segurança da
+  integração. Em vez de um serviço gateway à parte, decidido contra (o módulo `provider` já
+  isola a Pluggy; o deploy terá restrição de saída, webhook entrando pelo BFF e cofre de
+  segredos), cada requisição do core à Pluggy vira uma linha em `provider_calls` e uma linha de
+  log `chave=valor`: quando, quem, qual conexão, qual operação, por quê, status e duração, sem
+  nenhum dado financeiro ou credencial. Guardada por 180 dias. Ver [[Core]].

@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, backend, core]
-atualizado: 2026-10-03
+atualizado: 2026-10-18
 porta: 8081
 repo: Work/Wallet/core
 ---
@@ -25,7 +25,7 @@ módulo usar a parte interna de outro.
 | `banking` | Contas, saldos, transações, cartões e faturas | `shared` |
 | `investment` | Posições de investimento | `shared` |
 | `sync` | Orquestra a leitura do provedor e grava nos módulos de dados | `provider`, `connection`, `banking`, `investment` |
-| `provider` | Porta `FinancialDataProvider` e o adaptador da Pluggy | `shared` |
+| `provider` | Porta `FinancialDataProvider`, o adaptador da Pluggy e a auditoria das chamadas | `shared` |
 | `insight` | Visão geral, patrimônio, gasto por categoria | `banking`, `investment` |
 | `shared` | Dinheiro, erros, paginação, criptografia de coluna, relógio | — |
 
@@ -74,6 +74,56 @@ public interface FinancialDataProvider {
   Ver [[Sincronização]].
 - Paginação da Pluggy (máx. 500 por página) é resolvida dentro do adaptador.
 - Testado com **WireMock**, usando as respostas capturadas no spike (T02).
+
+## Auditoria das chamadas à Pluggy (desde 2026-10-18)
+
+Toda requisição HTTP que o core faz à Pluggy vira uma linha em `provider_calls` e uma
+linha de log `[PROVIDER_CALL]`, para monitorar o uso e investigar problemas.
+
+| O quê | Campo | Valores |
+|---|---|---|
+| Quando | `called_at` | Início da chamada |
+| Quem | `user_id` | O usuário do Wallet, quando há um |
+| Qual conexão | `connection_id`, `provider_item_id` | Vazio no vínculo, antes de a conexão existir |
+| O quê | `operation` | `AUTH`, `FIND_ITEM`, `LIST_ACCOUNTS`, `LIST_TRANSACTIONS`, `LIST_BILLS`, `LIST_INVESTMENTS`, `DELETE_ITEM`, `CREATE_CONNECT_TOKEN` |
+| Por quê | `reason` | `LINK`, `UNLINK`, `INITIAL_SYNC`, `SCHEDULED_SYNC`, `MANUAL_SYNC`, `WEBHOOK_SYNC` |
+| Resultado | `outcome`, `http_status`, `error_code` | `SUCCESS` ou `FAILURE`; status vazio quando não veio resposta |
+| Duração | `duration_ms` | Do envio até ler o corpo inteiro |
+
+- **Nunca grava** valores, descrições, corpo de requisição ou resposta, `apiKey` ou
+  credenciais. O registro só tem os campos acima.
+- **Uma linha por requisição:** cada página de uma lista paginada conta, e a renovação do
+  `apiKey` aparece como `AUTH` com o motivo da chamada que a provocou (um 401 aparece como a
+  chamada recusada, o `AUTH` e a nova tentativa).
+- **Como:** um interceptor no `RestClient` da Pluggy (`PluggyAuditInterceptor`) vê todas as
+  chamadas, inclusive o `POST /auth`, sem mudar o `PluggyClient`. Um endpoint novo é gravado
+  desde a primeira chamada; se ainda não tem nome na tabela (`PluggyOperations`), vira
+  método + recurso sem ids (`GET /connectors/201` → `GET_CONNECTORS`).
+- **Quem e por quê** vêm do `ProviderCallContext`, um `ScopedValue` do Java 25 que a
+  sincronização e o vínculo/desvínculo abrem em volta das chamadas. Chamada fora de um
+  contexto é gravada mesmo assim, sem usuário, conexão e motivo.
+- **Transação própria** (`REQUIRES_NEW`, via `JdbcTemplate`): o vínculo chama a Pluggy dentro
+  da transação dele, e o registro fica mesmo quando o vínculo dá rollback. Falha ao gravar
+  vira `WARN` e nunca derruba sincronização nem vínculo.
+- **Códigos de erro:** `provider.auth_failed` (401/403), `provider.not_found` (404),
+  `provider.rate_limited` (429), `provider.unavailable` (outros 4xx e 5xx). Sem resposta:
+  `provider.unreachable` (conexão recusada, DNS ou tempo de conexão esgotado: é assim que um
+  bloqueio de saída aparece), `provider.timeout` (conectou e não respondeu a tempo) e
+  `provider.connection_failed` (a conexão caiu no meio).
+- **Log:** uma linha por chamada, `INFO` no sucesso e `WARN` na falha, sem os campos vazios.
+  Os campos também vão como key-values do SLF4J, que o log estruturado do Spring Boot
+  (`logging.structured.format.console=ecs` ou `logstash`) transforma em campos JSON quando a
+  plataforma de logs for escolhida.
+
+```
+[PROVIDER_CALL] provider=PLUGGY operation=LIST_ACCOUNTS outcome=SUCCESS status=200 durationMs=84 reason=MANUAL_SYNC userId=… connectionId=… itemId=…
+```
+
+- **Retenção:** 180 dias (`wallet.provider.audit.retention`), apagados toda noite às 04:30
+  de São Paulo (`wallet.provider.audit.cleanup-cron`), em todas as instâncias.
+- **Sem chave estrangeira** de propósito: o registro de um desvínculo, ou das chamadas de um
+  usuário que excluiu a conta, sobrevive às linhas que ele cita. Depois da exclusão, o
+  `user_id` não aponta para ninguém, e some com os 180 dias.
 
 ## API interna
 
@@ -149,6 +199,8 @@ Erros de leitura: `period.invalid`, `period.too_long` e `page.invalid` (422),
 | `wallet.provider.connection-mode` | `MEU_PLUGGY` (dev) ou `PLUGGY_CONNECT` |
 | `wallet.sync.interval` | Intervalo do polling (padrão 6 h) |
 | `wallet.sync.scheduler-enabled` | Liga o agendador nesta instância (padrão `true`) |
+| `wallet.provider.audit.retention` | Quanto tempo o registro de cada chamada à Pluggy fica (padrão 180 dias) |
+| `wallet.provider.audit.cleanup-cron` | Quando os registros vencidos são apagados (padrão 04:30, horário de São Paulo) |
 
 Porta **8081**. Todo segredo vem de variável de ambiente; o `application.yaml`
 versionado só tem placeholders com padrões de desenvolvimento. Sem banco local, o core

@@ -53,6 +53,10 @@ wallet:
     # MEU_PLUGGY: items are pasted from the Meu Pluggy dashboard (development).
     # PLUGGY_CONNECT: items come from the widget and must belong to the user (production).
     connection-mode: ${WALLET_CONNECTION_MODE:MEU_PLUGGY}
+    audit:
+      # Every call to Pluggy is recorded in provider_calls; older records are deleted nightly.
+      retention: 180d
+      cleanup-cron: "0 30 4 * * *"
   pluggy:
     base-url: https://api.pluggy.ai
     # Empty = the core still starts; any call to the provider answers provider.not_configured.

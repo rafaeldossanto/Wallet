@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, sync, pluggy]
-atualizado: 2026-10-03
+atualizado: 2026-10-18
 ---
 
 # Sincronização
@@ -42,6 +42,10 @@ Como os dados saem da Pluggy e chegam ao [[Modelo de Dados]].
    - investimentos: o que sumiu ou foi resgatado recebe `closed_at`;
    - `last_synced_at` e `provider_updated_at` da conexão.
 6. **Fecha a rodada** com o resultado e as contagens.
+
+Cada chamada à Pluggy da rodada fica em `provider_calls` com o usuário, a conexão, o gatilho
+(`INITIAL_SYNC`, `SCHEDULED_SYNC`, `MANUAL_SYNC`, `WEBHOOK_SYNC`), o status e a duração: ver
+[[Core#Auditoria das chamadas à Pluggy (desde 2026-10-18)]].
 
 > [!note] Por que ler antes e gravar depois
 > O banco nunca fica com uma transação aberta esperando a rede, e a gravação continua

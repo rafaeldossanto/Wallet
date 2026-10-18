@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, banco]
-atualizado: 2026-09-29
+atualizado: 2026-10-18
 ---
 
 # Modelo de Dados
@@ -74,6 +74,15 @@ seria carregada para a frente para sempre.
 `started_at`, `finished_at`, `accounts_count`, `transactions_upserted`,
 `transactions_deleted`. Índice único parcial: uma `RUNNING` por conexão. Ver
 [[Sincronização]].
+
+**provider_calls** — a auditoria das chamadas à Pluggy, uma linha por requisição HTTP:
+`id`, `called_at`, `provider` (`PLUGGY`), `operation` (`FIND_ITEM`, `LIST_TRANSACTIONS`...),
+`reason` (`LINK`, `UNLINK`, `INITIAL_SYNC`, `SCHEDULED_SYNC`, `MANUAL_SYNC`,
+`WEBHOOK_SYNC`), `user_id`, `connection_id`, `provider_item_id`, `outcome`
+(`SUCCESS`/`FAILURE`), `http_status`, `error_code`, `duration_ms`. Índices em `called_at` e
+em (`connection_id`, `called_at`). **Sem chave estrangeira**, por isso fica fora do diagrama:
+o registro precisa sobreviver ao desvínculo e à exclusão do usuário. Nenhum dado financeiro,
+token ou credencial. Apagado depois de 180 dias. Ver [[Core#Auditoria das chamadas à Pluggy (desde 2026-10-18)]].
 
 > [!warning] Validação do Hibernate
 > `ddl-auto: validate` recusa `CHAR(n)` e `TEXT` onde a entidade tem `String`, porque

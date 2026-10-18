@@ -8,6 +8,8 @@ import com.wallet.core.connection.entity.Connection;
 import com.wallet.core.connection.mapper.ConnectionMapper;
 import com.wallet.core.connection.repository.ConnectionRepository;
 import com.wallet.core.provider.FinancialDataProvider;
+import com.wallet.core.provider.ProviderCallContext;
+import com.wallet.core.provider.ProviderCallReason;
 import com.wallet.core.provider.ProviderErrors;
 import com.wallet.core.provider.ProviderItem;
 import com.wallet.core.shared.error.DomainException;
@@ -64,7 +66,8 @@ public class ConnectionService {
     public void unlink(UUID userId, UUID connectionId) {
         Connection connection = repository.findByIdAndUserId(connectionId, userId).orElseThrow(ConnectionService::notFound);
         if (properties.isPluggyConnect()) {
-            revokeAtProvider(connection.getProviderItemId());
+            new ProviderCallContext(userId, connectionId, connection.getProviderItemId(), ProviderCallReason.UNLINK)
+                    .run(() -> revokeAtProvider(connection.getProviderItemId()));
         }
         repository.delete(connection);
     }
@@ -76,7 +79,8 @@ public class ConnectionService {
     private ProviderItem findItemOwnedBy(UUID userId, String itemId) {
         ProviderItem item;
         try {
-            item = provider.findItem(itemId);
+            item = new ProviderCallContext(userId, null, itemId, ProviderCallReason.LINK)
+                    .call(() -> provider.findItem(itemId));
         } catch (DomainException ex) {
             if (ProviderErrors.NOT_FOUND.equals(ex.getCode())) {
                 throw itemNotFound();

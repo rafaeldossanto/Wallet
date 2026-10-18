@@ -7,6 +7,8 @@ import com.wallet.core.connection.ConnectionRegistry;
 import com.wallet.core.connection.LinkedConnection;
 import com.wallet.core.provider.FinancialDataProvider;
 import com.wallet.core.provider.ProviderAccount;
+import com.wallet.core.provider.ProviderCallContext;
+import com.wallet.core.provider.ProviderCallReason;
 import com.wallet.core.provider.ProviderInvestment;
 import com.wallet.core.provider.ProviderItem;
 import com.wallet.core.provider.ProviderItemStatus;
@@ -85,7 +87,14 @@ public class SyncService {
             return connectionGone(connectionId, trigger);
         }
         LinkedConnection connection = found.get();
+        ProviderCallContext context = new ProviderCallContext(
+                connection.userId(), connectionId, connection.providerItemId(), reasonOf(trigger));
+        return context.call(() -> sync(connection, trigger));
+    }
 
+    /** Runs in the connection's provider call context, so the audit trail says whose sync called. */
+    private SyncOutcome sync(LinkedConnection connection, SyncTrigger trigger) {
+        UUID connectionId = connection.id();
         ProviderItem item = provider.findItem(connection.providerItemId());
         if (ProviderItemStatus.NEEDS_USER_ACTION.equals(item.status())) {
             registry.recordNeedsAttention(connectionId);
@@ -112,6 +121,15 @@ public class SyncService {
         log.info("[SYNC] Connection {} ({}): {} accounts, {} transactions upserted, {} removed",
                 connectionId, trigger, result.accounts(), result.transactionsUpserted(), result.transactionsDeleted());
         return SyncOutcome.succeeded(result.accounts(), result.transactionsUpserted(), result.transactionsDeleted());
+    }
+
+    private static ProviderCallReason reasonOf(SyncTrigger trigger) {
+        return switch (trigger) {
+            case INITIAL -> ProviderCallReason.INITIAL_SYNC;
+            case SCHEDULED -> ProviderCallReason.SCHEDULED_SYNC;
+            case MANUAL -> ProviderCallReason.MANUAL_SYNC;
+            case WEBHOOK -> ProviderCallReason.WEBHOOK_SYNC;
+        };
     }
 
     /** Unlinking mid-sync is a normal user action, not a failure. */
