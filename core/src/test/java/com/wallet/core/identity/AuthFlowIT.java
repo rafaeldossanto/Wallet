@@ -3,6 +3,7 @@ package com.wallet.core.identity;
 import com.jayway.jsonpath.JsonPath;
 import com.wallet.core.MutableClock;
 import com.wallet.core.TestClockConfiguration;
+import com.wallet.core.TestMockMvc;
 import com.wallet.core.TestcontainersConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,14 +14,12 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.time.Duration;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -29,8 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * HTTP contract of the identity module against a real Postgres.
  *
- * <p>MockMvc is built by hand with {@code springSecurity()}: in Spring Boot 4,
- * {@code @AutoConfigureMockMvc} no longer applies the security filter chain.
+ * <p>MockMvc comes from {@link TestMockMvc}: security chain applied, gateway key sent.
  */
 @SpringBootTest
 @Import({TestcontainersConfiguration.class, TestClockConfiguration.class})
@@ -48,7 +46,7 @@ class AuthFlowIT {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        mockMvc = TestMockMvc.of(context);
         clock.set(TestClockConfiguration.START);
     }
 

@@ -1,5 +1,7 @@
 package com.wallet.core.identity.config;
 
+import com.wallet.core.shared.security.GatewayKey;
+import com.wallet.core.shared.security.GatewayKeyFilter;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -9,19 +11,24 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * The core is only reached by the BFF, over the internal network. It is stateless and
- * token-based: cookies, CORS and CSRF are handled by the BFF, which is the public edge.
+ * The core is only reached by the BFF. It is stateless and token-based: cookies, CORS and CSRF
+ * are handled by the BFF, which is the public edge. Being on an internal network is not taken for
+ * granted: every request must also carry the gateway key ({@link GatewayKeyFilter}), the public
+ * routes below included.
  */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties({JwtProperties.class, AuthProperties.class})
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, JsonSecurityErrorHandler errorHandler) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, JsonSecurityErrorHandler errorHandler,
+                                            GatewayKey gatewayKey) throws Exception {
         return http
+                .addFilterBefore(new GatewayKeyFilter(gatewayKey), BearerTokenAuthenticationFilter.class)
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth

@@ -109,9 +109,12 @@ dinheiro, então não tem como arredondar errado.
 
 - O BFF valida o JWT antes de qualquer coisa e **repassa o mesmo Bearer** ao core, que
   valida de novo. O BFF não consegue emitir token: só o core tem a chave privada.
+- **Chave de gateway (desde 2026-10-19):** toda chamada ao core, inclusive login, cadastro e a
+  busca do JWKS, leva o header `X-Gateway-Key` (`GatewayKeyInterceptor`) com o segredo
+  `WALLET_GATEWAY_KEY`. O core recusa com 403 quem não manda. É o único segredo do BFF.
 - A chave pública vem do **JWKS do core** (`/internal/.well-known/jwks.json`), buscada
   no primeiro uso e guardada em cache. O BFF sobe mesmo com o core fora do ar, e não
-  existe chave para configurar nele.
+  existe chave de JWT para configurar nele.
 - O `kid` da chave é o thumbprint dela (RFC 7638). Chave nova, `kid` novo: o BFF só
   rebusca o JWKS quando vê um `kid` desconhecido, então com `kid` fixo ele ficaria até
   5 min recusando os tokens de um core reiniciado com chave temporária. Achado e
@@ -131,6 +134,7 @@ dinheiro, então não tem como arredondar errado.
 | Propriedade / variável | Para quê |
 |---|---|
 | `WALLET_CORE_URL` | Endereço do core (`http://localhost:8081` no dev) |
+| `WALLET_GATEWAY_KEY` | Segredo enviado ao core em `X-Gateway-Key`, o **mesmo** valor do core. Vazio = chave de desenvolvimento; com `SPRING_PROFILES_ACTIVE=prod`, vazia, curta (< 32) ou a de desenvolvimento impedem a subida |
 | `WALLET_WEB_ALLOWED_ORIGINS` | Origem do Flutter Web (`http://localhost:5000` no dev) |
 | `wallet.web.cookie-secure` | Flag `Secure` do cookie; ligada também no dev, porque o navegador aceita em `localhost` |
 | `wallet.cache.screen-ttl` | TTL do cache das telas (padrão 60 s) |

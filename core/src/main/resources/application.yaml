@@ -24,8 +24,18 @@ spring:
 
 server:
   port: 8081
+  # Interface the core listens on. 0.0.0.0 (every interface) keeps today's behavior; on a single
+  # host where the BFF runs next to the core, set WALLET_CORE_ADDRESS=127.0.0.1 so nothing outside
+  # the machine reaches the port at all. The gateway key below is required either way.
+  address: ${WALLET_CORE_ADDRESS:0.0.0.0}
 
 wallet:
+  gateway:
+    # Shared secret the BFF sends in X-Gateway-Key; every request without it is refused with 403
+    # (only /actuator/health stays open). Same value in both services. Empty = development key
+    # (local only); with SPRING_PROFILES_ACTIVE=prod an empty, short (< 32 chars) or development
+    # key stops the boot.
+    key: ${WALLET_GATEWAY_KEY:}
   jwt:
     issuer: wallet-core
     # PEM text or a path to a .pem file. Both empty = ephemeral key for local development only.

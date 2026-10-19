@@ -2,6 +2,7 @@ package com.wallet.core.planning;
 
 import com.wallet.core.MutableClock;
 import com.wallet.core.TestClockConfiguration;
+import com.wallet.core.TestMockMvc;
 import com.wallet.core.TestUsers;
 import com.wallet.core.TestcontainersConfiguration;
 import com.wallet.core.connection.ConnectionStatus;
@@ -19,7 +20,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.io.IOException;
@@ -35,7 +35,6 @@ import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
-import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -72,7 +71,7 @@ class DemoPlanningIT {
     /** Itaú's checking account pays the rent and the bills at home every month; the card bill and the salary are not suggested. */
     @Test
     void itausMonthlyDebitsAreSuggested() throws Exception {
-        MockMvc mockMvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        MockMvc mockMvc = TestMockMvc.of(context);
         clock.set(NOW);
         UUID userId = TestUsers.register(mockMvc);
         UUID connectionId = connections.save(Connection.builder().id(UUID.randomUUID()).userId(userId).provider("PLUGGY")

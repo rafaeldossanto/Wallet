@@ -3,9 +3,11 @@ package com.wallet.bff;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import org.springframework.test.web.servlet.ResultActions;
 import com.github.tomakehurst.wiremock.http.Fault;
+import com.wallet.bff.config.GatewayKey;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -14,10 +16,12 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -62,7 +66,24 @@ class BffEdgeTest extends BffTestSupport {
 
         CORE.verify(getRequestedFor(urlEqualTo("/internal/me"))
                 .withHeader(HttpHeaders.AUTHORIZATION, equalTo("Bearer " + token))
-                .withHeader("X-Trace-Id", equalTo("trace-123")));
+                .withHeader("X-Trace-Id", equalTo("trace-123"))
+                .withHeader(GatewayKey.HEADER, equalTo(GATEWAY_KEY)));
+    }
+
+    /** The core refuses the login route itself without the key, so the public routes carry it too. */
+    @Test
+    void publicRoutesAlsoCarryTheGatewayKey() throws Exception {
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/auth/register"))
+                .willReturn(okJson(USER_JSON.formatted(UUID.randomUUID())).withStatus(201)));
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"new@example.com\",\"password\":\"password123\",\"displayName\":\"New\"}"))
+                .andExpect(status().isCreated());
+
+        CORE.verify(postRequestedFor(urlEqualTo("/internal/auth/register"))
+                .withHeader(GatewayKey.HEADER, equalTo(GATEWAY_KEY))
+                .withoutHeader(HttpHeaders.AUTHORIZATION));
     }
 
     @Test

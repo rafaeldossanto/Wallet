@@ -23,6 +23,7 @@ import org.springframework.security.oauth2.server.resource.web.authentication.Be
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
+import org.springframework.web.client.RestOperations;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -76,11 +77,14 @@ public class SecurityConfig {
 
     /**
      * Keys come from the core's JWKS, fetched on first use and cached: the BFF starts even when
-     * the core is down, and a new key in the core is picked up without configuration.
+     * the core is down, and a new key in the core is picked up without configuration. The fetch
+     * carries the gateway key, like every other call to the core.
      */
     @Bean
-    JwtDecoder jwtDecoder(CoreProperties core, JwtProperties jwt) {
-        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(core.jwksUri()).build();
+    JwtDecoder jwtDecoder(CoreProperties core, JwtProperties jwt, RestOperations coreJwksRestOperations) {
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(core.jwksUri())
+                .restOperations(coreJwksRestOperations)
+                .build();
         decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(jwt.issuer()));
         return decoder;
     }

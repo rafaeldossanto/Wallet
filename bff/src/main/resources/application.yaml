@@ -23,6 +23,10 @@ wallet:
     url: ${WALLET_CORE_URL:http://localhost:8081}
     connect-timeout: 2s
     read-timeout: 5s
+    # Shared secret sent in X-Gateway-Key on every call to the core; the core refuses calls
+    # without it. Same value in both services. Empty = development key (local only); with
+    # SPRING_PROFILES_ACTIVE=prod an empty, short (< 32 chars) or development key stops the boot.
+    gateway-key: ${WALLET_GATEWAY_KEY:}
   jwt:
     issuer: wallet-core
   web:
