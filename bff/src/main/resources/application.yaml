@@ -8,9 +8,10 @@ spring:
 
 server:
   port: 8080
-  # In production the BFF sits behind a reverse proxy: trust X-Forwarded-* so the rate limit
-  # sees the client's IP, not the proxy's.
-  forward-headers-strategy: framework
+  # X-Forwarded-* is NOT applied to the request: in "framework" mode Spring believed it from any
+  # client, which let anyone pick a fresh IP per request and skip the rate limit. The client's
+  # address behind a reverse proxy comes from wallet.rate-limit.trusted-proxies instead.
+  forward-headers-strategy: none
 
 management:
   endpoints:
@@ -43,3 +44,8 @@ wallet:
     auth-limit: 20
     # Per user (or per IP when anonymous) on everything else.
     default-limit: 300
+    # Reverse proxies whose X-Forwarded-For is believed, as IPs or CIDR ranges separated by
+    # commas (e.g. 127.0.0.1,10.0.0.0/8). Only the hops they appended count: the client is the
+    # first address from the right that is not one of them. Empty = the connection's own address,
+    # whatever the header says (right when the BFF faces the clients directly).
+    trusted-proxies: ${WALLET_TRUSTED_PROXIES:}

@@ -18,16 +18,23 @@ import java.io.IOException;
  * Runs inside the security chain, right after the token is read, so it can count per user.
  * Login and the other {@code /api/auth} routes count per IP with a lower limit: that is where
  * brute force goes, and every attempt costs a BCrypt in the core.
+ *
+ * <p>The address comes from {@link ClientAddress}: the connection's own, unless it is one of the
+ * configured trusted proxies. A client cannot pick a fresh address per request by writing
+ * {@code X-Forwarded-For} itself.
  */
 @Slf4j
 public class RateLimitFilter extends OncePerRequestFilter {
 
     private final RateLimiter rateLimiter;
     private final RateLimitProperties properties;
+    private final ClientAddress clientAddress;
 
+    /** @throws IllegalArgumentException when a trusted proxy is not an IP or a CIDR range: the BFF does not start */
     public RateLimitFilter(RateLimiter rateLimiter, RateLimitProperties properties) {
         this.rateLimiter = rateLimiter;
         this.properties = properties;
+        this.clientAddress = new ClientAddress(properties.trustedProxies());
     }
 
     @Override
@@ -39,7 +46,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return;
         }
         boolean authRoute = path.startsWith("/api/auth/");
-        String key = authRoute ? "auth:" + request.getRemoteAddr() : "api:" + caller(request);
+        String key = authRoute ? "auth:" + clientAddress.of(request) : "api:" + caller(request);
         int limit = authRoute ? properties.authLimit() : properties.defaultLimit();
         if (!rateLimiter.tryAcquire(key, limit)) {
             log.warn("[RATE-LIMIT] {} went over {} requests per {}", key, limit, properties.window());
@@ -49,11 +56,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
         chain.doFilter(request, response);
     }
 
-    private static String caller(HttpServletRequest request) {
+    private String caller(HttpServletRequest request) {
         if (SecurityContextHolder.getContext().getAuthentication() instanceof JwtAuthenticationToken token) {
             return "user:" + token.getToken().getSubject();
         }
-        return "ip:" + request.getRemoteAddr();
+        return "ip:" + clientAddress.of(request);
     }
 
     private void reject(HttpServletResponse response) throws IOException {

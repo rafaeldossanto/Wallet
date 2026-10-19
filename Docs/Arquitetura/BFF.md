@@ -139,6 +139,15 @@ dinheiro, então não tem como arredondar errado.
 | `wallet.web.cookie-secure` | Flag `Secure` do cookie; ligada também no dev, porque o navegador aceita em `localhost` |
 | `wallet.cache.screen-ttl` | TTL do cache das telas (padrão 60 s) |
 | `wallet.rate-limit.*` | Janela (1 min), 20 por IP em `/api/auth`, 300 por usuário no resto |
+| `WALLET_TRUSTED_PROXIES` | `wallet.rate-limit.trusted-proxies`: proxies reversos (IPs ou CIDR) cujo `X-Forwarded-For` vale para o rate limit. Vazio = IP da conexão |
+
+**IP do cliente no rate limit (desde 2026-10-19):** o `forward-headers-strategy` é `none`.
+No modo `framework`, o Spring aplicava o `X-Forwarded-For` de qualquer cliente, e mudar o
+header a cada requisição dava um limite novo a cada vez. Agora o `ClientAddress` usa o IP
+da conexão, a não ser que ela venha de um proxy em `trusted-proxies`. Nesse caso ele lê o
+header da direita para a esquerda, pula os proxies confiáveis e o primeiro endereço que não
+é deles é o cliente; o que o cliente escreveu à esquerda é ignorado. Endereço que não é IP
+literal (nada de DNS por requisição) conta no próprio proxy.
 
 Porta **8080**. É o endereço que o app usa.
 

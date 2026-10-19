@@ -42,9 +42,7 @@ class RateLimitTest extends BffTestSupport {
     /** Password guessing from one address hits the wall before it reaches the core. */
     @Test
     void loginAttemptsAreLimitedPerAddress() throws Exception {
-        CORE.stubFor(WireMock.post(urlEqualTo("/internal/auth/login")).willReturn(okJson(
-                "{\"accessToken\":\"a\",\"tokenType\":\"Bearer\",\"expiresIn\":900,\"refreshToken\":\"r\","
-                        + "\"refreshTokenExpiresAt\":\"%s\"}".formatted(Instant.now().plusSeconds(3600)))));
+        stubLogin();
 
         login("203.0.113.7").andExpect(status().isOk());
         login("203.0.113.7").andExpect(status().isOk());
@@ -54,6 +52,36 @@ class RateLimitTest extends BffTestSupport {
         login("203.0.113.8").andExpect(status().isOk());
 
         CORE.verify(3, postRequestedFor(urlEqualTo("/internal/auth/login")));
+    }
+
+    /** Without trusted proxies, writing X-Forwarded-For does not buy a fresh budget. */
+    @Test
+    void aForgedForwardedForDoesNotEscapeTheLimit() throws Exception {
+        stubLogin();
+
+        login("203.0.113.9", "198.51.100.1").andExpect(status().isOk());
+        login("203.0.113.9", "198.51.100.2").andExpect(status().isOk());
+        login("203.0.113.9", "198.51.100.3")
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("rate_limit.exceeded"));
+    }
+
+    private ResultActions login(String address, String forwardedFor) throws Exception {
+        return mockMvc.perform(post("/api/auth/login")
+                .with(request -> {
+                    request.setRemoteAddr(address);
+                    return request;
+                })
+                .header("X-Forwarded-For", forwardedFor)
+                .header("X-Wallet-Client", "mobile")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"rafael@example.com\",\"password\":\"secret-password\"}"));
+    }
+
+    static void stubLogin() {
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/auth/login")).willReturn(okJson(
+                "{\"accessToken\":\"a\",\"tokenType\":\"Bearer\",\"expiresIn\":900,\"refreshToken\":\"r\","
+                        + "\"refreshTokenExpiresAt\":\"%s\"}".formatted(Instant.now().plusSeconds(3600)))));
     }
 
     private ResultActions me(String bearer) throws Exception {
