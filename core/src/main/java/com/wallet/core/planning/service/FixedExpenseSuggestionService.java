@@ -3,7 +3,6 @@ package com.wallet.core.planning.service;
 import com.wallet.core.banking.BankingQueries;
 import com.wallet.core.planning.dto.FixedExpenseSuggestionResponse;
 import com.wallet.core.planning.entity.DismissedSuggestion;
-import com.wallet.core.planning.mapper.PlanningMapper;
 import com.wallet.core.planning.repository.DismissedSuggestionRepository;
 import com.wallet.core.planning.repository.FixedExpenseRepository;
 import com.wallet.core.shared.crypto.DataCipher;
@@ -59,8 +58,8 @@ public class FixedExpenseSuggestionService {
         if (suggestions(userId, dismissed).stream().noneMatch(current -> current.id().equals(suggestion.value()))) {
             throw notFound();
         }
-        dismissals.save(PlanningMapper.toDismissal(userId, suggestion.descriptionKey(), suggestion.dayOfMonth(),
-                clock.instant()));
+        dismissals.insertIfAbsent(UUID.randomUUID(), userId, suggestion.descriptionKey(), suggestion.dayOfMonth(),
+                clock.instant());
     }
 
     private List<FixedExpenseSuggestionResponse> suggestions(UUID userId, List<DismissedSuggestion> dismissed) {

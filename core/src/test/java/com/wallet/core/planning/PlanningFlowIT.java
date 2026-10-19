@@ -35,8 +35,14 @@ import org.springframework.web.context.WebApplicationContext;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static com.wallet.core.TestUsers.as;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -316,6 +322,22 @@ class PlanningFlowIT {
         }
     }
 
+    /** A double tap or a retry: the same change sent several times at once is done once, never a 500. */
+    @Test
+    void theSameChangeSentSeveralTimesAtOnceIsDoneOnce() throws Exception {
+        String power = JsonPath.read(read("/internal/planning/fixed-expense-suggestions")
+                .andReturn().getResponse().getContentAsString(), "$[1].id");
+
+        assertThat(atOnce(() -> mockMvc.perform(put("/internal/planning/expected-salary").with(as(userId))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"amount\":\"3400.00\"}"))
+                .andReturn().getResponse().getStatus())).containsOnly(200);
+        assertThat(atOnce(() -> mockMvc.perform(delete("/internal/planning/fixed-expense-suggestions/" + power).with(as(userId)))
+                .andReturn().getResponse().getStatus())).containsOnly(204);
+
+        read("/internal/planning/month?month=2026-11").andExpect(jsonPath("$.salary.expectedAmount").value("3400.00"));
+        read("/internal/planning/fixed-expense-suggestions").andExpect(jsonPath("$[*].name", contains("Pag Condominio Primavera")));
+    }
+
     private void stubProvider(String itemId) {
         when(provider.findItem(itemId)).thenReturn(new ProviderItem(itemId, "Banco Teste", null, ProviderItemStatus.READY,
                 clock.instant(), null, null));
@@ -397,5 +419,25 @@ class PlanningFlowIT {
 
     private ResultActions read(String path) throws Exception {
         return mockMvc.perform(get(path).with(as(userId)));
+    }
+
+    /** The statuses of {@code request} sent from several threads released together. */
+    private static List<Integer> atOnce(Callable<Integer> request) throws Exception {
+        int parallel = 8;
+        CyclicBarrier start = new CyclicBarrier(parallel);
+        try (ExecutorService threads = Executors.newFixedThreadPool(parallel)) {
+            List<Future<Integer>> sent = new ArrayList<>();
+            for (int thread = 0; thread < parallel; thread++) {
+                sent.add(threads.submit(() -> {
+                    start.await();
+                    return request.call();
+                }));
+            }
+            List<Integer> statuses = new ArrayList<>();
+            for (Future<Integer> status : sent) {
+                statuses.add(status.get());
+            }
+            return statuses;
+        }
     }
 }

@@ -7,9 +7,7 @@ import com.wallet.core.planning.dto.FixedExpenseRequest;
 import com.wallet.core.planning.dto.FixedExpenseResponse;
 import com.wallet.core.planning.dto.FixedExpenseSuggestionResponse;
 import com.wallet.core.planning.dto.MonthPlanResponse;
-import com.wallet.core.planning.entity.DismissedSuggestion;
 import com.wallet.core.planning.entity.FixedExpense;
-import com.wallet.core.planning.entity.PlanningSettings;
 import com.wallet.core.shared.money.Money;
 import lombok.experimental.UtilityClass;
 
@@ -79,16 +77,6 @@ public class PlanningMapper {
                 debit.category(), debit.months(), debit.lastDate());
     }
 
-    public DismissedSuggestion toDismissal(UUID userId, String descriptionKey, int dayOfMonth, Instant now) {
-        return DismissedSuggestion.builder()
-                .id(UUID.randomUUID())
-                .userId(userId)
-                .descriptionKey(descriptionKey)
-                .dayOfMonth(dayOfMonth)
-                .createdAt(now)
-                .build();
-    }
-
     /**
      * The bank's description as a name for the form: "PAG CONDOMINIO ED. SOL 10/26" is "Pag
      * Condominio Ed. Sol". Words without letters (dates, document numbers) go; a description in
@@ -119,9 +107,5 @@ public class PlanningMapper {
             afterLetter = Character.isLetter(character);
         }
         return out.toString();
-    }
-
-    public PlanningSettings newSettings(UUID userId, Instant now) {
-        return PlanningSettings.builder().userId(userId).createdAt(now).updatedAt(now).build();
     }
 }

@@ -5,7 +5,6 @@ import com.wallet.core.planning.dto.ExpectedSalaryRequest;
 import com.wallet.core.planning.dto.ExpectedSalaryResponse;
 import com.wallet.core.planning.dto.MonthPlanResponse;
 import com.wallet.core.planning.entity.PlanningSettings;
-import com.wallet.core.planning.mapper.PlanningMapper;
 import com.wallet.core.planning.repository.FixedExpenseRepository;
 import com.wallet.core.planning.repository.PlanningSettingsRepository;
 import com.wallet.core.shared.money.Money;
@@ -15,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
-import java.time.Instant;
 import java.time.YearMonth;
 import java.util.UUID;
 
@@ -46,11 +44,9 @@ public class PlanningService {
 
     @Transactional
     public ExpectedSalaryResponse setExpectedSalary(UUID userId, ExpectedSalaryRequest request) {
-        Instant now = clock.instant();
-        PlanningSettings current = settings.findById(userId).orElseGet(() -> PlanningMapper.newSettings(userId, now));
-        current.setExpectedSalary(Money.of(request.amount()));
-        current.setUpdatedAt(now);
-        return new ExpectedSalaryResponse(settings.save(current).getExpectedSalary());
+        Money expected = Money.of(request.amount());
+        settings.saveExpectedSalary(userId, expected.amount(), clock.instant());
+        return new ExpectedSalaryResponse(expected);
     }
 
     /** Back to predicting from the previous month. Nothing to do when nothing was set. */
