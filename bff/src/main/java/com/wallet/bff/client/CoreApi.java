@@ -1,5 +1,6 @@
 package com.wallet.bff.client;
 
+import com.wallet.bff.model.dto.request.AccountDeletionRequest;
 import com.wallet.bff.model.dto.request.ExpectedSalaryRequest;
 import com.wallet.bff.model.dto.request.FixedExpenseRequest;
 import com.wallet.bff.model.dto.request.LinkConnectionRequest;
@@ -63,8 +64,8 @@ public class CoreApi {
         return client.get("/internal/me", Map.of(), new ParameterizedTypeReference<>() {});
     }
 
-    public void deleteMe() {
-        client.delete("/internal/me");
+    public void deleteMe(AccountDeletionRequest request) {
+        client.deleteWaitingOnProvider("/internal/me", request);
     }
 
     public List<ConnectionResponse> connections() {

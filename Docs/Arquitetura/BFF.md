@@ -54,7 +54,7 @@ bff/src/main/java/com/wallet/bff/
 | POST | `/api/auth/refresh` | `/internal/auth/refresh` (web: lê o cookie) |
 | POST | `/api/auth/logout` | `/internal/auth/logout` e apaga o cookie |
 | GET | `/api/me` | `/internal/me` |
-| DELETE | `/api/me` | `/internal/me`, apaga o cookie de refresh e o cache de telas do usuário (204). Exclusão da conta (LGPD) |
+| DELETE | `/api/me` | `/internal/me` com `{"password"}` no corpo, apaga o cookie de refresh e o cache de telas do usuário (204). Exclusão da conta (LGPD); senha errada é 403 `auth.wrong_password`. Espera o core por até 2 min (`wallet.core.slow-read-timeout`): o core revoga cada conexão na Pluggy antes de responder |
 | GET | `/api/home` | `overview` + `accounts` + `credit-cards` + últimas 5 `transactions` (30 dias) + `connections`, em paralelo |
 | GET | `/api/transactions` | `/internal/transactions` (mesmos filtros, repassados sem interpretar) |
 | GET | `/api/accounts` | `/internal/accounts` (o filtro de conta do extrato; com cache) |

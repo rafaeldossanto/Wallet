@@ -126,6 +126,11 @@ cobre 3 dias para cada lado), `created_at`. Único por (`user_id`, `description_
 - **Excluir a conta (LGPD, art. 18, VI), desde 2026-10-19:** `DELETE /api/me` no BFF, que chama
   `DELETE /internal/me` no core (`AccountDeletionService`). Até essa data o schema já
   cascateava, mas não existia rota nenhuma para excluir a conta. A ordem importa:
+  0. **A senha de novo** (`{"password": "..."}` no corpo): o access token sozinho, roubado ou
+     num celular desbloqueado, não apaga uma conta. Senha errada responde **403**
+     `auth.wrong_password` (403 e não 401, para o app não tratar como sessão vencida) e conta para
+     o bloqueio como um login errado; conta bloqueada responde 423 `auth.locked`. Nada é revogado
+     nem apagado antes disso.
   1. Primeiro, fora de transação, cada conexão é revogada na Pluggy (`deleteItem`), enquanto o
      Wallet ainda sabe quais itens são do usuário. Mesma regra do desvínculo: em produção
      (`PLUGGY_CONNECT`) revoga sempre; no dev, só os itens que o widget criou para o usuário (item
@@ -139,7 +144,9 @@ cobre 3 dias para cada lado), `created_at`. Único por (`user_id`, `description_
   3. O cascade do schema leva `connections`, `accounts`, `transactions`, `balance_snapshots`,
      `credit_card_bills`, `investments`, `investment_snapshots`, `sync_runs`, `fixed_expenses`,
      `planning_settings`, `dismissed_fixed_expense_suggestions` e `refresh_tokens`.
-  4. No BFF, o cookie `wallet_refresh` é apagado e o cache de telas do usuário, descartado.
+  4. No BFF, o cookie `wallet_refresh` é apagado e o cache de telas do usuário, descartado. O BFF
+     espera o core por até 2 min nessa rota (`wallet.core.slow-read-timeout`), e não os 5 s de
+     sempre: cada revogação na Pluggy pode levar até 10 s.
 - Só o próprio usuário exclui a própria conta (o id vem do JWT) e a rota é idempotente: excluir
   de novo responde 204. Depois disso o access token ainda válido (até 15 min) não acha mais
   ninguém: `/me` responde 401 e não há dado para ler.

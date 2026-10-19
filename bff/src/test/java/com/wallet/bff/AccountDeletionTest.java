@@ -8,24 +8,33 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
 import java.util.UUID;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.deleteRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalToJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** DELETE /api/me: the core deletes the account, the BFF ends the session and forgets the user's screens. */
-@SpringBootTest(properties = "wallet.rate-limit.auth-limit=1000")
+/**
+ * DELETE /api/me: the core checks the password and deletes the account, the BFF ends the session
+ * and forgets the user's screens. The read timeouts are short here so the slow-call test is quick.
+ */
+@SpringBootTest(properties = {"wallet.rate-limit.auth-limit=1000", "wallet.core.read-timeout=500ms",
+        "wallet.core.slow-read-timeout=10s"})
 class AccountDeletionTest extends BffTestSupport {
+
+    private static final String PASSWORD_BODY = "{\"password\":\"password123\"}";
 
     @Autowired
     private ScreenCache cache;
@@ -37,7 +46,8 @@ class AccountDeletionTest extends BffTestSupport {
         CORE.stubFor(WireMock.delete(urlEqualTo("/internal/me")).willReturn(aResponse().withStatus(204)));
         cache.get(userId, "home", "", () -> "before");
 
-        mockMvc.perform(delete("/api/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+        mockMvc.perform(delete("/api/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content(PASSWORD_BODY))
                 .andExpect(status().isNoContent())
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, allOf(
                         containsString(SessionDelivery.REFRESH_COOKIE + "="),
@@ -46,8 +56,39 @@ class AccountDeletionTest extends BffTestSupport {
 
         CORE.verify(deleteRequestedFor(urlEqualTo("/internal/me"))
                 .withHeader(HttpHeaders.AUTHORIZATION, equalTo("Bearer " + token))
-                .withHeader(GatewayKey.HEADER, equalTo(GATEWAY_KEY)));
+                .withHeader(GatewayKey.HEADER, equalTo(GATEWAY_KEY))
+                .withRequestBody(equalToJson(PASSWORD_BODY)));
         assertThat(cache.get(userId, "home", "", () -> "after")).isEqualTo("after");
+    }
+
+    /** The core revokes each connection at Pluggy before it answers: the BFF waits past its usual timeout. */
+    @Test
+    void waitsForACoreThatIsRevokingConnections() throws Exception {
+        UUID userId = UUID.randomUUID();
+        CORE.stubFor(WireMock.delete(urlEqualTo("/internal/me")).willReturn(aResponse().withStatus(204).withFixedDelay(1500)));
+        CORE.stubFor(WireMock.get(urlEqualTo("/internal/me")).willReturn(aResponse().withStatus(200).withFixedDelay(1500)));
+
+        mockMvc.perform(delete("/api/me").header(HttpHeaders.AUTHORIZATION, bearer(userId))
+                        .contentType(MediaType.APPLICATION_JSON).content(PASSWORD_BODY))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/me").header(HttpHeaders.AUTHORIZATION, bearer(userId)))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("bff.core_unavailable"));
+    }
+
+    @Test
+    void aWrongPasswordIsRelayedAndTheSessionStays() throws Exception {
+        UUID userId = UUID.randomUUID();
+        CORE.stubFor(WireMock.delete(urlEqualTo("/internal/me")).willReturn(aResponse().withStatus(403)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"code\":\"auth.wrong_password\",\"message\":\"The password does not match\"}")));
+
+        mockMvc.perform(delete("/api/me").header(HttpHeaders.AUTHORIZATION, bearer(userId))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"password\":\"wrong\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("auth.wrong_password"))
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
     }
 
     @Test
@@ -58,7 +99,8 @@ class AccountDeletionTest extends BffTestSupport {
                 .withBody("{\"code\":\"internal.error\",\"message\":\"Unexpected error\"}")));
         cache.get(userId, "home", "", () -> "before");
 
-        mockMvc.perform(delete("/api/me").header(HttpHeaders.AUTHORIZATION, bearer(userId)))
+        mockMvc.perform(delete("/api/me").header(HttpHeaders.AUTHORIZATION, bearer(userId))
+                        .contentType(MediaType.APPLICATION_JSON).content(PASSWORD_BODY))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("internal.error"))
                 .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
@@ -68,7 +110,7 @@ class AccountDeletionTest extends BffTestSupport {
 
     @Test
     void withoutATokenNothingReachesTheCore() throws Exception {
-        mockMvc.perform(delete("/api/me"))
+        mockMvc.perform(delete("/api/me").contentType(MediaType.APPLICATION_JSON).content(PASSWORD_BODY))
                 .andExpect(status().isUnauthorized());
 
         CORE.verify(0, deleteRequestedFor(urlEqualTo("/internal/me")));

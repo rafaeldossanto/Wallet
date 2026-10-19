@@ -5,6 +5,7 @@ import com.wallet.bff.cache.ScreenCache;
 import com.wallet.bff.client.CoreApi;
 import com.wallet.bff.exception.BffException;
 import com.wallet.bff.exception.CoreErrorException;
+import com.wallet.bff.model.dto.request.AccountDeletionRequest;
 import com.wallet.bff.model.dto.request.LoginRequest;
 import com.wallet.bff.model.dto.request.RefreshRequest;
 import com.wallet.bff.model.dto.request.RegisterRequest;
@@ -38,8 +39,8 @@ public class AuthService {
      * which forget their tokens themselves) and no cached screen of the user is left.
      * Nothing changes when the core refuses: the error goes to the app as it came.
      */
-    public void deleteAccount(UUID userId, HttpServletResponse response) {
-        coreApi.deleteMe();
+    public void deleteAccount(UUID userId, AccountDeletionRequest request, HttpServletResponse response) {
+        coreApi.deleteMe(request);
         delivery.clearCookie(response);
         cache.evictUser(userId);
     }

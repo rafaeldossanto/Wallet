@@ -88,7 +88,8 @@ class PluggyConnectModeIT {
         link(first).andExpect(status().isCreated());
         link(second).andExpect(status().isCreated());
 
-        mockMvc.perform(delete("/internal/me").with(as(userId)))
+        mockMvc.perform(delete("/internal/me").with(as(userId))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"password\":\"password123\"}"))
                 .andExpect(status().isNoContent());
 
         verify(provider).deleteItem(first);

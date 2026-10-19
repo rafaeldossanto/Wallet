@@ -18,6 +18,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.WebApplicationContext;
@@ -88,7 +89,7 @@ class AccountDeletionIT {
         stubItem(mine.widgetItem(), owner.id());
         stubItem(mine.meuPluggyItem(), null);
 
-        mockMvc.perform(delete("/internal/me").with(as(owner.id())))
+        deleteAccount(owner.id(), PASSWORD)
                 .andExpect(status().isNoContent());
 
         assertThat(rowsOf(owner.id(), mine)).allSatisfy((table, rows) -> assertThat(rows).as(table).isZero());
@@ -106,7 +107,7 @@ class AccountDeletionIT {
         stubItem(mine.widgetItem(), owner.id());
         stubItem(mine.meuPluggyItem(), null);
 
-        mockMvc.perform(delete("/internal/me").with(as(owner.id())))
+        deleteAccount(owner.id(), PASSWORD)
                 .andExpect(status().isNoContent());
 
         verify(provider).deleteItem(mine.widgetItem());
@@ -121,7 +122,7 @@ class AccountDeletionIT {
         stubItem(mine.meuPluggyItem(), owner.id());
         doThrow(ProviderErrors.unavailable("down")).when(provider).deleteItem(mine.widgetItem());
 
-        mockMvc.perform(delete("/internal/me").with(as(owner.id())))
+        deleteAccount(owner.id(), PASSWORD)
                 .andExpect(status().isNoContent());
 
         assertThat(users.existsById(owner.id())).isFalse();
@@ -135,8 +136,8 @@ class AccountDeletionIT {
         Registered owner = register();
         String refreshToken = login(owner.email());
 
-        mockMvc.perform(delete("/internal/me").with(as(owner.id()))).andExpect(status().isNoContent());
-        mockMvc.perform(delete("/internal/me").with(as(owner.id()))).andExpect(status().isNoContent());
+        deleteAccount(owner.id(), PASSWORD).andExpect(status().isNoContent());
+        deleteAccount(owner.id(), PASSWORD).andExpect(status().isNoContent());
 
         mockMvc.perform(get("/internal/me").with(as(owner.id())))
                 .andExpect(status().isUnauthorized());
@@ -153,7 +154,44 @@ class AccountDeletionIT {
     void withoutATokenNothingIsDeleted() throws Exception {
         Registered owner = register();
 
-        mockMvc.perform(delete("/internal/me")).andExpect(status().isUnauthorized());
+        mockMvc.perform(delete("/internal/me").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"password\":\"%s\"}".formatted(PASSWORD)))
+                .andExpect(status().isUnauthorized());
+
+        assertThat(users.existsById(owner.id())).isTrue();
+    }
+
+    /** The token alone is not enough: a wrong password deletes nothing and counts toward the lockout. */
+    @Test
+    void aWrongPasswordDeletesNothingAndCountsTowardTheLockout() throws Exception {
+        Registered owner = register();
+        Seeded mine = seed(owner.id());
+        stubItem(mine.widgetItem(), owner.id());
+
+        for (int attempt = 1; attempt <= 5; attempt++) {
+            deleteAccount(owner.id(), "not-the-password")
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.code").value("auth.wrong_password"));
+        }
+        deleteAccount(owner.id(), PASSWORD)
+                .andExpect(status().isLocked())
+                .andExpect(jsonPath("$.code").value("auth.locked"));
+
+        assertThat(users.existsById(owner.id())).isTrue();
+        assertThat(rowsOf(owner.id(), mine)).allSatisfy((table, rows) -> assertThat(rows).as(table).isPositive());
+        verify(provider, never()).deleteItem(mine.widgetItem());
+    }
+
+    @Test
+    void withoutThePasswordNothingIsDeleted() throws Exception {
+        Registered owner = register();
+
+        mockMvc.perform(delete("/internal/me").with(as(owner.id())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("request.malformed"));
+        mockMvc.perform(delete("/internal/me").with(as(owner.id())).contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("validation.failed"));
 
         assertThat(users.existsById(owner.id())).isTrue();
     }
@@ -184,6 +222,11 @@ class AccountDeletionIT {
             release.countDown();
             holder.join();
         }
+    }
+
+    private ResultActions deleteAccount(UUID userId, String password) throws Exception {
+        return mockMvc.perform(delete("/internal/me").with(as(userId)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"password\":\"%s\"}".formatted(password)));
     }
 
     private Registered register() throws Exception {
