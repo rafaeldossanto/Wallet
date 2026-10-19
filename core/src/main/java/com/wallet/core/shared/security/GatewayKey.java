@@ -5,6 +5,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -19,6 +21,9 @@ import static org.springframework.util.StringUtils.hasText;
  * <p>Empty in development: both services fall back to the same well-known key, so the local flow
  * keeps working without configuration. With the {@code prod} profile an empty key, a short one or
  * the development key stops the core from starting. The BFF's {@code GatewayKey} applies the same rules.
+ *
+ * <p>The development key is in this public repository, so the core only takes it while it listens
+ * on loopback ({@code server.address}): reachable from the network, it needs a real key.
  */
 @Slf4j
 @Component
@@ -38,7 +43,13 @@ public class GatewayKey {
     private final byte[] digest;
 
     public GatewayKey(GatewayProperties properties, Environment environment) {
-        this.digest = sha256(resolve(properties.key(), environment.matchesProfiles(PRODUCTION_PROFILE)));
+        String key = resolve(properties.key(), environment.matchesProfiles(PRODUCTION_PROFILE));
+        if (DEVELOPMENT_KEY.equals(key) && !isLoopback(environment.getProperty("server.address"))) {
+            throw new IllegalStateException("The development gateway key is public: with the core reachable from "
+                    + "the network (server.address " + environment.getProperty("server.address", "unset") + ") set "
+                    + "WALLET_GATEWAY_KEY, the same in the core and in the BFF, or WALLET_CORE_ADDRESS=127.0.0.1");
+        }
+        this.digest = sha256(key);
     }
 
     /** Constant time: how much of the key a caller got right does not show in the response time. */
@@ -67,6 +78,18 @@ public class GatewayKey {
             throw new IllegalStateException("WALLET_GATEWAY_KEY is the development key; generate a real one for prod");
         }
         return key;
+    }
+
+    /** Unset means every interface. Resolved once, at startup: {@code localhost} is a name. */
+    static boolean isLoopback(String address) {
+        if (!hasText(address)) {
+            return false;
+        }
+        try {
+            return InetAddress.getByName(address.strip()).isLoopbackAddress();
+        } catch (UnknownHostException ex) {
+            return false;
+        }
     }
 
     private static byte[] sha256(String text) {

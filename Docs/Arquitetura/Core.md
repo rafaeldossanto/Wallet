@@ -140,6 +140,9 @@ o JWKS, também precisa do header `X-Gateway-Key` com o segredo compartilhado co
 sessão vencida e o app deslogaria o usuário por um erro de configuração do servidor. A
 comparação é em tempo constante (SHA-256 dos dois lados + `MessageDigest.isEqual`). Assim o
 core não depende de estar numa rede interna: quem alcança a porta sem a chave não consegue nada.
+A chave de desenvolvimento está neste repositório público, então o core só a aceita escutando no
+loopback (o padrão, `127.0.0.1`); com `WALLET_CORE_ADDRESS` apontando para a rede, ele não sobe
+sem uma `WALLET_GATEWAY_KEY` real.
 
 | Método | Rota | O que faz |
 |---|---|---|
@@ -148,7 +151,7 @@ core não depende de estar numa rede interna: quem alcança a porta sem a chave 
 | POST | `/internal/auth/refresh` | Troca o refresh por um par novo |
 | POST | `/internal/auth/logout` | Revoga a família do refresh |
 | GET | `/internal/me` | Usuário logado |
-| DELETE | `/internal/me` | Exclui a conta e tudo dela (204, também se já não existia). Revoga as conexões na Pluggy antes; ver [[Modelo de Dados#Exclusão]] |
+| DELETE | `/internal/me` | Exclui a conta e tudo dela (204, também se já não existia), com `{"password"}` no corpo: senha errada é 403 `auth.wrong_password` e conta para o bloqueio. Revoga as conexões na Pluggy antes; ver [[Modelo de Dados#Exclusão]] |
 | GET | `/internal/connections` | Conexões do usuário e o estado de cada uma |
 | POST | `/internal/connections` | Vincula um item (`{ "providerItemId": "..." }`) |
 | POST | `/internal/connections/connect-token` | Token do widget Pluggy Connect para o usuário (`{ "connectToken": "..." }`, 30 min, uma conexão) |
@@ -215,7 +218,7 @@ Erros de leitura: `period.invalid`, `period.too_long` e `page.invalid` (422),
 | `WALLET_JWT_PRIVATE_KEY` | Chave privada RS256 que assina os access tokens. Só o core tem |
 | `WALLET_DATA_KEY` | Chave AES da criptografia de coluna |
 | `WALLET_GATEWAY_KEY` | Segredo compartilhado com o BFF (`X-Gateway-Key`), o **mesmo** valor nos dois. Vazio = chave de desenvolvimento conhecida; com `SPRING_PROFILES_ACTIVE=prod`, vazia, curta (< 32) ou a de desenvolvimento impedem a subida |
-| `WALLET_CORE_ADDRESS` | Interface onde o core escuta (`server.address`). Padrão `0.0.0.0`; num host único com o BFF ao lado, `127.0.0.1` |
+| `WALLET_CORE_ADDRESS` | Interface onde o core escuta (`server.address`). Padrão `127.0.0.1`, com o BFF na mesma máquina; com o BFF em outro host, `0.0.0.0` e uma `WALLET_GATEWAY_KEY` real (a chave de desenvolvimento só vale no loopback) |
 | `WALLET_MAX_BODY_SIZE` | `wallet.http.max-body-size`, padrão `256KB`. `Content-Length` maior recebe 413 `request.too_large` sem o corpo ser lido; corpo chunked é cortado nesse tamanho durante a leitura (`RequestBodyLimitFilter`). O Tomcat usa o mesmo teto em `max-swallow-size` e `max-http-form-post-size` |
 | `wallet.provider.connection-mode` | `MEU_PLUGGY` (dev) ou `PLUGGY_CONNECT` |
 | `wallet.provider.oauth-redirect-uri` | Para onde o banco devolve o usuário depois de autorizar no Pluggy Connect: o deep link do app Android (`com.wallet.wallet://pluggy-connect`) |

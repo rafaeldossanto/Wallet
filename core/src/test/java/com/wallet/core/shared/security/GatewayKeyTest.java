@@ -3,6 +3,8 @@ package com.wallet.core.shared.security;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -12,9 +14,25 @@ class GatewayKeyTest {
 
     @Test
     void developmentFallsBackToTheDevelopmentKey() {
-        GatewayKey gatewayKey = new GatewayKey(new GatewayProperties(""), new MockEnvironment());
+        GatewayKey gatewayKey = new GatewayKey(new GatewayProperties(""), listeningOn("127.0.0.1"));
 
         assertThat(gatewayKey.matches(GatewayKey.DEVELOPMENT_KEY)).isTrue();
+        assertThat(new GatewayKey(new GatewayProperties(""), listeningOn("localhost")).matches(GatewayKey.DEVELOPMENT_KEY))
+                .isTrue();
+    }
+
+    /** The development key is in the public repository: whoever reaches the port would know it. */
+    @Test
+    void theDevelopmentKeyIsRefusedWhenTheCoreIsReachableFromTheNetwork() {
+        for (MockEnvironment environment : List.of(listeningOn("0.0.0.0"), listeningOn("192.168.0.10"), new MockEnvironment())) {
+            assertThatThrownBy(() -> new GatewayKey(new GatewayProperties(""), environment))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("WALLET_CORE_ADDRESS=127.0.0.1");
+            assertThatThrownBy(() -> new GatewayKey(new GatewayProperties(GatewayKey.DEVELOPMENT_KEY), environment))
+                    .isInstanceOf(IllegalStateException.class);
+        }
+
+        assertThat(new GatewayKey(new GatewayProperties(KEY), listeningOn("0.0.0.0")).matches(KEY)).isTrue();
     }
 
     @Test
@@ -33,7 +51,7 @@ class GatewayKeyTest {
 
     @Test
     void aShortKeyIsRefusedEverywhere() {
-        assertThatThrownBy(() -> new GatewayKey(new GatewayProperties("short"), new MockEnvironment()))
+        assertThatThrownBy(() -> new GatewayKey(new GatewayProperties("short"), listeningOn("127.0.0.1")))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("at least 32");
     }
@@ -48,6 +66,10 @@ class GatewayKeyTest {
         assertThat(gatewayKey.matches(GatewayKey.DEVELOPMENT_KEY)).isFalse();
         assertThat(gatewayKey.matches("")).isFalse();
         assertThat(gatewayKey.matches(null)).isFalse();
+    }
+
+    private static MockEnvironment listeningOn(String address) {
+        return new MockEnvironment().withProperty("server.address", address);
     }
 
     private static MockEnvironment production() {
