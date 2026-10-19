@@ -28,8 +28,17 @@ server:
   # host where the BFF runs next to the core, set WALLET_CORE_ADDRESS=127.0.0.1 so nothing outside
   # the machine reaches the port at all. The gateway key below is required either way.
   address: ${WALLET_CORE_ADDRESS:0.0.0.0}
+  tomcat:
+    # Same ceiling as wallet.http.max-body-size: a form body Tomcat parses, and how much of a body
+    # nobody read Tomcat swallows before dropping the connection.
+    max-http-form-post-size: ${wallet.http.max-body-size}
+    max-swallow-size: ${wallet.http.max-body-size}
 
 wallet:
+  http:
+    # Largest request body: a larger Content-Length is refused with 413 before anything reads it,
+    # and a chunked body is cut at this size while it is read (RequestBodyLimitFilter).
+    max-body-size: ${WALLET_MAX_BODY_SIZE:256KB}
   gateway:
     # Shared secret the BFF sends in X-Gateway-Key; every request without it is refused with 403
     # (only /actuator/health stays open). Same value in both services. Empty = development key

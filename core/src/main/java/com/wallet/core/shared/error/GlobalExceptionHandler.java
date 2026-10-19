@@ -1,5 +1,6 @@
 package com.wallet.core.shared.error;
 
+import com.wallet.core.shared.web.RequestBodyTooLargeException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +13,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.List;
+import java.util.Optional;
+
+import static java.util.Objects.nonNull;
 
 /**
  * Turns exceptions into {@link ErrorResponse}. The only place in the core that returns
@@ -38,11 +42,24 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("validation.failed", "Request has invalid fields", fields));
     }
 
+    /** The JSON reader wraps the size limit's exception: a body cut at the limit is too large, not malformed. */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException ex) {
+        Optional<RequestBodyTooLargeException> tooLarge = causeOf(ex, RequestBodyTooLargeException.class);
+        if (tooLarge.isPresent()) {
+            return handleTooLarge(tooLarge.get());
+        }
         log.warn("[EXCEPTION] request.malformed: {}", ex.getMessage());
         return ResponseEntity.badRequest()
                 .body(ErrorResponse.of("request.malformed", "Request body could not be read"));
+    }
+
+    /** A chunked body went past {@code wallet.http.max-body-size} while being read. */
+    @ExceptionHandler(RequestBodyTooLargeException.class)
+    public ResponseEntity<ErrorResponse> handleTooLarge(RequestBodyTooLargeException ex) {
+        log.warn("[EXCEPTION] request.too_large: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE)
+                .body(ErrorResponse.of("request.too_large", ex.getMessage()));
     }
 
     /** A query parameter that does not parse ({@code ?month=setembro}) or that is missing. */
@@ -78,5 +95,14 @@ public class GlobalExceptionHandler {
             case TOO_MANY_REQUESTS -> HttpStatus.TOO_MANY_REQUESTS;
             case UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
         };
+    }
+
+    private static <T extends Throwable> Optional<T> causeOf(Throwable error, Class<T> type) {
+        for (Throwable cause = error; nonNull(cause); cause = cause.getCause()) {
+            if (type.isInstance(cause)) {
+                return Optional.of(type.cast(cause));
+            }
+        }
+        return Optional.empty();
     }
 }

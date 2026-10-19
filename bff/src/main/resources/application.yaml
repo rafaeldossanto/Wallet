@@ -12,6 +12,11 @@ server:
   # client, which let anyone pick a fresh IP per request and skip the rate limit. The client's
   # address behind a reverse proxy comes from wallet.rate-limit.trusted-proxies instead.
   forward-headers-strategy: none
+  tomcat:
+    # Same ceiling as wallet.http.max-body-size: a form body Tomcat parses, and how much of a body
+    # nobody read Tomcat swallows before dropping the connection.
+    max-http-form-post-size: ${wallet.http.max-body-size}
+    max-swallow-size: ${wallet.http.max-body-size}
 
 management:
   endpoints:
@@ -20,6 +25,10 @@ management:
         include: health
 
 wallet:
+  http:
+    # Largest request body: a larger Content-Length is refused with 413 before anything reads it,
+    # and a chunked body is cut at this size while it is read (RequestBodyLimitFilter).
+    max-body-size: ${WALLET_MAX_BODY_SIZE:256KB}
   core:
     url: ${WALLET_CORE_URL:http://localhost:8081}
     connect-timeout: 2s

@@ -127,7 +127,7 @@ dinheiro, então não tem como arredondar errado.
 - Erro do core: status e `{ code, message }` passam intactos. O app só conhece os
   códigos. Os do próprio BFF: `auth.client_required`, `auth.invalid_refresh_token`,
   `auth.unauthenticated`, `rate_limit.exceeded`, `bff.core_unavailable`,
-  `request.invalid_parameter`, `request.malformed`, `route.not_found`.
+  `request.invalid_parameter`, `request.malformed`, `request.too_large` (413), `route.not_found`.
 
 ## Configuração
 
@@ -139,6 +139,7 @@ dinheiro, então não tem como arredondar errado.
 | `wallet.web.cookie-secure` | Flag `Secure` do cookie; ligada também no dev, porque o navegador aceita em `localhost` |
 | `wallet.cache.screen-ttl` | TTL do cache das telas (padrão 60 s) |
 | `wallet.rate-limit.*` | Janela (1 min), 20 por IP em `/api/auth`, 300 por usuário no resto |
+| `WALLET_MAX_BODY_SIZE` | `wallet.http.max-body-size`, padrão `256KB`, o mesmo filtro do core: `Content-Length` maior recebe 413 `request.too_large` antes da segurança; corpo chunked é cortado durante a leitura |
 | `WALLET_TRUSTED_PROXIES` | `wallet.rate-limit.trusted-proxies`: proxies reversos (IPs ou CIDR) cujo `X-Forwarded-For` vale para o rate limit. Vazio = IP da conexão |
 
 **IP do cliente no rate limit (desde 2026-10-19):** o `forward-headers-strategy` é `none`.

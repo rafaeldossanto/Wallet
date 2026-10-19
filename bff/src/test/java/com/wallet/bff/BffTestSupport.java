@@ -11,6 +11,7 @@ import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import com.wallet.bff.config.GatewayKey;
+import com.wallet.bff.config.RequestBodyLimitFilter;
 import com.wallet.bff.trace.TraceIdFilter;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import org.junit.jupiter.api.BeforeEach;
@@ -66,18 +67,24 @@ public abstract class BffTestSupport {
     @Autowired
     private TraceIdFilter traceIdFilter;
 
+    @Autowired
+    private RequestBodyLimitFilter requestBodyLimitFilter;
+
     protected MockMvc mockMvc;
 
     /**
-     * {@code springSecurity()} only brings the security chain; the trace filter is added by hand,
-     * ahead of it, the same order the server uses.
+     * {@code springSecurity()} only brings the security chain; the trace and body size filters are
+     * added by hand, ahead of it, the same order the server uses.
      */
     @BeforeEach
     void resetFakeCore() {
         CORE.resetAll();
         stubJwks(SIGNING_KEY);
         coreCircuitBreaker.reset();
-        mockMvc = MockMvcBuilders.webAppContextSetup(context).addFilters(traceIdFilter).apply(springSecurity()).build();
+        mockMvc = MockMvcBuilders.webAppContextSetup(context)
+                .addFilters(traceIdFilter, requestBodyLimitFilter)
+                .apply(springSecurity())
+                .build();
     }
 
     /** The core's JWKS, served only to a caller with the gateway key, as the real core does. */

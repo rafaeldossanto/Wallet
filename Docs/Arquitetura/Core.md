@@ -215,6 +215,7 @@ Erros de leitura: `period.invalid`, `period.too_long` e `page.invalid` (422),
 | `WALLET_DATA_KEY` | Chave AES da criptografia de coluna |
 | `WALLET_GATEWAY_KEY` | Segredo compartilhado com o BFF (`X-Gateway-Key`), o **mesmo** valor nos dois. Vazio = chave de desenvolvimento conhecida; com `SPRING_PROFILES_ACTIVE=prod`, vazia, curta (< 32) ou a de desenvolvimento impedem a subida |
 | `WALLET_CORE_ADDRESS` | Interface onde o core escuta (`server.address`). Padrão `0.0.0.0`; num host único com o BFF ao lado, `127.0.0.1` |
+| `WALLET_MAX_BODY_SIZE` | `wallet.http.max-body-size`, padrão `256KB`. `Content-Length` maior recebe 413 `request.too_large` sem o corpo ser lido; corpo chunked é cortado nesse tamanho durante a leitura (`RequestBodyLimitFilter`). O Tomcat usa o mesmo teto em `max-swallow-size` e `max-http-form-post-size` |
 | `wallet.provider.connection-mode` | `MEU_PLUGGY` (dev) ou `PLUGGY_CONNECT` |
 | `wallet.provider.oauth-redirect-uri` | Para onde o banco devolve o usuário depois de autorizar no Pluggy Connect: o deep link do app Android (`com.wallet.wallet://pluggy-connect`) |
 | `wallet.sync.interval` | Intervalo do polling (padrão 6 h) |
