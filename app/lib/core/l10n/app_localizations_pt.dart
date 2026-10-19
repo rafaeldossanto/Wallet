@@ -899,7 +899,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get deleteAccountPasswordHelp =>
-      'Para confirmar, digite a senha da sua conta. Cada senha errada conta para o bloqueio: 5 seguidas travam a conta por 15 minutos.';
+      'Para confirmar, digite a senha da sua conta. Cada senha errada conta para o bloqueio temporário da conta.';
 
   @override
   String get deleteAccountPasswordRequired =>
@@ -913,8 +913,8 @@ class AppLocalizationsPt extends AppLocalizations {
       'Revogando o acesso aos seus bancos e apagando os dados. Pode levar até 2 minutos; não feche o app.';
 
   @override
-  String get deleteAccountNothingDeleted =>
-      'Nada foi apagado; você pode tentar de novo.';
+  String get deleteAccountNotConfirmed =>
+      'Não deu para confirmar a exclusão. Tente de novo: se a conta já tiver sido excluída, o Wallet avisa.';
 
   @override
   String get showPassword => 'Mostrar senha';
@@ -1087,7 +1087,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get errorAuthLocked =>
-      'Muitas tentativas erradas. Espere 15 minutos e tente de novo.';
+      'Muitas tentativas erradas. Espere alguns minutos e tente de novo.';
 
   @override
   String errorAuthLockedUntil(String when) {

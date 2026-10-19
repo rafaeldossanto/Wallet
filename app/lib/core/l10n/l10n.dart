@@ -48,12 +48,14 @@ extension ErrorMessages on AppLocalizations {
         _ => errorUnexpected,
       };
 
-  /// `Tente de novo às 17:15`, with the day too when the lock ends on another one. Without the
-  /// moment (an older core), the generic sentence.
-  String _locked(DateTime? until, DateTime now) {
-    if (until == null) {
+  /// `Tente de novo às 17:16`, with the day too when the lock ends on another one, the minute
+  /// rounded up so the time shown never comes before the lock ends. Without the moment (an older
+  /// core), the generic sentence.
+  String _locked(DateTime? lockedUntil, DateTime now) {
+    if (lockedUntil == null) {
       return errorAuthLocked;
     }
+    final until = Dates.ceilToMinute(lockedUntil);
     final sameDay = Dates.today(until) == Dates.today(now);
     return errorAuthLockedUntil(
         sameDay ? lockedUntilToday(Dates.time(until)) : lockedUntilDay(Dates.short(until), Dates.time(until)));

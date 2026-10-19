@@ -29,6 +29,9 @@ class SessionController extends ChangeNotifier {
   SignOutReason? _lastSignOutReason;
   Future<bool>? _renewing;
 
+  /// A deletion went out and no answer said how it ended (offline, timeout, a 5xx).
+  bool _deletionUnconfirmed = false;
+
   SessionStatus get status => _status;
 
   bool get isSignedIn => _status == SessionStatus.signedIn;
@@ -94,7 +97,8 @@ class SessionController extends ChangeNotifier {
       return true;
     } on ApiException catch (error) {
       if (error.isUnauthorized) {
-        await _end(SignOutReason.expired);
+        // After a deletion nobody confirmed, a refused renewal is the account gone with its tokens.
+        await _end(_deletionUnconfirmed ? SignOutReason.accountDeleted : SignOutReason.expired);
       }
       return false;
     }
@@ -112,8 +116,18 @@ class SessionController extends ChangeNotifier {
   /// Deletes the account for good (the core asks for [password] again) and ends the session on this
   /// device. A refusal ([ApiException]: wrong password, locked, offline) leaves the session as it
   /// was and reaches the caller, which says why.
+  ///
+  /// No answer, or a 5xx, does not say whether the core finished. If it did, the refresh token went
+  /// with the account and the next renewal fails: that end is told as the deletion, not as an
+  /// expired session.
   Future<void> deleteAccount(String password) async {
-    await _api.deleteAccount(password);
+    try {
+      await _api.deleteAccount(password);
+    } on ApiException catch (error) {
+      final status = error.status;
+      _deletionUnconfirmed = status == null || status >= 500;
+      rethrow;
+    }
     await _end(SignOutReason.accountDeleted);
   }
 
@@ -128,6 +142,7 @@ class SessionController extends ChangeNotifier {
       _user = null;
     }
     _lastSignOutReason = null;
+    _deletionUnconfirmed = false;
     _setStatus(SessionStatus.signedIn);
   }
 
@@ -136,6 +151,7 @@ class SessionController extends ChangeNotifier {
     _user = null;
     await _store.clear();
     _lastSignOutReason = reason;
+    _deletionUnconfirmed = false;
     _setStatus(SessionStatus.signedOut);
   }
 

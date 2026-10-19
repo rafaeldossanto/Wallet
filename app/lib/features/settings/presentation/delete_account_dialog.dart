@@ -14,8 +14,9 @@ Future<bool> showDeleteAccountDialog(BuildContext context) async =>
 /// Deleting the account: what goes, an explicit "I understand", and the password again, which the
 /// core checks before deleting anything. An empty password never leaves the app. A refusal keeps
 /// the dialog open and says why: a wrong password on the field (the session stays), the rest below
-/// it (locked until when, offline, timeout, the server down, where nothing was deleted). Deleting
-/// twice is harmless on the server, so trying again after a timeout is safe.
+/// it (locked until when, offline, timeout, the server down). Without an answer the app cannot know
+/// whether the core finished, so it never says nothing was deleted; deleting twice is harmless on
+/// the server, so trying again is safe and settles it.
 ///
 /// The answer can take up to 2 minutes (every bank connection is revoked at Pluggy first): the
 /// dialog shows it is working and takes no second tap, no Cancel and no back gesture meanwhile.
@@ -84,12 +85,12 @@ class _DeleteAccountDialogState extends State<DeleteAccountDialog> {
         case 'validation.failed':
           _passwordError = l10n.deleteAccountPasswordRequired;
         default:
-          // A 5xx means the core did not finish: its delete is one transaction, after the password
-          // and the revocations. (Only a core slower than the BFF's 2 minutes could still finish
-          // after a 503; trying again then answers 204, deleting is idempotent.)
+          // No answer, or a 5xx, does not say how far the core got: the banks are revoked before the
+          // delete's transaction, and a core slower than the BFF's 2 minutes still finishes after
+          // the 503. Trying again settles it: an account already gone answers 204.
           final status = error.status;
-          _error = status != null && status >= 500
-              ? '${l10n.errorMessage(error)} ${l10n.deleteAccountNothingDeleted}'
+          _error = status == null || status >= 500
+              ? '${l10n.errorMessage(error)} ${l10n.deleteAccountNotConfirmed}'
               : l10n.errorMessage(error);
       }
     });

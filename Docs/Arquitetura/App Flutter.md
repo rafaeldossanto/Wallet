@@ -396,12 +396,20 @@ senha de novo. O botão **Excluir de vez** só se habilita com a caixa marcada.
   - 204: `SessionController.deleteAccount` apaga o refresh token do `flutter_secure_storage` e o
     access token da memória, e o login abre com "Sua conta foi excluída".
   - 403 `auth.wrong_password`: o erro aparece no campo, que é limpo, e a sessão continua.
-    O texto avisa que cada erro conta para o bloqueio.
-  - 423 `auth.locked`: "Tente de novo às 17:15", pelo `lockedUntil` do erro (a data entra quando
-    o bloqueio acaba em outro dia). Sem o campo, a frase dos 15 minutos.
-  - 5xx (como 503 `bff.core_unavailable`): a frase do erro mais "Nada foi apagado; você pode
-    tentar de novo". Excluir duas vezes dá 204, então tentar de novo é seguro.
-  - Sem rede ou timeout: as frases de sempre do `errorMessage`.
+    O texto avisa que cada erro conta para o bloqueio, sem números: quantas tentativas e por
+    quanto tempo são configuração do core.
+  - 423 `auth.locked`: "Tente de novo às 17:16", pelo `lockedUntil` do erro, com o minuto
+    arredondado para cima (um bloqueio até 17:15:42 ainda vale às 17:15) e a data quando o
+    bloqueio acaba em outro dia. Vem já na tentativa que bloqueia, não só na seguinte. Sem o
+    campo, "Espere alguns minutos".
+  - 5xx (como 503 `bff.core_unavailable`), sem rede ou timeout: a frase do erro mais "Não deu
+    para confirmar a exclusão. Tente de novo: se a conta já tiver sido excluída, o Wallet avisa".
+    O app não promete que nada foi apagado: o core revoga os bancos antes da transação que apaga,
+    e um core mais lento que os 2 min do BFF termina depois do 503. Excluir duas vezes dá 204,
+    então tentar de novo resolve.
+  - Se nenhuma resposta confirmou a exclusão e a renovação seguinte da sessão é recusada (o
+    refresh token foi junto com a conta), o login diz "Sua conta foi excluída" e não "Sua sessão
+    expirou".
 - O `errorMessage` (`l10n.dart`) ganhou `auth.wrong_password` e o horário no `auth.locked`, que
   vale também para o login.
 

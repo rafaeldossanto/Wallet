@@ -180,6 +180,36 @@ void main() {
       expect(store.token, 'refresh-2');
     });
 
+    test('when no answer confirmed it, a refused renewal afterwards is told as the deletion', () async {
+      bff.signedIn();
+      bff.error('DELETE', '/api/me', 503, 'bff.core_unavailable');
+      await session.restore();
+
+      await expectLater(session.deleteAccount('certa1234'), throwsA(isA<ApiException>()));
+      expect(session.status, SessionStatus.signedIn);
+
+      // The core finished after the BFF stopped waiting: the refresh token went with the account.
+      bff.error('POST', '/api/auth/refresh', 401, 'auth.invalid_refresh_token');
+      bff.error('GET', '/api/cards', 401, 'auth.unauthenticated');
+      await expectLater(api.get('/api/cards'), throwsA(isA<ApiException>()));
+
+      expect(session.status, SessionStatus.signedOut);
+      expect(session.lastSignOutReason, SignOutReason.accountDeleted);
+    });
+
+    test('a refused deletion leaves an expired session told as expired', () async {
+      bff.signedIn();
+      bff.error('DELETE', '/api/me', 403, 'auth.wrong_password');
+      await session.restore();
+      await expectLater(session.deleteAccount('errada123'), throwsA(isA<ApiException>()));
+
+      bff.error('POST', '/api/auth/refresh', 401, 'auth.invalid_refresh_token');
+      bff.error('GET', '/api/cards', 401, 'auth.unauthenticated');
+      await expectLater(api.get('/api/cards'), throwsA(isA<ApiException>()));
+
+      expect(session.lastSignOutReason, SignOutReason.expired);
+    });
+
     test('a locked account says until when', () async {
       bff.signedIn();
       bff.json('DELETE', '/api/me',

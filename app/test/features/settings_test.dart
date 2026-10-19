@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:wallet/app.dart';
@@ -52,7 +53,8 @@ void main() {
     await openDeleteDialog(tester);
 
     expect(find.textContaining('as conexões são revogadas na Pluggy'), findsOneWidget);
-    expect(find.textContaining('5 seguidas travam a conta por 15 minutos'), findsOneWidget);
+    // No numbers: how many tries and for how long are the core's configuration.
+    expect(find.textContaining('Cada senha errada conta para o bloqueio temporário da conta.'), findsOneWidget);
     expect(tester.widget<FilledButton>(deleteButton()).onPressed, isNull);
 
     await tester.tap(find.text('Entendo que não dá para desfazer'));
@@ -95,18 +97,34 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Muitas tentativas erradas. Tente de novo'), findsOneWidget);
-    expect(find.textContaining(Dates.time(until)), findsOneWidget);
+    expect(find.textContaining(Dates.time(Dates.ceilToMinute(until))), findsOneWidget);
   });
 
-  testWidgets('with the core down it says nothing was deleted', (tester) async {
+  /// The core may have revoked the banks, or finished after the BFF stopped waiting: the dialog
+  /// never promises that nothing was deleted, and trying again settles it.
+  testWidgets('with the core down it does not claim nothing was deleted', (tester) async {
     bff.error('DELETE', '/api/me', 503, 'bff.core_unavailable');
     await openDeleteDialog(tester);
 
     await confirmWith(tester, 'certa1234');
     await tester.pumpAndSettle();
 
-    expect(find.text('O serviço está fora do ar agora. Tente em alguns minutos. Nada foi apagado; você pode tentar de novo.'),
+    expect(
+        find.text('O serviço está fora do ar agora. Tente em alguns minutos. Não deu para confirmar a exclusão. '
+            'Tente de novo: se a conta já tiver sido excluída, o Wallet avisa.'),
         findsOneWidget);
+    expect(find.textContaining('Nada foi apagado'), findsNothing);
+    expect(find.text('Excluir sua conta?'), findsOneWidget);
+  });
+
+  testWidgets('without an answer it says the same: it cannot know how far the core got', (tester) async {
+    bff.on('DELETE', '/api/me', (request) => throw DioException(requestOptions: request, type: DioExceptionType.receiveTimeout));
+    await openDeleteDialog(tester);
+
+    await confirmWith(tester, 'certa1234');
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Não deu para confirmar a exclusão.'), findsOneWidget);
     expect(find.text('Excluir sua conta?'), findsOneWidget);
   });
 
@@ -151,6 +169,18 @@ void main() {
     expect(l10n.errorMessage(today, now: now), 'Muitas tentativas erradas. Tente de novo às 23:58.');
     expect(l10n.errorMessage(tomorrow, now: now), 'Muitas tentativas erradas. Tente de novo em 20/10/2026 às 00:10.');
     expect(l10n.errorMessage(const ApiException('auth.locked', status: 423), now: now),
-        'Muitas tentativas erradas. Espere 15 minutos e tente de novo.');
+        'Muitas tentativas erradas. Espere alguns minutos e tente de novo.');
+  });
+
+  test('the minute shown is rounded up: a lock ending at 17:15:42 still holds at 17:15', () {
+    final l10n = lookupAppLocalizations(const Locale('pt'));
+    final now = DateTime(2026, 10, 19, 17);
+    final withSeconds = ApiException('auth.locked', status: 423, lockedUntil: DateTime(2026, 10, 19, 17, 15, 42));
+    final onTheMinute = ApiException('auth.locked', status: 423, lockedUntil: DateTime(2026, 10, 19, 17, 15));
+    final beforeMidnight = ApiException('auth.locked', status: 423, lockedUntil: DateTime(2026, 10, 19, 23, 59, 30));
+
+    expect(l10n.errorMessage(withSeconds, now: now), 'Muitas tentativas erradas. Tente de novo às 17:16.');
+    expect(l10n.errorMessage(onTheMinute, now: now), 'Muitas tentativas erradas. Tente de novo às 17:15.');
+    expect(l10n.errorMessage(beforeMidnight, now: now), 'Muitas tentativas erradas. Tente de novo em 20/10/2026 às 00:00.');
   });
 }

@@ -35,6 +35,14 @@ abstract final class Dates {
   /// `17:05`.
   static String time(DateTime moment) => DateFormat.Hm(locale).format(moment);
 
+  /// [moment] rounded up to the minute, for a time shown as [time] that must not come early: a lock
+  /// that ends at 17:15:42 still holds at 17:15.
+  static DateTime ceilToMinute(DateTime moment) {
+    final floor = moment.subtract(
+        Duration(seconds: moment.second, milliseconds: moment.millisecond, microseconds: moment.microsecond));
+    return floor == moment ? moment : floor.add(const Duration(minutes: 1));
+  }
+
   /// `Sábado, 3 de outubro de 2026`.
   static String fullDate(DateTime day) =>
       _capitalize(DateFormat("EEEE, d 'de' MMMM 'de' y", locale).format(day).replaceFirst('-feira', ''));

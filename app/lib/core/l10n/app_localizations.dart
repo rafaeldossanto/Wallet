@@ -1585,7 +1585,7 @@ abstract class AppLocalizations {
   /// No description provided for @deleteAccountPasswordHelp.
   ///
   /// In pt, this message translates to:
-  /// **'Para confirmar, digite a senha da sua conta. Cada senha errada conta para o bloqueio: 5 seguidas travam a conta por 15 minutos.'**
+  /// **'Para confirmar, digite a senha da sua conta. Cada senha errada conta para o bloqueio temporário da conta.'**
   String get deleteAccountPasswordHelp;
 
   /// No description provided for @deleteAccountPasswordRequired.
@@ -1606,11 +1606,11 @@ abstract class AppLocalizations {
   /// **'Revogando o acesso aos seus bancos e apagando os dados. Pode levar até 2 minutos; não feche o app.'**
   String get deleteAccountInProgress;
 
-  /// No description provided for @deleteAccountNothingDeleted.
+  /// No description provided for @deleteAccountNotConfirmed.
   ///
   /// In pt, this message translates to:
-  /// **'Nada foi apagado; você pode tentar de novo.'**
-  String get deleteAccountNothingDeleted;
+  /// **'Não deu para confirmar a exclusão. Tente de novo: se a conta já tiver sido excluída, o Wallet avisa.'**
+  String get deleteAccountNotConfirmed;
 
   /// No description provided for @showPassword.
   ///
@@ -1897,7 +1897,7 @@ abstract class AppLocalizations {
   /// No description provided for @errorAuthLocked.
   ///
   /// In pt, this message translates to:
-  /// **'Muitas tentativas erradas. Espere 15 minutos e tente de novo.'**
+  /// **'Muitas tentativas erradas. Espere alguns minutos e tente de novo.'**
   String get errorAuthLocked;
 
   /// No description provided for @errorAuthLockedUntil.
