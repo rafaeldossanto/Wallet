@@ -203,6 +203,19 @@ abstract final class Fixtures {
         'installmentTotal': installment?.$2,
       };
 
+  /// A debit that repeats every month, as the server suggests it; made-up numbers.
+  static Map<String, Object?> suggestion(String id, String name, String amount, int dayOfMonth,
+          {String? category, int months = 3, String lastDate = '2026-10-09'}) =>
+      {
+        'id': id,
+        'name': name,
+        'amount': amount,
+        'dayOfMonth': dayOfMonth,
+        'category': category,
+        'months': months,
+        'lastDate': lastDate,
+      };
+
   static Map<String, Object?> planFixed(String id, String name, String amount, int dayOfMonth,
           {String? date, String? category}) =>
       {

@@ -19,6 +19,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.putRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathMatching;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -36,6 +37,8 @@ class PlanningRoutesTest extends BffTestSupport {
     private static final String CARD_ID = "6f1c2a9e-0000-4000-8000-000000000003";
     private static final String EXPENSE_ID = "6f1c2a9e-0000-4000-8000-0000000000e1";
     private static final String EXPENSE_BODY = "{\"name\":\"Faculdade\",\"amount\":\"450.00\",\"dayOfMonth\":10,\"category\":\"Education\"}";
+    private static final String SUGGESTION_ID = "9f86d081884c7d659a2feaa0c55ad015-9";
+    private static final String SUGGESTIONS_PATH = "/internal/planning/fixed-expense-suggestions";
     private static final String EXPENSE_JSON =
             "{\"id\":\"" + EXPENSE_ID + "\",\"name\":\"Faculdade\",\"amount\":\"450.00\",\"dayOfMonth\":10,\"category\":\"Education\"}";
 
@@ -233,6 +236,67 @@ class PlanningRoutesTest extends BffTestSupport {
                 .andExpect(status().isUnauthorized());
         CORE.verify(0, getRequestedFor(urlPathEqualTo("/internal/planning/month")));
         CORE.verify(0, postRequestedFor(urlEqualTo("/internal/planning/fixed-expenses")));
+    }
+
+    @Test
+    void theSuggestedFixedExpensesComeAsTheCoreComputesThemEveryTime() throws Exception {
+        CORE.stubFor(WireMock.get(urlEqualTo(SUGGESTIONS_PATH)).willReturn(okJson("""
+                [{"id":"%s","name":"Condominio Edificio Sol","amount":"690.00","dayOfMonth":9,"category":"Housing",
+                  "months":4,"lastDate":"2026-10-09"}]
+                """.formatted(SUGGESTION_ID))));
+        String rafael = bearer(UUID.randomUUID());
+
+        mockMvc.perform(get("/api/planning/fixed-expense-suggestions").header(HttpHeaders.AUTHORIZATION, rafael))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value(SUGGESTION_ID))
+                .andExpect(jsonPath("$[0].name").value("Condominio Edificio Sol"))
+                .andExpect(jsonPath("$[0].amount").value("690.00"))
+                .andExpect(jsonPath("$[0].dayOfMonth").value(9))
+                .andExpect(jsonPath("$[0].category").value("Housing"))
+                .andExpect(jsonPath("$[0].months").value(4))
+                .andExpect(jsonPath("$[0].lastDate").value("2026-10-09"));
+        mockMvc.perform(get("/api/planning/fixed-expense-suggestions").header(HttpHeaders.AUTHORIZATION, rafael))
+                .andExpect(status().isOk());
+
+        CORE.verify(2, getRequestedFor(urlEqualTo(SUGGESTIONS_PATH)).withHeader(HttpHeaders.AUTHORIZATION, equalTo(rafael)));
+        mockMvc.perform(get("/api/planning/fixed-expense-suggestions")).andExpect(status().isUnauthorized());
+        mockMvc.perform(delete("/api/planning/fixed-expense-suggestions/" + SUGGESTION_ID)).andExpect(status().isUnauthorized());
+        CORE.verify(2, getRequestedFor(urlEqualTo(SUGGESTIONS_PATH)));
+        CORE.verify(0, deleteRequestedFor(urlPathMatching(SUGGESTIONS_PATH + "/.*")));
+    }
+
+    /** A dismissed suggestion changes nothing in the month's plan, so the cached plan stays. */
+    @Test
+    void dismissingASuggestionGoesToTheCoreAndKeepsTheCachedPlan() throws Exception {
+        stubPlan("2026-10");
+        stubConnections("ACTIVE", "2026-10-01T09:00:00Z");
+        CORE.stubFor(WireMock.delete(urlEqualTo(SUGGESTIONS_PATH + "/" + SUGGESTION_ID)).willReturn(aResponse().withStatus(204)));
+        String rafael = bearer(UUID.randomUUID());
+
+        plan(rafael, "2026-10");
+        mockMvc.perform(delete("/api/planning/fixed-expense-suggestions/" + SUGGESTION_ID).header(HttpHeaders.AUTHORIZATION, rafael))
+                .andExpect(status().isNoContent());
+        plan(rafael, "2026-10");
+
+        CORE.verify(1, monthRequested("2026-10"));
+        CORE.verify(deleteRequestedFor(urlEqualTo(SUGGESTIONS_PATH + "/" + SUGGESTION_ID))
+                .withHeader(HttpHeaders.AUTHORIZATION, equalTo(rafael)));
+    }
+
+    /** The BFF does not judge the id: the core does, and an id with URL characters travels encoded. */
+    @Test
+    void anUnknownSuggestionComesBackWithTheCoresCode() throws Exception {
+        CORE.stubFor(WireMock.delete(urlPathMatching(SUGGESTIONS_PATH + "/.*")).willReturn(aResponse()
+                .withStatus(404).withHeader("Content-Type", "application/json")
+                .withBody("{\"code\":\"planning.fixed_expense_suggestion_not_found\",\"message\":\"No such fixed expense suggestion\"}")));
+        String rafael = bearer(UUID.randomUUID());
+
+        mockMvc.perform(delete("/api/planning/fixed-expense-suggestions/{id}", "a b?c").header(HttpHeaders.AUTHORIZATION, rafael))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("planning.fixed_expense_suggestion_not_found"));
+
+        CORE.verify(deleteRequestedFor(urlEqualTo(SUGGESTIONS_PATH + "/a%20b%3Fc")));
     }
 
     // ---- fixtures ----------------------------------------------------------------------------

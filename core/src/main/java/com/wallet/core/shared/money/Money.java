@@ -51,6 +51,22 @@ public record Money(BigDecimal amount) implements Comparable<Money> {
         return new Money(amount.negate());
     }
 
+    public Money abs() {
+        return new Money(amount.abs());
+    }
+
+    public Money times(int factor) {
+        return new Money(amount.multiply(BigDecimal.valueOf(factor)));
+    }
+
+    /** Rounded to the cent like every amount: 10.00 in three parts is 3.33. */
+    public Money dividedBy(int divisor) {
+        if (divisor == 0) {
+            throw new IllegalArgumentException("divisor must not be zero");
+        }
+        return new Money(amount.divide(BigDecimal.valueOf(divisor), SCALE, ROUNDING));
+    }
+
     public boolean isNegative() {
         return amount.signum() < 0;
     }

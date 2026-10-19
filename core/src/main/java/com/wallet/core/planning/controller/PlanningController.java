@@ -4,8 +4,10 @@ import com.wallet.core.planning.dto.ExpectedSalaryRequest;
 import com.wallet.core.planning.dto.ExpectedSalaryResponse;
 import com.wallet.core.planning.dto.FixedExpenseRequest;
 import com.wallet.core.planning.dto.FixedExpenseResponse;
+import com.wallet.core.planning.dto.FixedExpenseSuggestionResponse;
 import com.wallet.core.planning.dto.MonthPlanResponse;
 import com.wallet.core.planning.service.FixedExpenseService;
+import com.wallet.core.planning.service.FixedExpenseSuggestionService;
 import com.wallet.core.planning.service.PlanningService;
 import com.wallet.core.shared.security.CurrentUserId;
 import com.wallet.core.shared.time.WalletTime;
@@ -38,6 +40,7 @@ public class PlanningController {
 
     private final PlanningService planningService;
     private final FixedExpenseService fixedExpenseService;
+    private final FixedExpenseSuggestionService suggestionService;
     private final Clock clock;
 
     /** {@code month=2026-10}; defaults to the current month. */
@@ -69,6 +72,19 @@ public class PlanningController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteFixedExpense(@CurrentUserId UUID userId, @PathVariable UUID id) {
         fixedExpenseService.delete(userId, id);
+    }
+
+    /** Debits that repeat every month in the bank accounts and are not fixed expenses yet. */
+    @GetMapping("/fixed-expense-suggestions")
+    public List<FixedExpenseSuggestionResponse> fixedExpenseSuggestions(@CurrentUserId UUID userId) {
+        return suggestionService.list(userId);
+    }
+
+    /** Dismisses a suggestion for good. Adding one is creating the fixed expense, which covers it. */
+    @DeleteMapping("/fixed-expense-suggestions/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void dismissFixedExpenseSuggestion(@CurrentUserId UUID userId, @PathVariable String id) {
+        suggestionService.dismiss(userId, id);
     }
 
     /** Replaces the prediction from the previous month while the month's salary has not landed. */

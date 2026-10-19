@@ -235,6 +235,15 @@
   "@planningFixedDeleteConfirm": {"placeholders": {"name": {"type": "String"}}},
   "planningFixedSaved": "Gasto fixo salvo.",
   "planningFixedDeleted": "Gasto fixo excluído.",
+  "planningSuggestions": "Sugestões do seu extrato",
+  "planningSuggestionsHelp": "Débitos que se repetem todo mês nas suas contas. Toque em um para adicionar.",
+  "planningSuggestionDetails": "{amount} · todo dia {day} · em {months} meses",
+  "@planningSuggestionDetails": {"placeholders": {"amount": {"type": "String"}, "day": {"type": "int"}, "months": {"type": "int"}}},
+  "planningSuggestionAdd": "Adicionar aos gastos fixos",
+  "planningSuggestionDismiss": "Dispensar sugestão",
+  "planningSuggestionDismissed": "Sugestão dispensada. Ela não volta a aparecer.",
+  "planningSuggestionsMore": "{count, plural, =1{mais 1 sugestão} other{mais {count} sugestões}}",
+  "@planningSuggestionsMore": {"placeholders": {"count": {"type": "int"}}},
   "overviewLeftoverDetail": "Salário {salary} · faturas {bills} · fixos {fixed}",
   "@overviewLeftoverDetail": {"placeholders": {"salary": {"type": "String"}, "bills": {"type": "String"}, "fixed": {"type": "String"}}},
   "overviewLeftoverPredicted": "Com o salário previsto.",
@@ -357,5 +366,6 @@
   "errorInvalidFilter": "Filtro inválido.",
   "errorFixedExpenseNotFound": "Esse gasto fixo não existe mais.",
   "errorFixedExpenseLimit": "Você chegou ao limite de 100 gastos fixos.",
+  "errorFixedExpenseSuggestionNotFound": "Essa sugestão não está mais disponível.",
   "errorUnexpected": "Algo deu errado. Tente de novo."
 }

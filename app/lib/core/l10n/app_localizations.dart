@@ -1240,6 +1240,48 @@ abstract class AppLocalizations {
   /// **'Gasto fixo excluído.'**
   String get planningFixedDeleted;
 
+  /// No description provided for @planningSuggestions.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sugestões do seu extrato'**
+  String get planningSuggestions;
+
+  /// No description provided for @planningSuggestionsHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Débitos que se repetem todo mês nas suas contas. Toque em um para adicionar.'**
+  String get planningSuggestionsHelp;
+
+  /// No description provided for @planningSuggestionDetails.
+  ///
+  /// In pt, this message translates to:
+  /// **'{amount} · todo dia {day} · em {months} meses'**
+  String planningSuggestionDetails(String amount, int day, int months);
+
+  /// No description provided for @planningSuggestionAdd.
+  ///
+  /// In pt, this message translates to:
+  /// **'Adicionar aos gastos fixos'**
+  String get planningSuggestionAdd;
+
+  /// No description provided for @planningSuggestionDismiss.
+  ///
+  /// In pt, this message translates to:
+  /// **'Dispensar sugestão'**
+  String get planningSuggestionDismiss;
+
+  /// No description provided for @planningSuggestionDismissed.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sugestão dispensada. Ela não volta a aparecer.'**
+  String get planningSuggestionDismissed;
+
+  /// No description provided for @planningSuggestionsMore.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count, plural, =1{mais 1 sugestão} other{mais {count} sugestões}}'**
+  String planningSuggestionsMore(int count);
+
   /// No description provided for @overviewLeftoverDetail.
   ///
   /// In pt, this message translates to:
@@ -1875,6 +1917,12 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Você chegou ao limite de 100 gastos fixos.'**
   String get errorFixedExpenseLimit;
+
+  /// No description provided for @errorFixedExpenseSuggestionNotFound.
+  ///
+  /// In pt, this message translates to:
+  /// **'Essa sugestão não está mais disponível.'**
+  String get errorFixedExpenseSuggestionNotFound;
 
   /// No description provided for @errorUnexpected.
   ///

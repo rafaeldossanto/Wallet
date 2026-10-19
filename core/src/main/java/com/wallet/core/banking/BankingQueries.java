@@ -36,4 +36,14 @@ public interface BankingQueries {
      * last bill's cycle.
      */
     List<CardBill> billsDueIn(UUID userId, YearMonth month);
+
+    /**
+     * Debits of bank accounts (not cards) that repeat every month in {@code period}: the same
+     * description (digits and punctuation aside), within a few days of the same day of the month,
+     * no amount more than twice another, in at least {@code minMonths} months, and not stopped
+     * (the next one is not overdue). Card bill payments are left out: the purchases are on the
+     * card. A description that shows up more than twice a month on average is a habit, not a
+     * bill. By day of the month.
+     */
+    List<RecurringDebit> recurringDebits(UUID userId, DateRange period, int minMonths);
 }

@@ -14,6 +14,7 @@ erDiagram
     users ||--o{ connections : "tem"
     users ||--o{ fixed_expenses : "cadastra"
     users ||--o| planning_settings : "ajusta"
+    users ||--o{ dismissed_fixed_expense_suggestions : "dispensa"
     connections ||--o{ accounts : "tem"
     connections ||--o{ investments : "tem"
     connections ||--o{ sync_runs : "registra"
@@ -94,6 +95,13 @@ meses mais curtos cai no último dia), `category` (uma categoria da Pluggy, opci
 **planning_settings** — uma linha por usuário que ajustou o planejamento: `user_id` (chave e FK
 `users`, cascata), `expected_salary` (maior que zero; vazio = prever pelo mês anterior),
 `created_at`, `updated_at`.
+
+**dismissed_fixed_expense_suggestions** (V9) — as sugestões de gasto fixo que a pessoa dispensou,
+para não voltarem: `id`, `user_id` (FK `users`, cascata), `description_key` (impressão digital
+HMAC das palavras da descrição dos débitos, nunca a descrição), `day_of_month` (1 a 31; a dispensa
+cobre 3 dias para cada lado), `created_at`. Único por (`user_id`, `description_key`,
+`day_of_month`). As sugestões em si não são gravadas: saem das transações a cada leitura. Ver
+[[Core#Gastos fixos sugeridos pelo extrato (desde 2026-10-18)]].
 
 > [!warning] Validação do Hibernate
 > `ddl-auto: validate` recusa `CHAR(n)` e `TEXT` onde a entidade tem `String`, porque

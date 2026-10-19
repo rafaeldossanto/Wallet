@@ -7,6 +7,7 @@ import com.wallet.core.banking.CardBill;
 import com.wallet.core.banking.CashFlow;
 import com.wallet.core.banking.CategorySpending;
 import com.wallet.core.banking.DailySpending;
+import com.wallet.core.banking.RecurringDebit;
 import com.wallet.core.banking.SalaryPayment;
 import com.wallet.core.banking.dto.AccountResponse;
 import com.wallet.core.banking.dto.BillResponse;
@@ -26,6 +27,7 @@ import com.wallet.core.shared.error.ErrorType;
 import com.wallet.core.shared.finance.AccountKind;
 import com.wallet.core.shared.finance.Direction;
 import com.wallet.core.shared.money.Money;
+import com.wallet.core.shared.text.TextKeys;
 import com.wallet.core.shared.time.DateRange;
 import com.wallet.core.shared.time.WalletTime;
 import com.wallet.core.shared.web.PageQuery;
@@ -36,7 +38,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.text.Normalizer;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -44,7 +45,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -82,9 +82,9 @@ public class BankingReadService implements BankingQueries {
             Page<AccountTransaction> result = transactions.findAll(filter.toSpecification(), page.toPageable(NEWEST_FIRST));
             return PageResponse.of(result.map(BankingReadMapper::toResponse).getContent(), page, result.getTotalElements());
         }
-        String needle = fold(q);
+        String needle = TextKeys.fold(q);
         List<AccountTransaction> matching = transactions.findAll(filter.toSpecification(), NEWEST_FIRST).stream()
-                .filter(transaction -> nonNull(transaction.getDescription()) && fold(transaction.getDescription()).contains(needle))
+                .filter(transaction -> nonNull(transaction.getDescription()) && TextKeys.fold(transaction.getDescription()).contains(needle))
                 .toList();
         int start = Math.min((page.page() - 1) * page.pageSize(), matching.size());
         int end = Math.min(start + page.pageSize(), matching.size());
@@ -193,6 +193,17 @@ public class BankingReadService implements BankingQueries {
         return due;
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<RecurringDebit> recurringDebits(UUID userId, DateRange period, int minMonths) {
+        List<AccountTransaction> outflows = accounts.findByUserIdOrderByCreatedAtAsc(userId).stream()
+                .filter(account -> !account.getKind().isCreditCard())
+                .flatMap(account -> transactionsIn(account, period).stream())
+                .filter(transaction -> Direction.OUTFLOW.equals(transaction.getDirection()))
+                .toList();
+        return RecurringDebits.find(outflows, period, minMonths);
+    }
+
     /**
      * The bill after the last closed one, when it falls due in {@code month}: what was bought in
      * its cycle so far. Nothing when nothing was bought yet.
@@ -214,8 +225,8 @@ public class BankingReadService implements BankingQueries {
         return Optional.of(BankingReadMapper.toCardBill(card, dueDate, cycle.to(), total, true, items));
     }
 
-    private List<AccountTransaction> transactionsIn(Account card, DateRange cycle) {
-        return transactions.findByAccountIdAndDeletedAtIsNullAndBookedOnBetween(card.getId(), cycle.from(), cycle.to());
+    private List<AccountTransaction> transactionsIn(Account account, DateRange period) {
+        return transactions.findByAccountIdAndDeletedAtIsNullAndBookedOnBetween(account.getId(), period.from(), period.to());
     }
 
     /** The next bill to pay; when every bill is past due, the most recent one. */
@@ -225,11 +236,5 @@ public class BankingReadService implements BankingQueries {
                 .filter(bill -> !bill.getDueDate().isBefore(today))
                 .min(Comparator.comparing(CreditCardBill::getDueDate))
                 .orElse(cardBills.isEmpty() ? null : cardBills.getFirst());
-    }
-
-    private static String fold(String text) {
-        return Normalizer.normalize(text, Normalizer.Form.NFD)
-                .replaceAll("\\p{M}", "")
-                .toLowerCase(Locale.ROOT);
     }
 }

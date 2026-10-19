@@ -75,7 +75,8 @@ class BillCycles {
         return !day.isBefore(cycle.from()) && !day.isAfter(cycle.to());
     }
 
-    private static boolean isBillPayment(AccountTransaction transaction) {
+    /** Paying a card bill: from the bank account, or the payment as the card shows it. */
+    static boolean isBillPayment(AccountTransaction transaction) {
         return nonNull(transaction.getCategory())
                 && BankingAggregates.CARD_PAYMENT_CATEGORY.equals(transaction.getCategory().toLowerCase(Locale.ROOT));
     }

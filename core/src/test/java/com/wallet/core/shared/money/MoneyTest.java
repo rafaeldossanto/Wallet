@@ -42,6 +42,16 @@ class MoneyTest {
     }
 
     @Test
+    void multipliesAndDividesToTheCent() {
+        assertThat(Money.of("19.90").times(3)).isEqualTo(Money.of("59.70"));
+        assertThat(Money.of("10.00").dividedBy(3)).isEqualTo(Money.of("3.33"));
+        assertThat(Money.of("585.50").dividedBy(3)).isEqualTo(Money.of("195.17"));
+        assertThat(Money.of("0.25").dividedBy(2)).isEqualTo(Money.of("0.12"));
+        assertThat(Money.of("-4.83").abs()).isEqualTo(Money.of("4.83"));
+        assertThatThrownBy(() -> Money.of("1.00").dividedBy(0)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     void rejectsMissingAmount() {
         assertThatThrownBy(() -> Money.of((String) null)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> Money.of((BigDecimal) null)).isInstanceOf(IllegalArgumentException.class);

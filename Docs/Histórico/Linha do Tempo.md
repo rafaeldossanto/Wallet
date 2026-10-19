@@ -1,6 +1,6 @@
 ---
 tags: [historico]
-atualizado: 2026-10-03
+atualizado: 2026-10-18
 ---
 
 # Linha do Tempo
@@ -182,3 +182,8 @@ atualizado: 2026-10-03
   como outros lançamentos), e os gastos fixos fora do cartão (mensalidade, aluguel, boletos) são
   cadastrados uma vez. Nova aba Planejamento e um cartão "Sobra do mês" na visão geral. Ver
   [[Core]] e [[App Flutter]].
+- Gastos fixos sugeridos pelo extrato, o passo combinado para depois do cadastro à mão: os débitos
+  de conta que se repetem todo mês (condomínio, luz, água, internet, plano de saúde, aluguel)
+  aparecem no cartão de gastos fixos, com um toque para adicionar (formulário preenchido) e um
+  para dispensar de vez. Sem pagamento de fatura, sem o que já é gasto fixo e sem o que parou de
+  sair. Ver [[Core#Gastos fixos sugeridos pelo extrato (desde 2026-10-18)]].

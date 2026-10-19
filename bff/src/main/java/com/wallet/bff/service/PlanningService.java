@@ -9,6 +9,7 @@ import com.wallet.bff.model.dto.request.FixedExpenseRequest;
 import com.wallet.bff.model.dto.response.ConnectionResponse;
 import com.wallet.bff.model.dto.response.ExpectedSalaryResponse;
 import com.wallet.bff.model.dto.response.FixedExpenseResponse;
+import com.wallet.bff.model.dto.response.FixedExpenseSuggestionResponse;
 import com.wallet.bff.model.dto.response.PlanningResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -67,6 +68,18 @@ public class PlanningService {
     public void deleteFixedExpense(UUID userId, UUID id) {
         coreApi.deleteFixedExpense(id);
         cache.evictScreen(userId, SCREEN);
+    }
+
+    /**
+     * Not cached: the list changes with every fixed expense added and every suggestion dismissed,
+     * and the core reads it from data it already has. Neither changes the month's plan.
+     */
+    public List<FixedExpenseSuggestionResponse> fixedExpenseSuggestions() {
+        return coreApi.fixedExpenseSuggestions();
+    }
+
+    public void dismissFixedExpenseSuggestion(String id) {
+        coreApi.dismissFixedExpenseSuggestion(id);
     }
 
     public ExpectedSalaryResponse setExpectedSalary(UUID userId, ExpectedSalaryRequest request) {

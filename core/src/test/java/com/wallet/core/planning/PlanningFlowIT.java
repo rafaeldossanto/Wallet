@@ -42,6 +42,7 @@ import static com.wallet.core.TestUsers.as;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -60,6 +61,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * on the 10th: October's bill is 512.40, of which the purchases explain 500.00 (an installment
  * booked in August and linked to it, plus two purchases of its cycle). Card B closes on the 27th
  * and is due on the 4th: October's bill is 250.00, purchases 270.00 minus a 20.00 refund.
+ *
+ * <p>The checking account also pays, every month: the condo fee (650.00 on the 9th, on the 10th in
+ * August, July to October), the power bill (180.00, 210.00 and 195.50 around the 20th, July to
+ * September) and the card bill. A gym paid in September and October only, and a magazine that
+ * stopped after September, do not repeat enough.
  */
 @SpringBootTest
 @Import({TestcontainersConfiguration.class, TestClockConfiguration.class})
@@ -256,6 +262,60 @@ class PlanningFlowIT {
         read("/internal/planning/month").andExpect(jsonPath("$.month").value("2026-10"));
     }
 
+    @Test
+    void theDebitsThatRepeatEveryMonthAreSuggestedAsFixedExpenses() throws Exception {
+        read("/internal/planning/fixed-expense-suggestions")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].id").value(matchesPattern("[0-9a-f]{32}-9")))
+                .andExpect(jsonPath("$[0].name").value("Pag Condominio Primavera"))
+                .andExpect(jsonPath("$[0].amount").value("650.00"))
+                .andExpect(jsonPath("$[0].dayOfMonth").value(9))
+                .andExpect(jsonPath("$[0].category").value("Housing"))
+                .andExpect(jsonPath("$[0].months").value(4))
+                .andExpect(jsonPath("$[0].lastDate").value("2026-10-09"))
+                .andExpect(jsonPath("$[1].id").value(matchesPattern("[0-9a-f]{32}-20")))
+                .andExpect(jsonPath("$[1].name").value("Conta de Luz"))
+                .andExpect(jsonPath("$[1].amount").value("195.17"))
+                .andExpect(jsonPath("$[1].dayOfMonth").value(20))
+                .andExpect(jsonPath("$[1].months").value(3))
+                .andExpect(jsonPath("$[1].lastDate").value("2026-09-21"));
+    }
+
+    /** Under its own name or another one with about the same amount, on about the same day. */
+    @Test
+    void aDebitAlreadyAFixedExpenseIsNotSuggested() throws Exception {
+        createFixed("{\"name\":\"Condomínio\",\"amount\":\"650.00\",\"dayOfMonth\":10,\"category\":\"Housing\"}");
+        read("/internal/planning/fixed-expense-suggestions").andExpect(jsonPath("$[*].name", contains("Conta de Luz")));
+
+        createFixed("{\"name\":\"Energia\",\"amount\":\"200.00\",\"dayOfMonth\":20}");
+        read("/internal/planning/fixed-expense-suggestions").andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    void aDismissedSuggestionDoesNotComeBack() throws Exception {
+        String power = JsonPath.read(read("/internal/planning/fixed-expense-suggestions")
+                .andReturn().getResponse().getContentAsString(), "$[1].id");
+        UUID stranger = TestUsers.register(mockMvc);
+        mockMvc.perform(delete("/internal/planning/fixed-expense-suggestions/" + power).with(as(stranger)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("planning.fixed_expense_suggestion_not_found"));
+        mockMvc.perform(get("/internal/planning/fixed-expense-suggestions").with(as(stranger)))
+                .andExpect(jsonPath("$", hasSize(0)));
+
+        mockMvc.perform(delete("/internal/planning/fixed-expense-suggestions/" + power).with(as(userId)))
+                .andExpect(status().isNoContent());
+        read("/internal/planning/fixed-expense-suggestions").andExpect(jsonPath("$[*].name", contains("Pag Condominio Primavera")));
+        mockMvc.perform(delete("/internal/planning/fixed-expense-suggestions/" + power).with(as(userId)))
+                .andExpect(status().isNoContent());
+
+        for (String unknown : List.of("not-an-id", "0".repeat(32) + "-9")) {
+            mockMvc.perform(delete("/internal/planning/fixed-expense-suggestions/" + unknown).with(as(userId)))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value("planning.fixed_expense_suggestion_not_found"));
+        }
+    }
+
     private void stubProvider(String itemId) {
         when(provider.findItem(itemId)).thenReturn(new ProviderItem(itemId, "Banco Teste", null, ProviderItemStatus.READY,
                 clock.instant(), null, null));
@@ -269,7 +329,21 @@ class PlanningFlowIT {
                 transaction("salary-sep", "2026-09-05", "3000.00", Direction.INFLOW, "Salário Empresa", "Salary"),
                 transaction("salary-oct", "2026-10-05", "3100.00", Direction.INFLOW, "Salário Empresa", "Salary"),
                 transaction("pix-in", "2026-10-07", "500.00", Direction.INFLOW, "Pix recebido", "Transfers"),
-                transaction("pay-a", "2026-09-10", "300.00", Direction.OUTFLOW, "Pagamento fatura", "Credit card payment")));
+                transaction("pay-a", "2026-09-10", "300.00", Direction.OUTFLOW, "Pagamento fatura", "Credit card payment"),
+                transaction("pay-jul", "2026-07-10", "280.00", Direction.OUTFLOW, "Pagamento fatura", "Credit card payment"),
+                transaction("pay-aug", "2026-08-10", "310.00", Direction.OUTFLOW, "Pagamento fatura", "Credit card payment"),
+                transaction("condo-jul", "2026-07-09", "650.00", Direction.OUTFLOW, "PAG CONDOMINIO PRIMAVERA 07/26", "Housing"),
+                transaction("condo-aug", "2026-08-10", "650.00", Direction.OUTFLOW, "PAG CONDOMINIO PRIMAVERA 08/26", "Housing"),
+                transaction("condo-sep", "2026-09-09", "650.00", Direction.OUTFLOW, "PAG CONDOMINIO PRIMAVERA 09/26", "Housing"),
+                transaction("condo-oct", "2026-10-09", "650.00", Direction.OUTFLOW, "PAG CONDOMINIO PRIMAVERA 10/26", "Housing"),
+                transaction("power-jul", "2026-07-20", "180.00", Direction.OUTFLOW, "CONTA DE LUZ", "Electricity"),
+                transaction("power-aug", "2026-08-20", "210.00", Direction.OUTFLOW, "CONTA DE LUZ", "Electricity"),
+                transaction("power-sep", "2026-09-21", "195.50", Direction.OUTFLOW, "CONTA DE LUZ", "Electricity"),
+                transaction("gym-sep", "2026-09-05", "99.90", Direction.OUTFLOW, "PIX ENVIADO ACADEMIA", "Gyms and fitness centers"),
+                transaction("gym-oct", "2026-10-05", "99.90", Direction.OUTFLOW, "PIX ENVIADO ACADEMIA", "Gyms and fitness centers"),
+                transaction("mag-jul", "2026-07-03", "29.90", Direction.OUTFLOW, "ASSINATURA REVISTA", "Newsstands"),
+                transaction("mag-aug", "2026-08-03", "29.90", Direction.OUTFLOW, "ASSINATURA REVISTA", "Newsstands"),
+                transaction("mag-sep", "2026-09-03", "29.90", Direction.OUTFLOW, "ASSINATURA REVISTA", "Newsstands")));
         when(provider.listTransactions(eq("card-a"), any(), any(), any())).thenReturn(List.of(
                 transaction("a-old", "2026-09-02", "45.00", Direction.OUTFLOW, "Compra do ciclo anterior", "Shopping"),
                 transaction("a-payment", "2026-09-10", "300.00", Direction.INFLOW, "Pagamento recebido", "Credit card payment"),

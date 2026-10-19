@@ -6,6 +6,7 @@ import 'package:wallet/core/l10n/l10n.dart';
 import 'package:wallet/core/state/data_changes.dart';
 import 'package:wallet/core/theme/app_theme.dart';
 import 'package:wallet/features/planning/data/planning_api.dart';
+import 'package:wallet/features/planning/presentation/fixed_expense_suggestions_controller.dart';
 import 'package:wallet/features/planning/presentation/planning_controller.dart';
 import 'package:wallet/features/planning/presentation/planning_screen.dart';
 
@@ -35,8 +36,12 @@ void main() {
         locale: const Locale('pt', 'BR'),
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: const [AppLocalizations.delegate, ...GlobalMaterialLocalizations.delegates],
-        home: ChangeNotifierProvider(
-          create: (_) => PlanningController(api, dataChanges: dataChanges, today: DateTime(2026, 10, 18))..load(),
+        home: MultiProvider(
+          providers: [
+            ChangeNotifierProvider(
+                create: (_) => PlanningController(api, dataChanges: dataChanges, today: DateTime(2026, 10, 18))..load()),
+            ChangeNotifierProvider(create: (_) => FixedExpenseSuggestionsController(api, dataChanges: dataChanges)..load()),
+          ],
           child: const PlanningScreen(),
         ),
       ),
@@ -326,6 +331,144 @@ void main() {
 
       expect(find.text('Mensalidade, aluguel, boletos: o que não passa no cartão. Adicione uma vez e ele entra em todo mês.'),
           findsOneWidget);
+    });
+  });
+
+  group('suggestions', () {
+    const suggestionsPath = '/api/planning/fixed-expense-suggestions';
+    final condo = Fixtures.suggestion('sg-1', 'Condominio Edificio Sol', '690.00', 9, category: 'Housing', months: 4);
+    final power = Fixtures.suggestion('sg-2', 'Enel Distribuicao Sp', '191.21', 12, category: 'Electricity');
+
+    testWidgets('the debits that repeat every month show under the fixed expenses', (tester) async {
+      bff.json('GET', '/api/planning', Fixtures.plan());
+      bff.json('GET', suggestionsPath, [condo, power]);
+      await openPlanning(tester);
+
+      expect(find.text('Sugestões do seu extrato'), findsOneWidget);
+      expect(find.text('Débitos que se repetem todo mês nas suas contas. Toque em um para adicionar.'), findsOneWidget);
+      expect(find.text('Condominio Edificio Sol'), findsOneWidget);
+      expect(find.text('R\$ 690,00 · todo dia 9 · em 4 meses'), findsOneWidget);
+      expect(find.text('Enel Distribuicao Sp'), findsOneWidget);
+      expect(find.text('R\$ 191,21 · todo dia 12 · em 3 meses'), findsOneWidget);
+      expect(find.byTooltip('Dispensar sugestão'), findsNWidgets(2));
+      expect(find.byTooltip('Adicionar aos gastos fixos'), findsNWidgets(2));
+      // The month's total stays what the server computed: a suggestion is not a fixed expense yet.
+      expect(find.text('R\$ 1.650,00'), findsOneWidget);
+    });
+
+    testWidgets('one tap opens the form filled in, and saving adds the fixed expense', (tester) async {
+      bff.json('GET', '/api/planning', Fixtures.plan());
+      bff.json('GET', suggestionsPath, [condo, power]);
+      bff.json('POST', '/api/planning/fixed-expenses',
+          {'id': 'fx-3', 'name': 'Condominio Edificio Sol', 'amount': '690.00', 'dayOfMonth': 9, 'category': 'Housing'},
+          status: 201);
+      await openPlanning(tester);
+
+      await tester.tap(find.text('Condominio Edificio Sol'));
+      await tester.pumpAndSettle();
+      final dialog = find.byType(AlertDialog);
+      expect(find.descendant(of: dialog, matching: find.text('Novo gasto fixo')), findsOneWidget);
+      expect(find.descendant(of: dialog, matching: find.widgetWithText(TextField, 'Condominio Edificio Sol')), findsOneWidget);
+      expect(find.descendant(of: dialog, matching: find.text('690,00')), findsOneWidget);
+      expect(find.descendant(of: dialog, matching: find.text('9')), findsOneWidget);
+      expect(find.descendant(of: dialog, matching: find.text('Moradia')), findsOneWidget);
+      expect(find.descendant(of: dialog, matching: find.text('Excluir')), findsNothing);
+
+      bff.json('GET', suggestionsPath, [power]);
+      await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(bff.calls('POST', '/api/planning/fixed-expenses').single.data,
+          {'name': 'Condominio Edificio Sol', 'amount': '690.00', 'dayOfMonth': 9, 'category': 'Housing'});
+      expect(find.text('Gasto fixo salvo.'), findsOneWidget);
+      expect(bff.calls('GET', '/api/planning'), hasLength(2));
+      expect(bff.calls('GET', suggestionsPath), hasLength(2));
+      expect(find.text('Condominio Edificio Sol'), findsNothing);
+      expect(find.text('Enel Distribuicao Sp'), findsOneWidget);
+    });
+
+    testWidgets('the plus opens the same form, and the values can change before saving', (tester) async {
+      bff.json('GET', '/api/planning', Fixtures.plan());
+      bff.json('GET', suggestionsPath, [power]);
+      bff.json('POST', '/api/planning/fixed-expenses',
+          {'id': 'fx-3', 'name': 'Luz', 'amount': '220.00', 'dayOfMonth': 12, 'category': 'Electricity'},
+          status: 201);
+      await openPlanning(tester);
+
+      await tester.tap(find.byTooltip('Adicionar aos gastos fixos'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'Enel Distribuicao Sp'), 'Luz');
+      await tester.enterText(find.widgetWithText(TextField, '191,21'), '220');
+      await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(bff.calls('POST', '/api/planning/fixed-expenses').single.data,
+          {'name': 'Luz', 'amount': '220.00', 'dayOfMonth': 12, 'category': 'Electricity'});
+    });
+
+    testWidgets('dismissing one sends it away for good, and the plan stays as it was', (tester) async {
+      bff.json('GET', '/api/planning', Fixtures.plan());
+      bff.json('GET', suggestionsPath, [condo, power]);
+      bff.json('DELETE', '$suggestionsPath/sg-2', null, status: 204);
+      await openPlanning(tester);
+
+      bff.json('GET', suggestionsPath, [condo]);
+      await tester.tap(find.byTooltip('Dispensar sugestão').last);
+      await tester.pumpAndSettle();
+
+      expect(bff.calls('DELETE', '$suggestionsPath/sg-2'), hasLength(1));
+      expect(find.text('Sugestão dispensada. Ela não volta a aparecer.'), findsOneWidget);
+      expect(find.text('Enel Distribuicao Sp'), findsNothing);
+      expect(find.text('Condominio Edificio Sol'), findsOneWidget);
+      expect(bff.calls('GET', '/api/planning'), hasLength(1));
+    });
+
+    testWidgets('a dismissal the server refuses says why and keeps the suggestion', (tester) async {
+      bff.json('GET', '/api/planning', Fixtures.plan());
+      bff.json('GET', suggestionsPath, [condo]);
+      bff.error('DELETE', '$suggestionsPath/sg-1', 404, 'planning.fixed_expense_suggestion_not_found');
+      await openPlanning(tester);
+
+      await tester.tap(find.byTooltip('Dispensar sugestão'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Essa sugestão não está mais disponível.'), findsOneWidget);
+      expect(find.text('Condominio Edificio Sol'), findsOneWidget);
+    });
+
+    testWidgets('past three, the rest wait under "mais N sugestões"', (tester) async {
+      bff.json('GET', '/api/planning', Fixtures.plan());
+      bff.json('GET', suggestionsPath, [
+        for (var index = 1; index <= 5; index++) Fixtures.suggestion('sg-$index', 'Sugestão $index', '10.00', index),
+      ]);
+      await openPlanning(tester);
+
+      expect(find.text('Sugestão 3'), findsOneWidget);
+      expect(find.text('Sugestão 4'), findsNothing);
+      await tester.ensureVisible(find.text('mais 2 sugestões'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('mais 2 sugestões'));
+      await tester.pumpAndSettle();
+      expect(find.text('Sugestão 5'), findsOneWidget);
+      await tester.ensureVisible(find.text('Mostrar menos'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mostrar menos'));
+      await tester.pumpAndSettle();
+      expect(find.text('Sugestão 5'), findsNothing);
+    });
+
+    testWidgets('with none, or when they fail, the card shows only the fixed expenses', (tester) async {
+      bff.json('GET', '/api/planning', Fixtures.plan());
+      bff.json('GET', suggestionsPath, []);
+      await openPlanning(tester);
+      expect(find.text('Sugestões do seu extrato'), findsNothing);
+
+      bff.error('GET', suggestionsPath, 503, 'bff.core_unavailable');
+      await tester.pumpWidget(const SizedBox());
+      await openPlanning(tester);
+      expect(find.text('Sugestões do seu extrato'), findsNothing);
+      expect(find.text('Faculdade'), findsOneWidget);
+      expect(find.text('O serviço está fora do ar agora. Tente em alguns minutos.'), findsNothing);
     });
   });
 

@@ -5,6 +5,7 @@ import com.wallet.bff.model.dto.request.ExpectedSalaryRequest;
 import com.wallet.bff.model.dto.request.FixedExpenseRequest;
 import com.wallet.bff.model.dto.response.ExpectedSalaryResponse;
 import com.wallet.bff.model.dto.response.FixedExpenseResponse;
+import com.wallet.bff.model.dto.response.FixedExpenseSuggestionResponse;
 import com.wallet.bff.model.dto.response.PlanningResponse;
 import com.wallet.bff.service.PlanningService;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +58,19 @@ public class PlanningController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteFixedExpense(@CurrentUserId UUID userId, @PathVariable UUID id) {
         planningService.deleteFixedExpense(userId, id);
+    }
+
+    /** Debits that repeat every month in the bank accounts and are not fixed expenses yet. */
+    @GetMapping("/fixed-expense-suggestions")
+    public List<FixedExpenseSuggestionResponse> fixedExpenseSuggestions() {
+        return planningService.fixedExpenseSuggestions();
+    }
+
+    /** It is not suggested again. Adding one is creating the fixed expense. */
+    @DeleteMapping("/fixed-expense-suggestions/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void dismissFixedExpenseSuggestion(@PathVariable String id) {
+        planningService.dismissFixedExpenseSuggestion(id);
     }
 
     @PutMapping("/expected-salary")

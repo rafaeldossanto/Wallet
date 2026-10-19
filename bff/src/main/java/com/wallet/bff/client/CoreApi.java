@@ -14,6 +14,7 @@ import com.wallet.bff.model.dto.response.ConnectionResponse;
 import com.wallet.bff.model.dto.response.CreditCardResponse;
 import com.wallet.bff.model.dto.response.ExpectedSalaryResponse;
 import com.wallet.bff.model.dto.response.FixedExpenseResponse;
+import com.wallet.bff.model.dto.response.FixedExpenseSuggestionResponse;
 import com.wallet.bff.model.dto.response.NetWorthResponse;
 import com.wallet.bff.model.dto.response.OverviewResponse;
 import com.wallet.bff.model.dto.response.PageResponse;
@@ -148,6 +149,15 @@ public class CoreApi {
 
     public void deleteFixedExpense(UUID id) {
         client.delete("/internal/planning/fixed-expenses/" + id);
+    }
+
+    public List<FixedExpenseSuggestionResponse> fixedExpenseSuggestions() {
+        return client.get("/internal/planning/fixed-expense-suggestions", Map.of(), new ParameterizedTypeReference<>() {});
+    }
+
+    /** The id is the app's to send and the core's to check: it travels as a URI variable. */
+    public void dismissFixedExpenseSuggestion(String id) {
+        client.delete("/internal/planning/fixed-expense-suggestions/{id}", id);
     }
 
     public ExpectedSalaryResponse setExpectedSalary(ExpectedSalaryRequest request) {

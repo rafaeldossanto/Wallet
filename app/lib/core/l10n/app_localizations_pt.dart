@@ -691,6 +691,39 @@ class AppLocalizationsPt extends AppLocalizations {
   String get planningFixedDeleted => 'Gasto fixo excluído.';
 
   @override
+  String get planningSuggestions => 'Sugestões do seu extrato';
+
+  @override
+  String get planningSuggestionsHelp =>
+      'Débitos que se repetem todo mês nas suas contas. Toque em um para adicionar.';
+
+  @override
+  String planningSuggestionDetails(String amount, int day, int months) {
+    return '$amount · todo dia $day · em $months meses';
+  }
+
+  @override
+  String get planningSuggestionAdd => 'Adicionar aos gastos fixos';
+
+  @override
+  String get planningSuggestionDismiss => 'Dispensar sugestão';
+
+  @override
+  String get planningSuggestionDismissed =>
+      'Sugestão dispensada. Ela não volta a aparecer.';
+
+  @override
+  String planningSuggestionsMore(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'mais $count sugestões',
+      one: 'mais 1 sugestão',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String overviewLeftoverDetail(String salary, String bills, String fixed) {
     return 'Salário $salary · faturas $bills · fixos $fixed';
   }
@@ -1064,6 +1097,10 @@ class AppLocalizationsPt extends AppLocalizations {
   @override
   String get errorFixedExpenseLimit =>
       'Você chegou ao limite de 100 gastos fixos.';
+
+  @override
+  String get errorFixedExpenseSuggestionNotFound =>
+      'Essa sugestão não está mais disponível.';
 
   @override
   String get errorUnexpected => 'Algo deu errado. Tente de novo.';

@@ -7,10 +7,12 @@ import '../../../core/format/categories.dart';
 import '../../../core/format/dates.dart';
 import '../../../core/l10n/l10n.dart';
 import '../../../core/money/money.dart';
+import '../../../core/state/loadable.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/loadable_view.dart';
 import '../data/planning_api.dart';
+import 'fixed_expense_suggestions_controller.dart';
 import 'plan_bar.dart';
 import 'planning_controller.dart';
 
@@ -430,39 +432,136 @@ class _FixedExpensesCard extends StatelessWidget {
         icon: const Icon(Icons.add, size: 18),
         label: Text(l10n.planningFixedAdd),
       ),
-      child: expenses.isEmpty
-          ? Padding(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (expenses.isEmpty)
+            Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Text(l10n.planningFixedEmpty, style: theme.textTheme.bodyMedium),
             )
-          : Column(
+          else ...[
+            for (final expense in expenses)
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                  foregroundColor: theme.colorScheme.onSurfaceVariant,
+                  child: const Icon(Icons.event_repeat, size: 20),
+                ),
+                title: Text(expense.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text([
+                  l10n.planningFixedDay(expense.dayOfMonth),
+                  if (expense.category != null) Categories.label(expense.category),
+                ].join(' · ')),
+                trailing: MoneyText(expense.amount, style: theme.textTheme.bodyLarge),
+                onTap: () => _FixedExpenseDialog.show(context, expense: expense),
+              ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              child: Row(
+                children: [
+                  Expanded(child: Text(l10n.planningFixedTotal, style: theme.textTheme.titleSmall)),
+                  MoneyText(plan.totals.fixedExpenses, style: theme.textTheme.titleSmall),
+                ],
+              ),
+            ),
+          ],
+          const _SuggestionsSection(),
+        ],
+      ),
+    );
+  }
+}
+
+/// Debits that repeat every month in the bank accounts and are not fixed expenses yet. A tap
+/// opens the form filled in; the cross dismisses one for good. Nothing shows while they load,
+/// when there are none, or when they fail: the fixed expenses are what this card is about.
+class _SuggestionsSection extends StatefulWidget {
+  const _SuggestionsSection();
+
+  /// Suggestions shown before "mais N sugestões".
+  static const collapsedItems = 3;
+
+  @override
+  State<_SuggestionsSection> createState() => _SuggestionsSectionState();
+}
+
+class _SuggestionsSectionState extends State<_SuggestionsSection> {
+  bool _expanded = false;
+
+  Future<void> _dismiss(FixedExpenseSuggestion suggestion) async {
+    final l10n = context.l10n;
+    final error = await context.read<FixedExpenseSuggestionsController>().dismiss(suggestion.id);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error == null ? l10n.planningSuggestionDismissed : l10n.errorMessage(error))));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<FixedExpenseSuggestionsController>().state;
+    if (state is! Loaded<List<FixedExpenseSuggestion>> || state.value.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final suggestions = state.value;
+    final hidden = suggestions.length - _SuggestionsSection.collapsedItems;
+    final shown = _expanded || hidden <= 0 ? suggestions : suggestions.take(_SuggestionsSection.collapsedItems);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Divider(height: 16),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+          child: Row(
+            children: [
+              Icon(Icons.auto_awesome, size: 18, color: theme.colorScheme.primary),
+              const SizedBox(width: 8),
+              Expanded(child: Text(l10n.planningSuggestions, style: theme.textTheme.titleSmall)),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          child: Text(l10n.planningSuggestionsHelp,
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        ),
+        for (final suggestion in shown)
+          ListTile(
+            key: ValueKey(suggestion.id),
+            title: Text(suggestion.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Text(l10n.planningSuggestionDetails(suggestion.amount.format(), suggestion.dayOfMonth, suggestion.months)),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                for (final expense in expenses)
-                  ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                      foregroundColor: theme.colorScheme.onSurfaceVariant,
-                      child: const Icon(Icons.event_repeat, size: 20),
-                    ),
-                    title: Text(expense.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text([
-                      l10n.planningFixedDay(expense.dayOfMonth),
-                      if (expense.category != null) Categories.label(expense.category),
-                    ].join(' · ')),
-                    trailing: MoneyText(expense.amount, style: theme.textTheme.bodyLarge),
-                    onTap: () => _FixedExpenseDialog.show(context, expense: expense),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-                  child: Row(
-                    children: [
-                      Expanded(child: Text(l10n.planningFixedTotal, style: theme.textTheme.titleSmall)),
-                      MoneyText(plan.totals.fixedExpenses, style: theme.textTheme.titleSmall),
-                    ],
-                  ),
+                IconButton(
+                  tooltip: l10n.planningSuggestionDismiss,
+                  icon: const Icon(Icons.close),
+                  onPressed: () => _dismiss(suggestion),
+                ),
+                IconButton(
+                  tooltip: l10n.planningSuggestionAdd,
+                  icon: Icon(Icons.add_circle_outline, color: theme.colorScheme.primary),
+                  onPressed: () => _FixedExpenseDialog.show(context, suggestion: suggestion),
                 ),
               ],
             ),
+            onTap: () => _FixedExpenseDialog.show(context, suggestion: suggestion),
+          ),
+        if (hidden > 0)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () => setState(() => _expanded = !_expanded),
+                child: Text(_expanded ? l10n.planningBillLess : l10n.planningSuggestionsMore(hidden)),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -572,9 +671,10 @@ class _SalaryDialogState extends State<_SalaryDialog> {
   }
 }
 
-/// Adds a fixed expense or, given one, changes or deletes it.
+/// Adds a fixed expense or, given one, changes or deletes it. Given a suggestion, it adds one
+/// filled in with the suggestion's values.
 class _FixedExpenseDialog extends StatefulWidget {
-  const _FixedExpenseDialog({this.expense});
+  const _FixedExpenseDialog({this.expense, this.suggestion});
 
   /// What people here pay outside the card, as the provider names them; the app shows them in
   /// Portuguese like any transaction's category.
@@ -601,13 +701,14 @@ class _FixedExpenseDialog extends StatefulWidget {
   ];
 
   final FixedExpense? expense;
+  final FixedExpenseSuggestion? suggestion;
 
-  static Future<void> show(BuildContext context, {FixedExpense? expense}) async {
+  static Future<void> show(BuildContext context, {FixedExpense? expense, FixedExpenseSuggestion? suggestion}) async {
     final controller = context.read<PlanningController>();
     final message = await showDialog<String>(
       context: context,
-      builder: (dialogContext) =>
-          ChangeNotifierProvider.value(value: controller, child: _FixedExpenseDialog(expense: expense)),
+      builder: (dialogContext) => ChangeNotifierProvider.value(
+          value: controller, child: _FixedExpenseDialog(expense: expense, suggestion: suggestion)),
     );
     if (message != null && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
@@ -619,10 +720,11 @@ class _FixedExpenseDialog extends StatefulWidget {
 }
 
 class _FixedExpenseDialogState extends State<_FixedExpenseDialog> {
-  late final _name = TextEditingController(text: widget.expense?.name ?? '');
-  late final _amount = TextEditingController(text: widget.expense?.amount.toInput() ?? '');
-  late final _day = TextEditingController(text: widget.expense?.dayOfMonth.toString() ?? '');
-  late String? _category = widget.expense?.category;
+  late final FixedExpenseDraft? _start = widget.suggestion?.toDraft();
+  late final _name = TextEditingController(text: widget.expense?.name ?? _start?.name ?? '');
+  late final _amount = TextEditingController(text: (widget.expense?.amount ?? _start?.amount)?.toInput() ?? '');
+  late final _day = TextEditingController(text: (widget.expense?.dayOfMonth ?? _start?.dayOfMonth)?.toString() ?? '');
+  late String? _category = widget.expense?.category ?? _start?.category;
   String? _nameError;
   String? _amountError;
   String? _dayError;
@@ -739,7 +841,7 @@ class _FixedExpenseDialogState extends State<_FixedExpenseDialog> {
                 decoration: InputDecoration(labelText: l10n.planningFixedCategory),
                 items: [
                   DropdownMenuItem(value: null, child: Text(Categories.label(null))),
-                  for (final category in {..._FixedExpenseDialog.categories, ?expense?.category})
+                  for (final category in {..._FixedExpenseDialog.categories, ?expense?.category, ?_start?.category})
                     DropdownMenuItem(value: category, child: Text(Categories.label(category))),
                 ],
                 onChanged: _busy ? null : (value) => setState(() => _category = value),
@@ -805,7 +907,13 @@ class _FixedExpenseDialogState extends State<_FixedExpenseDialog> {
 }
 
 /// Built by the router for the planning branch.
-Widget buildPlanning(BuildContext context) => ChangeNotifierProvider(
-      create: (context) => PlanningController(context.read<PlanningApi>(), dataChanges: context.read())..load(),
+Widget buildPlanning(BuildContext context) => MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+            create: (context) => PlanningController(context.read<PlanningApi>(), dataChanges: context.read())..load()),
+        ChangeNotifierProvider(
+            create: (context) =>
+                FixedExpenseSuggestionsController(context.read<PlanningApi>(), dataChanges: context.read())..load()),
+      ],
       child: const PlanningScreen(),
     );

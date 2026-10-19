@@ -3,6 +3,7 @@ package com.wallet.core.banking.mapper;
 import com.wallet.core.banking.AccountSummary;
 import com.wallet.core.banking.CardBill;
 import com.wallet.core.banking.CardBillItem;
+import com.wallet.core.banking.RecurringDebit;
 import com.wallet.core.banking.dto.AccountResponse;
 import com.wallet.core.banking.dto.BillResponse;
 import com.wallet.core.banking.dto.CreditCardResponse;
@@ -67,6 +68,13 @@ public class BankingReadMapper {
                                List<AccountTransaction> items) {
         return new CardBill(card.getId(), card.getConnectionId(), card.getName(), card.getNumberLastDigits(), dueDate,
                 closingDate, total, open, items.stream().map(BankingReadMapper::toBillItem).sorted(HEAVIEST_FIRST).toList());
+    }
+
+    /** @param latest the series' latest debit: its description and category speak for the series */
+    public RecurringDebit toRecurringDebit(AccountTransaction latest, String descriptionKey, int dayOfMonth, Money amount,
+                                           int months) {
+        return new RecurringDebit(latest.getDescription(), descriptionKey, latest.getCategory(), dayOfMonth, amount, months,
+                latest.getBookedOn());
     }
 
     public CardBillItem toBillItem(AccountTransaction transaction) {

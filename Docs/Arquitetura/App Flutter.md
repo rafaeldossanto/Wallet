@@ -296,6 +296,15 @@ o app não faz conta com dinheiro, só lê os totais.
 - **Gastos fixos:** a lista com o dia do mês e a categoria, o total, **Adicionar** e, tocando num,
   editar ou excluir (com confirmação). A categoria é opcional e sai de uma lista curta de
   categorias da Pluggy (aluguel, moradia, faculdade, contas da casa, plano de saúde...).
+- **Sugestões do seu extrato** (desde 2026-10-18), no fim do cartão de gastos fixos: os débitos que
+  se repetem todo mês nas contas e ainda não são gastos fixos ([[Core#Gastos fixos sugeridos pelo extrato (desde 2026-10-18)]]),
+  cada um com "R$ 690,00 · todo dia 9 · em 4 meses". Um toque (ou o **+**) abre o formulário de
+  gasto fixo já preenchido com nome, valor, dia e categoria, que dá para mudar antes de salvar; o
+  **×** dispensa para sempre ("Sugestão dispensada. Ela não volta a aparecer."). Três de cada vez
+  e **mais N sugestões**. Carregando, sem nenhuma ou com erro, a parte simplesmente não aparece.
+  Um `FixedExpenseSuggestionsController` próprio, só na tela de planejamento (a visão geral não
+  busca sugestões); salvar um gasto fixo toca o `DataChanges`, que recarrega as sugestões e tira
+  a que acabou de virar gasto fixo. Dispensar não mexe no plano.
 - **Visão geral:** o cartão **Sobra do mês** com a sobra do mês corrente, a mesma barra, a linha
   "Salário · faturas · fixos" e "Ver planejamento".
 - Mudar um gasto fixo ou o salário toca o `DataChanges`, e a tela e o cartão da visão geral
@@ -427,8 +436,9 @@ Ver [[Fluxo de Conexão]].
   barra e legenda, salário recebido, previsto, definido à mão ou ausente, mês no vermelho, fatura
   aberta, outros lançamentos, "mais N compras", Ajustar e Usar o automático, gasto fixo criado,
   editado, excluído com confirmação e recusado pelo servidor, mês anterior e limite do próximo,
-  duas colunas na tela larga), o cartão "Sobra do mês" da visão geral e o Planejamento no "Mais"
-  e no trilho.
+  duas colunas na tela larga, sugestões do extrato: lista, formulário preenchido, valores mudados
+  antes de salvar, dispensa e dispensa recusada, "mais N sugestões", nenhuma ou com erro), o
+  cartão "Sobra do mês" da visão geral e o Planejamento no "Mais" e no trilho.
 
 Além disso, verificado à mão em 2026-10-02 no Chrome (build release) e no emulador
 `trilha_pixel`, contra o core e o BFF reais com a Pluggy de demonstração.

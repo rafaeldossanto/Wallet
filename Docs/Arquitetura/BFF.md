@@ -71,6 +71,8 @@ bff/src/main/java/com/wallet/bff/
 | GET, POST | `/api/planning/fixed-expenses` | `/internal/planning/fixed-expenses`; POST limpa o planejamento em cache |
 | PUT, DELETE | `/api/planning/fixed-expenses/{id}` | `/internal/planning/fixed-expenses/{id}`; limpam o planejamento em cache |
 | PUT, DELETE | `/api/planning/expected-salary` | `/internal/planning/expected-salary`; limpam o planejamento em cache |
+| GET | `/api/planning/fixed-expense-suggestions` | `/internal/planning/fixed-expense-suggestions`, sem cache |
+| DELETE | `/api/planning/fixed-expense-suggestions/{id}` | `/internal/planning/fixed-expense-suggestions/{id}`; o planejamento em cache fica |
 
 ### A home
 
@@ -93,6 +95,10 @@ bff/src/main/java/com/wallet/bff/
   descartam **todos os meses** do planejamento daquele usuário (`ScreenCache.evictScreen`), sem
   tocar nas outras telas. Ler as conexões também alimenta a detecção de sincronização no fundo
   (abaixo), e um plano montado com conexão sincronizando não entra no cache.
+- **Sugestões de gasto fixo** só passam: o core calcula a lista e o valor de cada uma. Sem cache,
+  porque muda a cada gasto fixo criado e a cada sugestão dispensada. Dispensar não mexe no plano,
+  então o plano em cache continua; adicionar uma é criar o gasto fixo, que já limpa o plano. O id
+  é opaco para o BFF e vai ao core como variável de URI, codificado (`a b?c` vira `a%20b%3Fc`).
 
 ### Valores
 
@@ -173,7 +179,8 @@ entrava no cache e ficava vazia por um minuto. Desde 2026-10-02:
 - `PlanningRoutesTest`: o plano com o banco de cada cartão, cache por usuário e mês, gasto fixo e
   salário esperado descartando todos os meses em cache, sincronização no fundo descartando o
   plano, plano sem os nomes ou montado durante uma sincronização fora do cache, códigos do core
-  repassados e todas as rotas exigindo sessão.
+  repassados, sugestões de gasto fixo (lista sempre do core, dispensa sem descartar o plano, id
+  codificado) e todas as rotas exigindo sessão.
 - `RateLimitTest`: orçamento por usuário e login por IP.
 - `CoreKeyRotationTest`: chave nova no core é aceita sem reiniciar o BFF.
 

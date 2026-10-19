@@ -565,9 +565,24 @@ compras às faturas fechadas e uma compra parcelada no cartão do Itaú. Testes:
 app; conferido de ponta a ponta no navegador com `demo-nubank` e `demo-itau`. Detalhes em
 [[Core]], [[BFF]] e [[App Flutter]].
 
-**Depois:** sugerir gastos fixos a partir dos débitos que se repetem; marcar à mão qual entrada é
-o salário quando a Pluggy não a categoriza como `Salary`; conferir com dados reais (T02) se a
-ligação `billId` das parcelas vem como na documentação.
+**Depois:** ~~sugerir gastos fixos a partir dos débitos que se repetem~~ (feito em 2026-10-18,
+abaixo); marcar à mão qual entrada é o salário quando a Pluggy não a categoriza como `Salary`;
+conferir com dados reais (T02) se a ligação `billId` das parcelas vem como na documentação.
+
+**Sugestões de gasto fixo, feito em 2026-10-18:** o core acha os débitos de conta (não cartão)
+que se repetem todo mês nos últimos meses (mesma descrição sem números, até 3 dias do mesmo dia,
+valor no máximo o dobro, em 3 meses, sem pagamento de fatura nem hábito de várias vezes por mês,
+e que não pararam) em `BankingQueries.recurringDebits`, e o `planning` tira os que já são gastos
+fixos (nome ou valor parecido no mesmo dia) e os dispensados (migration V9,
+`dismissed_fixed_expense_suggestions`, com a impressão digital HMAC da descrição, nunca o texto).
+Rotas `GET /internal/planning/fixed-expense-suggestions` e `DELETE .../{id}`, repassadas pelo BFF
+em `/api/planning/fixed-expense-suggestions` sem cache, e no app as sugestões no cartão de gastos
+fixos com um toque para adicionar (formulário preenchido) e o × para dispensar. Testes:
+`RecurringDebitsTest`, `FixedExpenseSuggestionsTest`, `PlanningFlowIT` (+3), `DemoPlanningIT` (a
+demo do Itaú sugere seis), `PlanningRoutesTest` (+3) e os de widget do app. Detalhes em
+[[Core#Gastos fixos sugeridos pelo extrato (desde 2026-10-18)]], [[BFF]] e [[App Flutter]].
+A conferir com dados reais (T02): como os bancos escrevem as descrições dos débitos automáticos e
+dos boletos, e se a tolerância de 3 dias e do dobro do valor bastam.
 
 ## Backlog — antes de abrir para outras pessoas
 

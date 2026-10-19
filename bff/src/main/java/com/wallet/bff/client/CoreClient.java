@@ -66,9 +66,10 @@ public class CoreClient {
                 .body(type));
     }
 
-    public void delete(String path) {
+    /** @param uriVariables fill {@code {name}} placeholders in {@code path}, encoded strictly: a client's id may hold a {@code /} */
+    public void delete(String path, Object... uriVariables) {
         call(() -> restClient.delete()
-                .uri(path)
+                .uri(path, uriVariables)
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, RELAY_ERRORS)
                 .toBodilessEntity());

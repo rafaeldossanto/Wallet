@@ -178,6 +178,47 @@ class FixedExpenseDraft {
       };
 }
 
+/// A debit that repeats every month in a bank account, which the server proposes as a fixed expense.
+class FixedExpenseSuggestion {
+  const FixedExpenseSuggestion({
+    required this.id,
+    required this.name,
+    required this.amount,
+    required this.dayOfMonth,
+    required this.months,
+    this.category,
+    this.lastDate,
+  });
+
+  factory FixedExpenseSuggestion.fromJson(Json json) => FixedExpenseSuggestion(
+        id: json.string('id'),
+        name: json.string('name'),
+        amount: json.money('amount'),
+        dayOfMonth: json.integer('dayOfMonth'),
+        category: json.stringOrNull('category'),
+        months: json.integer('months'),
+        lastDate: json.dateOrNull('lastDate'),
+      );
+
+  /// What dismissing it takes.
+  final String id;
+
+  /// The bank's description, tidied up by the server.
+  final String name;
+
+  /// The average of the debits, from the server.
+  final Money amount;
+  final int dayOfMonth;
+  final String? category;
+
+  /// In how many of the last months it showed up.
+  final int months;
+  final DateTime? lastDate;
+
+  /// The form's starting point: adding it is creating this fixed expense.
+  FixedExpenseDraft toDraft() => FixedExpenseDraft(name: name, amount: amount, dayOfMonth: dayOfMonth, category: category);
+}
+
 class PlanTotals {
   const PlanTotals({required this.salary, required this.bills, required this.fixedExpenses, required this.leftover});
 
@@ -234,6 +275,14 @@ class PlanningApi {
       Json.of(await _api.put('/api/planning/fixed-expenses/${Uri.encodeComponent(id)}', body: draft.toJson())));
 
   Future<void> deleteFixedExpense(String id) => _api.delete('/api/planning/fixed-expenses/${Uri.encodeComponent(id)}');
+
+  Future<List<FixedExpenseSuggestion>> fixedExpenseSuggestions() async => [
+        for (final suggestion in Json.listOf(await _api.get('/api/planning/fixed-expense-suggestions')))
+          FixedExpenseSuggestion.fromJson(suggestion),
+      ];
+
+  Future<void> dismissFixedExpenseSuggestion(String id) =>
+      _api.delete('/api/planning/fixed-expense-suggestions/${Uri.encodeComponent(id)}');
 
   Future<void> setExpectedSalary(Money amount) => _api.put('/api/planning/expected-salary', body: {'amount': amount.toApi()});
 

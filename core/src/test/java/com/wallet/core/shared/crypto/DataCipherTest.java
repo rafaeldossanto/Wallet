@@ -33,6 +33,17 @@ class DataCipherTest {
     void keepsNullsAsNulls() {
         assertThat(cipher.encrypt(null)).isNull();
         assertThat(cipher.decrypt(null)).isNull();
+        assertThat(cipher.fingerprint(null)).isNull();
+    }
+
+    @Test
+    void aFingerprintIsStableForTheSameTextAndKeyAndRevealsNeither() {
+        String fingerprint = cipher.fingerprint("condominio edificio sol");
+
+        assertThat(fingerprint).matches("[0-9a-f]{32}").isEqualTo(cipher.fingerprint("condominio edificio sol"));
+        assertThat(cipher.fingerprint("condominio edificio lua")).isNotEqualTo(fingerprint);
+        assertThat(new DataCipher(new CryptoProperties(randomKey())).fingerprint("condominio edificio sol"))
+                .isNotEqualTo(fingerprint);
     }
 
     @Test

@@ -28,7 +28,7 @@ módulo usar a parte interna de outro.
 | `provider` | Porta `FinancialDataProvider`, o adaptador da Pluggy e a auditoria das chamadas | `shared` |
 | `insight` | Visão geral, patrimônio, gasto por categoria | `banking`, `investment` |
 | `planning` | Planejamento do mês: salário − faturas − gastos fixos, os gastos fixos e o salário esperado | `banking`, `shared` |
-| `shared` | Dinheiro, erros, paginação, criptografia de coluna, relógio | — |
+| `shared` | Dinheiro, erros, paginação, criptografia de coluna, relógio, chaves de texto | — |
 
 Dentro de cada módulo, o mesmo layout do Trilha: `controller`, `service`,
 `repository`, `entity`, `dto`, `mapper`.
@@ -156,6 +156,8 @@ login, cadastro e refresh, exige o JWT do usuário, que o BFF repassa.
 | GET, POST | `/internal/planning/fixed-expenses` | Lista e cria gastos fixos (`{ name, amount, dayOfMonth, category }`) |
 | PUT, DELETE | `/internal/planning/fixed-expenses/{id}` | Altera e exclui um gasto fixo |
 | PUT, DELETE | `/internal/planning/expected-salary` | Define o salário esperado (`{ amount }`) ou volta à previsão automática |
+| GET | `/internal/planning/fixed-expense-suggestions` | Débitos que se repetem todo mês nas contas e ainda não são gastos fixos |
+| DELETE | `/internal/planning/fixed-expense-suggestions/{id}` | Dispensa uma sugestão para sempre (204, também se já estava dispensada) |
 
 O core **não sabe** se o usuário está no celular ou no navegador: sempre devolve os
 tokens no corpo. Cookie e CORS são assunto do [[BFF]].
@@ -263,8 +265,8 @@ conta é feita no core, com `Money`; o BFF só repassa.
   Só um ciclo à frente: dois meses adiante não tem fatura.
 - **Gastos fixos:** o que não passa no cartão (mensalidade, aluguel, boletos). Cadastrados uma
   vez (nome, valor, dia do mês, categoria opcional da Pluggy) e repetidos em todo mês; o dia 31
-  cai no último dia dos meses mais curtos. Até 100 por pessoa. Sugestões a partir dos débitos
-  recorrentes ficam para depois.
+  cai no último dia dos meses mais curtos. Até 100 por pessoa. Desde 2026-10-18 também vêm
+  sugeridos pelo extrato (abaixo).
 - **Erros:** `planning.fixed_expense_not_found` (404, também para o gasto de outra pessoa),
   `planning.fixed_expense_limit` (422), `validation.failed` (valor que não é positivo ou tem
   mais de dois decimais, dia fora de 1 a 31, nome vazio) e `request.invalid_parameter` (mês que
@@ -272,9 +274,51 @@ conta é feita no core, com `Money`; o BFF só repassa.
 - **Os nomes dos bancos** não vêm do core: cada fatura traz o `connectionId` e o BFF põe o nome
   e o logo, como no resto.
 
+### Gastos fixos sugeridos pelo extrato (desde 2026-10-18)
+
+O passo seguinte combinado com o Rafael: primeiro os gastos fixos à mão, depois sugestões tiradas
+dos débitos que se repetem. `GET /internal/planning/fixed-expense-suggestions` lista; adicionar é
+criar o gasto fixo normalmente (o app abre o formulário preenchido); `DELETE .../{id}` dispensa.
+
+- **Débito recorrente** (regra no `banking`, `RecurringDebits`, exposta por
+  `BankingQueries.recurringDebits`): saída de conta bancária (nunca cartão) no mês corrente e nos
+  três anteriores, agrupada pelas palavras da descrição sem acento, maiúscula, número ou pontuação
+  (`TextKeys.key`: "PAG*CONDOMINIO 10/26 DOC 0901" vira "pag condominio doc"). Partindo do débito
+  mais recente, cada mês anterior precisa de um a **até 3 dias** do mesmo dia do mês (o dia 31
+  vale o último dia dos meses curtos) com valor que **não passe do dobro** do outro (luz e água
+  variam com a estação). Precisa aparecer em **3 meses**. O que sobra do grupo pode formar outra
+  série: dois boletos com a mesma descrição genérica em dias diferentes são duas sugestões.
+- **Fora:** pagamento de fatura (`Credit card payment`: as compras já estão no cartão), entradas,
+  transações excluídas, descrição que aparece **mais de 2 vezes por mês** em média (mercado
+  semanal, corrida de app: hábito, não conta) e o débito que **parou** (o do mês seguinte ao último
+  já devia ter saído há mais de 3 dias).
+- **Valor** = média dos débitos da série, com `Money` (centavo pelo meio-par); **dia** = o mais
+  comum (empate fica com o do último); **nome** = a descrição do último débito sem as palavras sem
+  letra (datas, números de documento), com as palavras capitalizadas quando o banco escreveu tudo
+  em maiúsculas ("Plano de Saude"), até 80 caracteres. Vêm também a categoria do último débito,
+  em quantos meses apareceu e a data do último.
+- **Já é gasto fixo** (não sugere): um gasto fixo a até 3 dias do mesmo dia (contando a virada do
+  mês: 30 e 2 estão a 3 dias) com o mesmo nome (um tem as palavras do outro: "Aluguel" e "ALUGUEL
+  APARTAMENTO") **ou** valor a até 15% ("Luz" de R$ 200 no dia 20 cobre "ENEL DISTRIBUICAO" de
+  R$ 195). É o que faz a sugestão sumir depois de adicionada, mesmo com outro nome.
+- **Dispensada** fica em `dismissed_fixed_expense_suggestions` com a impressão digital da chave da
+  descrição (`DataCipher.fingerprint`: HMAC-SHA256 com chave derivada da `WALLET_DATA_KEY`, 32
+  hex) e o dia; cobre 3 dias para cada lado, porque o dia usual pode mudar. A descrição nunca é
+  gravada fora de `transactions` (lá ela é cifrada). Como a cifra, a impressão digital muda com a
+  chave: com a chave temporária de desenvolvimento, as dispensas valem até o core reiniciar.
+- **Id** da sugestão: `<impressão digital>-<dia>` (`9f86d081884c7d659a2feaa0c55ad015-9`). Não diz
+  nada da descrição a quem o vê numa URL ou num log.
+- **Erros:** `planning.fixed_expense_suggestion_not_found` (404) para id que não é uma sugestão
+  atual da pessoa (formato errado, de outra pessoa, débito que parou). Dispensar de novo é 204.
+- Calculadas a cada leitura, sem tabela de sugestões: lê no máximo quatro meses de transações de
+  conta, decifrando as descrições em memória, como a busca do extrato.
+- A Pluggy de demonstração gera seis no Itaú (aluguel, condomínio, Enel, Sabesp, Vivo e plano de
+  saúde); `DemoPlanningIT` sincroniza `demo-itau` pelo adaptador de verdade e confere.
+
 ## Testes
 
-- Unitário (`*Test`, pelo Surefire no `mvn test`): sem Docker (mappers, normalização de sinal, regras de sync).
+- Unitário (`*Test`, pelo Surefire no `mvn test`): sem Docker (mappers, normalização de sinal, regras de sync,
+  `RecurringDebitsTest` e `FixedExpenseSuggestionsTest` para as sugestões de gasto fixo).
 - Integração (`*IT`, pelo Failsafe no `mvn verify`): Testcontainers com Postgres + WireMock para a Pluggy.
   No Docker, o banco de cada teste aparece como `wallet-core-test-db-xxxx`; o do `test-run`, como
   `wallet-core-demo-db-xxxx` (Pluggy de demonstração) ou `wallet-core-pluggy-db-xxxx` (Pluggy de verdade).
