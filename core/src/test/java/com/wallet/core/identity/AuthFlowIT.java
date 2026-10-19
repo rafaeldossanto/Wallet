@@ -130,9 +130,11 @@ class AuthFlowIT {
             login(email, "wrong password!").andExpect(status().isUnauthorized());
         }
 
+        // Until when, as a field: the app says the time instead of reading the English message.
         login(email, PASSWORD)
                 .andExpect(status().isLocked())
-                .andExpect(jsonPath("$.code").value("auth.locked"));
+                .andExpect(jsonPath("$.code").value("auth.locked"))
+                .andExpect(jsonPath("$.lockedUntil").value(TestClockConfiguration.START.plus(Duration.ofMinutes(15)).toString()));
 
         clock.advance(Duration.ofMinutes(16));
         login(email, PASSWORD).andExpect(status().isOk());

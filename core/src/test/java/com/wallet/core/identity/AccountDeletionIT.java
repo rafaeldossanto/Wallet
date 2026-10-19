@@ -175,7 +175,8 @@ class AccountDeletionIT {
         }
         deleteAccount(owner.id(), PASSWORD)
                 .andExpect(status().isLocked())
-                .andExpect(jsonPath("$.code").value("auth.locked"));
+                .andExpect(jsonPath("$.code").value("auth.locked"))
+                .andExpect(jsonPath("$.lockedUntil").isString());
 
         assertThat(users.existsById(owner.id())).isTrue();
         assertThat(rowsOf(owner.id(), mine)).allSatisfy((table, rows) -> assertThat(rows).as(table).isPositive());

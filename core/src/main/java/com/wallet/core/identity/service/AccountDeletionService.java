@@ -4,6 +4,7 @@ import com.wallet.core.connection.ConnectionRevocation;
 import com.wallet.core.connection.RevocationReport;
 import com.wallet.core.identity.entity.User;
 import com.wallet.core.identity.repository.UserRepository;
+import com.wallet.core.shared.error.AccountLockedException;
 import com.wallet.core.shared.error.DomainException;
 import com.wallet.core.shared.error.ErrorType;
 import lombok.extern.slf4j.Slf4j;
@@ -72,8 +73,7 @@ public class AccountDeletionService {
      */
     private void confirm(User user, String password) {
         if (loginAttemptService.isLocked(user)) {
-            throw new DomainException(ErrorType.LOCKED, "auth.locked",
-                    "Too many failed logins; try again after " + user.getLockedUntil());
+            throw new AccountLockedException(user.getLockedUntil());
         }
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             loginAttemptService.registerFailure(user.getId());
