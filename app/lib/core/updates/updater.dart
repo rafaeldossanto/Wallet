@@ -184,6 +184,7 @@ class Updater extends ChangeNotifier {
   String? _updatedTo;
   Timer? _timer;
   int _failures = 0;
+  bool _checking = false;
   bool _disposed = false;
 
   UpdateState get state => _state;
@@ -228,18 +229,35 @@ class Updater extends ChangeNotifier {
   }
 
   Future<void> check() async {
-    if (!isEnabled || _state is CheckingForUpdate || _state is DownloadingUpdate) {
+    if (!isEnabled || _checking) {
       return;
     }
+    _checking = true;
+    try {
+      await _lookForUpdate();
+    } finally {
+      _checking = false;
+    }
+  }
+
+  Future<void> _lookForUpdate() async {
     if (_state case UpdateReady(:final installer) when await _isAway()) {
       return _install(installer, Relaunch.tray);
     }
-    _set(const CheckingForUpdate());
+    // A downloaded update stays on offer while the next check runs, and with why it did not install
+    // (Android): only a newer release replaces it, and a failed check leaves it as it was.
+    final current = _state;
+    final ready = current is UpdateReady ? current : null;
+    if (ready == null) {
+      _set(const CheckingForUpdate());
+    }
     try {
       final release = await _feed.latest();
-      if (release == null || !isNewer(release.version, currentVersion)) {
+      if (release == null || !isNewer(release.version, ready?.version ?? currentVersion)) {
         _failures = 0;
-        _set(const UpToDate());
+        if (ready == null) {
+          _set(const UpToDate());
+        }
         return;
       }
       _set(DownloadingUpdate(release.version));
@@ -252,7 +270,11 @@ class Updater extends ChangeNotifier {
     } on Exception catch (error) {
       debugPrint('[UPDATE] $error');
       _failures++;
-      _set(const UpdateFailed());
+      if (ready == null) {
+        _set(const UpdateFailed());
+      } else if (_state is DownloadingUpdate) {
+        _set(ready);
+      }
     }
   }
 
