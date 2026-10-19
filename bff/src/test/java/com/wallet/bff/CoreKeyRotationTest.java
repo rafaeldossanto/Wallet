@@ -1,7 +1,6 @@
 package com.wallet.bff;
 
 import com.github.tomakehurst.wiremock.client.WireMock;
-import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -31,8 +30,7 @@ class CoreKeyRotationTest extends BffTestSupport {
         me(token(UUID.randomUUID())).andExpect(status().isOk());
 
         RSAKey restarted = generateKey("after-restart");
-        CORE.stubFor(WireMock.get(urlEqualTo("/internal/.well-known/jwks.json"))
-                .willReturn(okJson(new JWKSet(restarted.toPublicJWK()).toString())));
+        stubJwks(restarted);
         String newToken = token(UUID.randomUUID(), Instant.now().plus(Duration.ofMinutes(15)), "wallet-core", restarted);
 
         me(newToken).andExpect(status().isOk());

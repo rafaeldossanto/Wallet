@@ -1,6 +1,8 @@
 package com.wallet.core.connection.service;
 
 import com.wallet.core.connection.ConnectionLinked;
+import com.wallet.core.connection.ConnectionRevocation;
+import com.wallet.core.connection.RevocationReport;
 import com.wallet.core.connection.config.ConnectionProperties;
 import com.wallet.core.connection.dto.ConnectTokenResponse;
 import com.wallet.core.connection.dto.ConnectionResponse;
@@ -23,7 +25,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import static java.util.Objects.isNull;
@@ -31,7 +35,7 @@ import static java.util.Objects.isNull;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ConnectionService {
+public class ConnectionService implements ConnectionRevocation {
 
     private final ConnectionRepository repository;
     private final FinancialDataProvider provider;
@@ -78,13 +82,60 @@ public class ConnectionService {
     @Transactional
     public void unlink(UUID userId, UUID connectionId) {
         Connection connection = repository.findByIdAndUserId(connectionId, userId).orElseThrow(ConnectionService::notFound);
+        releaseAtProvider(userId, connection, ProviderCallReason.UNLINK);
+        repository.delete(connection);
+    }
+
+    /**
+     * Not transactional: the provider is called without holding the database. Unlike unlinking,
+     * a provider failure does not stop anything; the account goes anyway, and the failure is
+     * logged so the item can be revoked by hand at the provider.
+     */
+    @Override
+    public RevocationReport revokeAll(UUID userId, Set<UUID> skip) {
+        Set<UUID> handled = new LinkedHashSet<>();
+        int revoked = 0;
+        int released = 0;
+        int failed = 0;
+        for (Connection connection : repository.findByUserIdOrderByCreatedAtAsc(userId)) {
+            if (skip.contains(connection.getId())) {
+                continue;
+            }
+            handled.add(connection.getId());
+            try {
+                if (releaseAtProvider(userId, connection, ProviderCallReason.ACCOUNT_DELETION)) {
+                    revoked++;
+                } else {
+                    released++;
+                }
+            } catch (RuntimeException ex) {
+                failed++;
+                log.warn("[SECURITY] Account deletion of user {}: connection {} not revoked at the provider ({})",
+                        userId, connection.getId(), codeOf(ex));
+            }
+        }
+        return new RevocationReport(handled, revoked, released, failed);
+    }
+
+    /**
+     * Revokes the item at the provider when it is the Wallet's to revoke: always in production, and
+     * while developing only items the widget created for this user.
+     *
+     * @return true when revoked (or already gone there), false when only let go of
+     */
+    private boolean releaseAtProvider(UUID userId, Connection connection, ProviderCallReason reason) {
         String itemId = connection.getProviderItemId();
-        new ProviderCallContext(userId, connectionId, itemId, ProviderCallReason.UNLINK).run(() -> {
+        return new ProviderCallContext(userId, connection.getId(), itemId, reason).call(() -> {
             if (properties.isPluggyConnect() || createdByTheWidgetFor(userId, itemId)) {
                 revokeAtProvider(itemId);
+                return true;
             }
+            return false;
         });
-        repository.delete(connection);
+    }
+
+    private static String codeOf(RuntimeException ex) {
+        return ex instanceof DomainException domain ? domain.getCode() : ex.getClass().getSimpleName();
     }
 
     /**

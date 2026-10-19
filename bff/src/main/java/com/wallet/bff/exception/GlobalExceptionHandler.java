@@ -11,6 +11,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.util.Optional;
+
+import static java.util.Objects.nonNull;
+
 /** The only place in the BFF that returns {@code ResponseEntity}. */
 @Slf4j
 @RestControllerAdvice
@@ -45,9 +49,22 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("request.invalid_parameter", "A request parameter is missing or invalid"));
     }
 
+    /** The JSON reader wraps the size limit's exception: a body cut at the limit is too large, not malformed. */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException ex) {
+        Optional<RequestBodyTooLargeException> tooLarge = causeOf(ex, RequestBodyTooLargeException.class);
+        if (tooLarge.isPresent()) {
+            return handleTooLarge(tooLarge.get());
+        }
         return ResponseEntity.badRequest().body(new ErrorResponse("request.malformed", "Request body could not be read"));
+    }
+
+    /** A chunked body went past {@code wallet.http.max-body-size} while being read. */
+    @ExceptionHandler(RequestBodyTooLargeException.class)
+    public ResponseEntity<ErrorResponse> handleTooLarge(RequestBodyTooLargeException ex) {
+        log.warn("[EXCEPTION] request.too_large: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONTENT_TOO_LARGE)
+                .body(new ErrorResponse("request.too_large", ex.getMessage()));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
@@ -61,5 +78,14 @@ public class GlobalExceptionHandler {
         log.error("[EXCEPTION] Unexpected error: {}", ex.getMessage(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ErrorResponse("internal.error", "Unexpected error"));
+    }
+
+    private static <T extends Throwable> Optional<T> causeOf(Throwable error, Class<T> type) {
+        for (Throwable cause = error; nonNull(cause); cause = cause.getCause()) {
+            if (type.isInstance(cause)) {
+                return Optional.of(type.cast(cause));
+            }
+        }
+        return Optional.empty();
     }
 }

@@ -87,7 +87,7 @@ linha de log `[PROVIDER_CALL]`, para monitorar o uso e investigar problemas.
 | Quem | `user_id` | O usuário do Wallet, quando há um |
 | Qual conexão | `connection_id`, `provider_item_id` | Vazio no vínculo, antes de a conexão existir |
 | O quê | `operation` | `AUTH`, `FIND_ITEM`, `LIST_ACCOUNTS`, `LIST_TRANSACTIONS`, `LIST_BILLS`, `LIST_INVESTMENTS`, `DELETE_ITEM`, `CREATE_CONNECT_TOKEN` |
-| Por quê | `reason` | `CONNECT` (token do Pluggy Connect), `LINK`, `UNLINK`, `INITIAL_SYNC`, `SCHEDULED_SYNC`, `MANUAL_SYNC`, `WEBHOOK_SYNC` |
+| Por quê | `reason` | `CONNECT` (token do Pluggy Connect), `LINK`, `UNLINK`, `ACCOUNT_DELETION` (revogação antes de excluir a conta), `INITIAL_SYNC`, `SCHEDULED_SYNC`, `MANUAL_SYNC`, `WEBHOOK_SYNC` |
 | Resultado | `outcome`, `http_status`, `error_code` | `SUCCESS` ou `FAILURE`; status vazio quando não veio resposta |
 | Duração | `duration_ms` | Do envio até ler o corpo inteiro |
 
@@ -132,6 +132,18 @@ Tudo em `/internal`, JSON em inglês, dinheiro como string (`"1234.56"`), datas
 ISO-8601. Paginação `{ items, page, pageSize, total, totalPages }`. Toda rota, menos
 login, cadastro e refresh, exige o JWT do usuário, que o BFF repassa.
 
+**Chave de gateway (desde 2026-10-19):** toda requisição, inclusive login, cadastro, refresh e
+o JWKS, também precisa do header `X-Gateway-Key` com o segredo compartilhado com o BFF
+(`WALLET_GATEWAY_KEY`). Sem ele, ou com o valor errado, o `GatewayKeyFilter` responde **403**
+`gateway.forbidden` antes de qualquer outra coisa (sem ler token, sem BCrypt, sem banco). Só
+`/actuator/health` fica aberto. 403 e não 401 de propósito: o BFF trata o 401 do core como
+sessão vencida e o app deslogaria o usuário por um erro de configuração do servidor. A
+comparação é em tempo constante (SHA-256 dos dois lados + `MessageDigest.isEqual`). Assim o
+core não depende de estar numa rede interna: quem alcança a porta sem a chave não consegue nada.
+A chave de desenvolvimento está neste repositório público, então o core só a aceita escutando no
+loopback (o padrão, `127.0.0.1`); com `WALLET_CORE_ADDRESS` apontando para a rede, ele não sobe
+sem uma `WALLET_GATEWAY_KEY` real.
+
 | Método | Rota | O que faz |
 |---|---|---|
 | POST | `/internal/auth/register` | Cria conta |
@@ -139,6 +151,7 @@ login, cadastro e refresh, exige o JWT do usuário, que o BFF repassa.
 | POST | `/internal/auth/refresh` | Troca o refresh por um par novo |
 | POST | `/internal/auth/logout` | Revoga a família do refresh |
 | GET | `/internal/me` | Usuário logado |
+| DELETE | `/internal/me` | Exclui a conta e tudo dela (204, também se já não existia), com `{"password"}` no corpo: senha errada é 403 `auth.wrong_password` e conta para o bloqueio. Revoga as conexões na Pluggy antes; ver [[Modelo de Dados#Exclusão]] |
 | GET | `/internal/connections` | Conexões do usuário e o estado de cada uma |
 | POST | `/internal/connections` | Vincula um item (`{ "providerItemId": "..." }`) |
 | POST | `/internal/connections/connect-token` | Token do widget Pluggy Connect para o usuário (`{ "connectToken": "..." }`, 30 min, uma conexão) |
@@ -204,6 +217,9 @@ Erros de leitura: `period.invalid`, `period.too_long` e `page.invalid` (422),
 | `PLUGGY_CLIENT_ID`, `PLUGGY_CLIENT_SECRET` | Credenciais do Meu Pluggy. **Só em variável de ambiente**, nunca no git |
 | `WALLET_JWT_PRIVATE_KEY` | Chave privada RS256 que assina os access tokens. Só o core tem |
 | `WALLET_DATA_KEY` | Chave AES da criptografia de coluna |
+| `WALLET_GATEWAY_KEY` | Segredo compartilhado com o BFF (`X-Gateway-Key`), o **mesmo** valor nos dois. Vazio = chave de desenvolvimento conhecida; com `SPRING_PROFILES_ACTIVE=prod`, vazia, curta (< 32) ou a de desenvolvimento impedem a subida |
+| `WALLET_CORE_ADDRESS` | Interface onde o core escuta (`server.address`). Padrão `127.0.0.1`, com o BFF na mesma máquina; com o BFF em outro host, `0.0.0.0` e uma `WALLET_GATEWAY_KEY` real (a chave de desenvolvimento só vale no loopback) |
+| `WALLET_MAX_BODY_SIZE` | `wallet.http.max-body-size`, padrão `256KB`. `Content-Length` maior recebe 413 `request.too_large` sem o corpo ser lido; corpo chunked é cortado nesse tamanho durante a leitura (`RequestBodyLimitFilter`). O Tomcat usa o mesmo teto em `max-swallow-size` e `max-http-form-post-size` |
 | `wallet.provider.connection-mode` | `MEU_PLUGGY` (dev) ou `PLUGGY_CONNECT` |
 | `wallet.provider.oauth-redirect-uri` | Para onde o banco devolve o usuário depois de autorizar no Pluggy Connect: o deep link do app Android (`com.wallet.wallet://pluggy-connect`) |
 | `wallet.sync.interval` | Intervalo do polling (padrão 6 h) |

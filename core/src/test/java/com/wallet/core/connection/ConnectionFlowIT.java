@@ -1,6 +1,7 @@
 package com.wallet.core.connection;
 
 import com.jayway.jsonpath.JsonPath;
+import com.wallet.core.TestMockMvc;
 import com.wallet.core.TestUsers;
 import com.wallet.core.TestcontainersConfiguration;
 import com.wallet.core.provider.FinancialDataProvider;
@@ -20,7 +21,6 @@ import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.time.Instant;
@@ -32,7 +32,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -62,7 +61,7 @@ class ConnectionFlowIT {
 
     @BeforeEach
     void setUp() throws Exception {
-        mockMvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        mockMvc = TestMockMvc.of(context);
         userId = TestUsers.register(mockMvc);
     }
 

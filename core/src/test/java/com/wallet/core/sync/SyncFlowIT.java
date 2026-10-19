@@ -3,6 +3,7 @@ package com.wallet.core.sync;
 import com.jayway.jsonpath.JsonPath;
 import com.wallet.core.MutableClock;
 import com.wallet.core.TestClockConfiguration;
+import com.wallet.core.TestMockMvc;
 import com.wallet.core.TestUsers;
 import com.wallet.core.TestcontainersConfiguration;
 import com.wallet.core.banking.entity.AccountTransaction;
@@ -44,7 +45,6 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -66,7 +66,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -106,7 +105,7 @@ class SyncFlowIT {
 
     @BeforeEach
     void setUp() throws Exception {
-        mockMvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        mockMvc = TestMockMvc.of(context);
         clock.set(TestClockConfiguration.START);
         userId = TestUsers.register(mockMvc);
         itemId = UUID.randomUUID().toString();

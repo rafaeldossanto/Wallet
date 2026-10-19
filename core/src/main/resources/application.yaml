@@ -24,8 +24,28 @@ spring:
 
 server:
   port: 8081
+  # Interface the core listens on. Loopback by default: the BFF runs next to it, and nothing outside
+  # the machine reaches the port at all. Where the BFF is on another host (containers, deploy) set
+  # WALLET_CORE_ADDRESS=0.0.0.0, and then WALLET_GATEWAY_KEY too: the development key is public and
+  # the core refuses it on any address but loopback.
+  address: ${WALLET_CORE_ADDRESS:127.0.0.1}
+  tomcat:
+    # Same ceiling as wallet.http.max-body-size: a form body Tomcat parses, and how much of a body
+    # nobody read Tomcat swallows before dropping the connection.
+    max-http-form-post-size: ${wallet.http.max-body-size}
+    max-swallow-size: ${wallet.http.max-body-size}
 
 wallet:
+  http:
+    # Largest request body: a larger Content-Length is refused with 413 before anything reads it,
+    # and a chunked body is cut at this size while it is read (RequestBodyLimitFilter).
+    max-body-size: ${WALLET_MAX_BODY_SIZE:256KB}
+  gateway:
+    # Shared secret the BFF sends in X-Gateway-Key; every request without it is refused with 403
+    # (only /actuator/health stays open). Same value in both services. Empty = development key
+    # (local only); with SPRING_PROFILES_ACTIVE=prod an empty, short (< 32 chars) or development
+    # key stops the boot.
+    key: ${WALLET_GATEWAY_KEY:}
   jwt:
     issuer: wallet-core
     # PEM text or a path to a .pem file. Both empty = ephemeral key for local development only.

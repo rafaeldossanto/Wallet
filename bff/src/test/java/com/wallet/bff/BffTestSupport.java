@@ -10,6 +10,8 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.gen.RSAKeyGenerator;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import com.wallet.bff.config.GatewayKey;
+import com.wallet.bff.config.RequestBodyLimitFilter;
 import com.wallet.bff.trace.TraceIdFilter;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +27,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.UUID;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
@@ -42,6 +45,9 @@ public abstract class BffTestSupport {
     protected static final WireMockServer CORE = new WireMockServer(wireMockConfig().dynamicPort());
     protected static final RSAKey SIGNING_KEY = generateKey("wallet-core-1");
 
+    /** What the fake core asks of the BFF; the JWKS stub refuses to answer without it. */
+    protected static final String GATEWAY_KEY = "test-gateway-key-0123456789abcdef0123456789";
+
     static {
         CORE.start();
     }
@@ -49,6 +55,7 @@ public abstract class BffTestSupport {
     @DynamicPropertySource
     static void pointAtFakeCore(DynamicPropertyRegistry registry) {
         registry.add("wallet.core.url", CORE::baseUrl);
+        registry.add("wallet.core.gateway-key", () -> GATEWAY_KEY);
     }
 
     @Autowired
@@ -60,19 +67,31 @@ public abstract class BffTestSupport {
     @Autowired
     private TraceIdFilter traceIdFilter;
 
+    @Autowired
+    private RequestBodyLimitFilter requestBodyLimitFilter;
+
     protected MockMvc mockMvc;
 
     /**
-     * {@code springSecurity()} only brings the security chain; the trace filter is added by hand,
-     * ahead of it, the same order the server uses.
+     * {@code springSecurity()} only brings the security chain; the trace and body size filters are
+     * added by hand, ahead of it, the same order the server uses.
      */
     @BeforeEach
     void resetFakeCore() {
         CORE.resetAll();
-        CORE.stubFor(get(urlEqualTo("/internal/.well-known/jwks.json"))
-                .willReturn(okJson(new JWKSet(SIGNING_KEY.toPublicJWK()).toString())));
+        stubJwks(SIGNING_KEY);
         coreCircuitBreaker.reset();
-        mockMvc = MockMvcBuilders.webAppContextSetup(context).addFilters(traceIdFilter).apply(springSecurity()).build();
+        mockMvc = MockMvcBuilders.webAppContextSetup(context)
+                .addFilters(traceIdFilter, requestBodyLimitFilter)
+                .apply(springSecurity())
+                .build();
+    }
+
+    /** The core's JWKS, served only to a caller with the gateway key, as the real core does. */
+    protected static void stubJwks(RSAKey key) {
+        CORE.stubFor(get(urlEqualTo("/internal/.well-known/jwks.json"))
+                .withHeader(GatewayKey.HEADER, equalTo(GATEWAY_KEY))
+                .willReturn(okJson(new JWKSet(key.toPublicJWK()).toString())));
     }
 
     protected static String token(UUID userId) {

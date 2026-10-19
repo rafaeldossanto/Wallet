@@ -1,10 +1,13 @@
 package com.wallet.core.shared.error;
 
+import com.wallet.core.shared.web.RequestBodyTooLargeException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.mock.http.MockHttpInputMessage;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,6 +15,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.io.UncheckedIOException;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -64,6 +69,17 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.message").value("Unexpected error"));
     }
 
+    @Test
+    void aBodyCutAtTheSizeLimitIsTooLargeNotMalformed() throws Exception {
+        mockMvc.perform(get("/fake/too-large"))
+                .andExpect(status().isContentTooLarge())
+                .andExpect(jsonPath("$.code").value("request.too_large"));
+
+        mockMvc.perform(get("/fake/too-large-while-parsing"))
+                .andExpect(status().isContentTooLarge())
+                .andExpect(jsonPath("$.code").value("request.too_large"));
+    }
+
     @RestController
     @RequestMapping("/fake")
     public static class FakeController {
@@ -81,6 +97,18 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/boom")
         public String boom() {
             throw new IllegalStateException("database password is hunter2");
+        }
+
+        @GetMapping("/too-large")
+        public String tooLarge() throws RequestBodyTooLargeException {
+            throw new RequestBodyTooLargeException(16);
+        }
+
+        /** How the JSON reader reports it: the size limit's exception somewhere down the causes. */
+        @GetMapping("/too-large-while-parsing")
+        public String tooLargeWhileParsing() {
+            throw new HttpMessageNotReadableException("I/O error while reading input message",
+                    new UncheckedIOException(new RequestBodyTooLargeException(16)), new MockHttpInputMessage(new byte[0]));
         }
 
         @PostMapping("/items")

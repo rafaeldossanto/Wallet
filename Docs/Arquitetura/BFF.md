@@ -54,6 +54,7 @@ bff/src/main/java/com/wallet/bff/
 | POST | `/api/auth/refresh` | `/internal/auth/refresh` (web: lê o cookie) |
 | POST | `/api/auth/logout` | `/internal/auth/logout` e apaga o cookie |
 | GET | `/api/me` | `/internal/me` |
+| DELETE | `/api/me` | `/internal/me` com `{"password"}` no corpo, apaga o cookie de refresh e o cache de telas do usuário (204). Exclusão da conta (LGPD); senha errada é 403 `auth.wrong_password`. Espera o core por até 2 min (`wallet.core.slow-read-timeout`): o core revoga cada conexão na Pluggy antes de responder |
 | GET | `/api/home` | `overview` + `accounts` + `credit-cards` + últimas 5 `transactions` (30 dias) + `connections`, em paralelo |
 | GET | `/api/transactions` | `/internal/transactions` (mesmos filtros, repassados sem interpretar) |
 | GET | `/api/accounts` | `/internal/accounts` (o filtro de conta do extrato; com cache) |
@@ -109,9 +110,12 @@ dinheiro, então não tem como arredondar errado.
 
 - O BFF valida o JWT antes de qualquer coisa e **repassa o mesmo Bearer** ao core, que
   valida de novo. O BFF não consegue emitir token: só o core tem a chave privada.
+- **Chave de gateway (desde 2026-10-19):** toda chamada ao core, inclusive login, cadastro e a
+  busca do JWKS, leva o header `X-Gateway-Key` (`GatewayKeyInterceptor`) com o segredo
+  `WALLET_GATEWAY_KEY`. O core recusa com 403 quem não manda. É o único segredo do BFF.
 - A chave pública vem do **JWKS do core** (`/internal/.well-known/jwks.json`), buscada
   no primeiro uso e guardada em cache. O BFF sobe mesmo com o core fora do ar, e não
-  existe chave para configurar nele.
+  existe chave de JWT para configurar nele.
 - O `kid` da chave é o thumbprint dela (RFC 7638). Chave nova, `kid` novo: o BFF só
   rebusca o JWKS quando vê um `kid` desconhecido, então com `kid` fixo ele ficaria até
   5 min recusando os tokens de um core reiniciado com chave temporária. Achado e
@@ -124,17 +128,28 @@ dinheiro, então não tem como arredondar errado.
 - Erro do core: status e `{ code, message }` passam intactos. O app só conhece os
   códigos. Os do próprio BFF: `auth.client_required`, `auth.invalid_refresh_token`,
   `auth.unauthenticated`, `rate_limit.exceeded`, `bff.core_unavailable`,
-  `request.invalid_parameter`, `request.malformed`, `route.not_found`.
+  `request.invalid_parameter`, `request.malformed`, `request.too_large` (413), `route.not_found`.
 
 ## Configuração
 
 | Propriedade / variável | Para quê |
 |---|---|
 | `WALLET_CORE_URL` | Endereço do core (`http://localhost:8081` no dev) |
+| `WALLET_GATEWAY_KEY` | Segredo enviado ao core em `X-Gateway-Key`, o **mesmo** valor do core. Vazio = chave de desenvolvimento; com `SPRING_PROFILES_ACTIVE=prod`, vazia, curta (< 32) ou a de desenvolvimento impedem a subida |
 | `WALLET_WEB_ALLOWED_ORIGINS` | Origem do Flutter Web (`http://localhost:5000` no dev) |
 | `wallet.web.cookie-secure` | Flag `Secure` do cookie; ligada também no dev, porque o navegador aceita em `localhost` |
 | `wallet.cache.screen-ttl` | TTL do cache das telas (padrão 60 s) |
 | `wallet.rate-limit.*` | Janela (1 min), 20 por IP em `/api/auth`, 300 por usuário no resto |
+| `WALLET_MAX_BODY_SIZE` | `wallet.http.max-body-size`, padrão `256KB`, o mesmo filtro do core: `Content-Length` maior recebe 413 `request.too_large` antes da segurança; corpo chunked é cortado durante a leitura |
+| `WALLET_TRUSTED_PROXIES` | `wallet.rate-limit.trusted-proxies`: proxies reversos (IPs ou CIDR) cujo `X-Forwarded-For` vale para o rate limit. Vazio = IP da conexão |
+
+**IP do cliente no rate limit (desde 2026-10-19):** o `forward-headers-strategy` é `none`.
+No modo `framework`, o Spring aplicava o `X-Forwarded-For` de qualquer cliente, e mudar o
+header a cada requisição dava um limite novo a cada vez. Agora o `ClientAddress` usa o IP
+da conexão, a não ser que ela venha de um proxy em `trusted-proxies`. Nesse caso ele lê o
+header da direita para a esquerda, pula os proxies confiáveis e o primeiro endereço que não
+é deles é o cliente; o que o cliente escreveu à esquerda é ignorado. Endereço que não é IP
+literal (nada de DNS por requisição) conta no próprio proxy.
 
 Porta **8080**. É o endereço que o app usa.
 

@@ -8,6 +8,8 @@ public enum ProviderCallReason {
     LINK,
     /** Revoking the item at the provider when the user unlinks it. */
     UNLINK,
+    /** Revoking every item of a user who is deleting their account, before the data goes. */
+    ACCOUNT_DELETION,
     /** The first sync, right after linking. */
     INITIAL_SYNC,
     /** The periodic poll. */

@@ -7,6 +7,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestOperations;
+import org.springframework.web.client.RestTemplate;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
@@ -15,21 +17,56 @@ import java.time.Duration;
 public class RestClientConfig {
 
     @Bean
-    RestClient coreRestClient(RestClient.Builder builder, CoreProperties core,
+    RestClient coreRestClient(RestClient.Builder builder, CoreProperties core, GatewayKeyInterceptor gatewayKey,
                               BearerPropagationInterceptor bearer, TraceIdPropagationInterceptor trace) {
-        // HTTP/1.1 on purpose: on plain http the JDK client tries an h2c upgrade, which the
-        // internal network gains nothing from and test servers like WireMock reset.
+        return coreRestClient(builder, core, core.readTimeout(), gatewayKey, bearer, trace);
+    }
+
+    /**
+     * The same client, waiting longer: deleting an account revokes each connection at Pluggy before
+     * the core answers, and Pluggy may take up to 10s per call. With the usual read timeout the app
+     * would see an error for an account the core went on to delete.
+     */
+    @Bean
+    RestClient coreSlowRestClient(RestClient.Builder builder, CoreProperties core, GatewayKeyInterceptor gatewayKey,
+                                  BearerPropagationInterceptor bearer, TraceIdPropagationInterceptor trace) {
+        return coreRestClient(builder, core, core.slowReadTimeout(), gatewayKey, bearer, trace);
+    }
+
+    private static RestClient coreRestClient(RestClient.Builder builder, CoreProperties core, Duration readTimeout,
+                                             GatewayKeyInterceptor gatewayKey, BearerPropagationInterceptor bearer,
+                                             TraceIdPropagationInterceptor trace) {
+        return builder.baseUrl(core.url())
+                .requestFactory(coreRequestFactory(core, readTimeout))
+                .requestInterceptor(gatewayKey)
+                .requestInterceptor(bearer)
+                .requestInterceptor(trace)
+                .build();
+    }
+
+    /**
+     * Fetches the core's JWKS for the token decoder. The core asks the gateway key of this route
+     * too, and Spring Security's decoder only takes a {@link RestOperations}.
+     */
+    @Bean
+    RestOperations coreJwksRestOperations(CoreProperties core, GatewayKeyInterceptor gatewayKey) {
+        RestTemplate restTemplate = new RestTemplate(coreRequestFactory(core, core.readTimeout()));
+        restTemplate.getInterceptors().add(gatewayKey);
+        return restTemplate;
+    }
+
+    /**
+     * HTTP/1.1 on purpose: on plain http the JDK client tries an h2c upgrade, which the internal
+     * network gains nothing from and test servers like WireMock reset.
+     */
+    private static JdkClientHttpRequestFactory coreRequestFactory(CoreProperties core, Duration readTimeout) {
         HttpClient httpClient = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(core.connectTimeout())
                 .build();
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
-        requestFactory.setReadTimeout(core.readTimeout());
-        return builder.baseUrl(core.url())
-                .requestFactory(requestFactory)
-                .requestInterceptor(bearer)
-                .requestInterceptor(trace)
-                .build();
+        requestFactory.setReadTimeout(readTimeout);
+        return requestFactory;
     }
 
     /**

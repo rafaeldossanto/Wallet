@@ -6,6 +6,7 @@ import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -33,10 +34,13 @@ public class CoreClient {
     };
 
     private final RestClient restClient;
+    private final RestClient slowRestClient;
     private final CircuitBreaker circuitBreaker;
 
-    public CoreClient(@Qualifier("coreRestClient") RestClient restClient, CircuitBreaker coreCircuitBreaker) {
+    public CoreClient(@Qualifier("coreRestClient") RestClient restClient,
+                      @Qualifier("coreSlowRestClient") RestClient slowRestClient, CircuitBreaker coreCircuitBreaker) {
         this.restClient = restClient;
+        this.slowRestClient = slowRestClient;
         this.circuitBreaker = coreCircuitBreaker;
     }
 
@@ -70,6 +74,17 @@ public class CoreClient {
     public void delete(String path, Object... uriVariables) {
         call(() -> restClient.delete()
                 .uri(path, uriVariables)
+                .retrieve()
+                .onStatus(HttpStatusCode::isError, RELAY_ERRORS)
+                .toBodilessEntity());
+    }
+
+    /** A DELETE with a body, for a route where the core waits on the provider: the longer read timeout. */
+    public void deleteWaitingOnProvider(String path, Object body) {
+        call(() -> slowRestClient.method(HttpMethod.DELETE)
+                .uri(path)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, RELAY_ERRORS)
                 .toBodilessEntity());

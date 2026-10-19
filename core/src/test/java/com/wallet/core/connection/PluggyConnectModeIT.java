@@ -1,6 +1,7 @@
 package com.wallet.core.connection;
 
 import com.jayway.jsonpath.JsonPath;
+import com.wallet.core.TestMockMvc;
 import com.wallet.core.TestUsers;
 import com.wallet.core.TestcontainersConfiguration;
 import com.wallet.core.provider.FinancialDataProvider;
@@ -15,7 +16,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.time.Instant;
@@ -24,8 +24,8 @@ import java.util.UUID;
 import static com.wallet.core.TestUsers.as;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -46,7 +46,7 @@ class PluggyConnectModeIT {
 
     @BeforeEach
     void setUp() throws Exception {
-        mockMvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        mockMvc = TestMockMvc.of(context);
         userId = TestUsers.register(mockMvc);
     }
 
@@ -78,6 +78,25 @@ class PluggyConnectModeIT {
                 .andExpect(status().isNoContent());
 
         verify(provider).deleteItem(itemId);
+    }
+
+    /** In production every item was created for the user, so deleting the account revokes all of them. */
+    @Test
+    void deletingTheAccountRevokesEveryItemAtTheProvider() throws Exception {
+        String first = stubItem(userId.toString());
+        String second = stubItem(userId.toString());
+        link(first).andExpect(status().isCreated());
+        link(second).andExpect(status().isCreated());
+
+        mockMvc.perform(delete("/internal/me").with(as(userId))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"password\":\"password123\"}"))
+                .andExpect(status().isNoContent());
+
+        verify(provider).deleteItem(first);
+        verify(provider).deleteItem(second);
+        mockMvc.perform(get("/internal/connections").with(as(userId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
     }
 
     private String stubItem(String clientUserId) {
