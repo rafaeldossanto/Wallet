@@ -87,7 +87,7 @@ linha de log `[PROVIDER_CALL]`, para monitorar o uso e investigar problemas.
 | Quem | `user_id` | O usuário do Wallet, quando há um |
 | Qual conexão | `connection_id`, `provider_item_id` | Vazio no vínculo, antes de a conexão existir |
 | O quê | `operation` | `AUTH`, `FIND_ITEM`, `LIST_ACCOUNTS`, `LIST_TRANSACTIONS`, `LIST_BILLS`, `LIST_INVESTMENTS`, `DELETE_ITEM`, `CREATE_CONNECT_TOKEN` |
-| Por quê | `reason` | `CONNECT` (token do Pluggy Connect), `LINK`, `UNLINK`, `INITIAL_SYNC`, `SCHEDULED_SYNC`, `MANUAL_SYNC`, `WEBHOOK_SYNC` |
+| Por quê | `reason` | `CONNECT` (token do Pluggy Connect), `LINK`, `UNLINK`, `ACCOUNT_DELETION` (revogação antes de excluir a conta), `INITIAL_SYNC`, `SCHEDULED_SYNC`, `MANUAL_SYNC`, `WEBHOOK_SYNC` |
 | Resultado | `outcome`, `http_status`, `error_code` | `SUCCESS` ou `FAILURE`; status vazio quando não veio resposta |
 | Duração | `duration_ms` | Do envio até ler o corpo inteiro |
 
@@ -148,6 +148,7 @@ core não depende de estar numa rede interna: quem alcança a porta sem a chave 
 | POST | `/internal/auth/refresh` | Troca o refresh por um par novo |
 | POST | `/internal/auth/logout` | Revoga a família do refresh |
 | GET | `/internal/me` | Usuário logado |
+| DELETE | `/internal/me` | Exclui a conta e tudo dela (204, também se já não existia). Revoga as conexões na Pluggy antes; ver [[Modelo de Dados#Exclusão]] |
 | GET | `/internal/connections` | Conexões do usuário e o estado de cada uma |
 | POST | `/internal/connections` | Vincula um item (`{ "providerItemId": "..." }`) |
 | POST | `/internal/connections/connect-token` | Token do widget Pluggy Connect para o usuário (`{ "connectToken": "..." }`, 30 min, uma conexão) |

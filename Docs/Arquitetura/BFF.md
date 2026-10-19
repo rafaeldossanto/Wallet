@@ -54,6 +54,7 @@ bff/src/main/java/com/wallet/bff/
 | POST | `/api/auth/refresh` | `/internal/auth/refresh` (web: lê o cookie) |
 | POST | `/api/auth/logout` | `/internal/auth/logout` e apaga o cookie |
 | GET | `/api/me` | `/internal/me` |
+| DELETE | `/api/me` | `/internal/me`, apaga o cookie de refresh e o cache de telas do usuário (204). Exclusão da conta (LGPD) |
 | GET | `/api/home` | `overview` + `accounts` + `credit-cards` + últimas 5 `transactions` (30 dias) + `connections`, em paralelo |
 | GET | `/api/transactions` | `/internal/transactions` (mesmos filtros, repassados sem interpretar) |
 | GET | `/api/accounts` | `/internal/accounts` (o filtro de conta do extrato; com cache) |

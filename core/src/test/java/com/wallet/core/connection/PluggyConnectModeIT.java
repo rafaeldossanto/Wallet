@@ -25,6 +25,7 @@ import static com.wallet.core.TestUsers.as;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -77,6 +78,24 @@ class PluggyConnectModeIT {
                 .andExpect(status().isNoContent());
 
         verify(provider).deleteItem(itemId);
+    }
+
+    /** In production every item was created for the user, so deleting the account revokes all of them. */
+    @Test
+    void deletingTheAccountRevokesEveryItemAtTheProvider() throws Exception {
+        String first = stubItem(userId.toString());
+        String second = stubItem(userId.toString());
+        link(first).andExpect(status().isCreated());
+        link(second).andExpect(status().isCreated());
+
+        mockMvc.perform(delete("/internal/me").with(as(userId)))
+                .andExpect(status().isNoContent());
+
+        verify(provider).deleteItem(first);
+        verify(provider).deleteItem(second);
+        mockMvc.perform(get("/internal/connections").with(as(userId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
     }
 
     private String stubItem(String clientUserId) {

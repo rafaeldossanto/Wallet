@@ -20,4 +20,12 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select u from User u where u.id = :id")
     Optional<User> findByIdForUpdate(@Param("id") UUID id);
+
+    /**
+     * {@code FOR UPDATE} by hand: Hibernate turns PESSIMISTIC_WRITE into {@code FOR NO KEY UPDATE}
+     * on Postgres, which lets a new row referencing the user (a connection being linked) through.
+     * This one makes that insert wait for the caller's transaction.
+     */
+    @Query(value = "select * from users where id = :id for update", nativeQuery = true)
+    Optional<User> findByIdLockingReferences(@Param("id") UUID id);
 }

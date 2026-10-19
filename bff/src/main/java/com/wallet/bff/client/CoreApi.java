@@ -63,6 +63,10 @@ public class CoreApi {
         return client.get("/internal/me", Map.of(), new ParameterizedTypeReference<>() {});
     }
 
+    public void deleteMe() {
+        client.delete("/internal/me");
+    }
+
     public List<ConnectionResponse> connections() {
         return client.get("/internal/connections", Map.of(), new ParameterizedTypeReference<>() {});
     }

@@ -80,8 +80,8 @@ seria carregada para a frente para sempre.
 
 **provider_calls** — a auditoria das chamadas à Pluggy, uma linha por requisição HTTP:
 `id`, `called_at`, `provider` (`PLUGGY`), `operation` (`FIND_ITEM`, `LIST_TRANSACTIONS`...),
-`reason` (`LINK`, `UNLINK`, `INITIAL_SYNC`, `SCHEDULED_SYNC`, `MANUAL_SYNC`,
-`WEBHOOK_SYNC`), `user_id`, `connection_id`, `provider_item_id`, `outcome`
+`reason` (`CONNECT`, `LINK`, `UNLINK`, `ACCOUNT_DELETION`, `INITIAL_SYNC`, `SCHEDULED_SYNC`,
+`MANUAL_SYNC`, `WEBHOOK_SYNC`), `user_id`, `connection_id`, `provider_item_id`, `outcome`
 (`SUCCESS`/`FAILURE`), `http_status`, `error_code`, `duration_ms`. Índices em `called_at` e
 em (`connection_id`, `called_at`). **Sem chave estrangeira**, por isso fica fora do diagrama:
 o registro precisa sobreviver ao desvínculo e à exclusão do usuário. Nenhum dado financeiro,
@@ -123,6 +123,28 @@ cobre 3 dias para cada lado), `created_at`. Único por (`user_id`, `description_
 
 - Transação que some da Pluggy recebe `deleted_at` (soft delete): a Pluggy pode apagar
   e recriar a mesma transação com outro ID. Ver [[Sincronização]].
-- Excluir a conta do usuário (LGPD) apaga tudo em cascata, inclusive as conexões.
+- **Excluir a conta (LGPD, art. 18, VI), desde 2026-10-19:** `DELETE /api/me` no BFF, que chama
+  `DELETE /internal/me` no core (`AccountDeletionService`). Até essa data o schema já
+  cascateava, mas não existia rota nenhuma para excluir a conta. A ordem importa:
+  1. Primeiro, fora de transação, cada conexão é revogada na Pluggy (`deleteItem`), enquanto o
+     Wallet ainda sabe quais itens são do usuário. Mesma regra do desvínculo: em produção
+     (`PLUGGY_CONNECT`) revoga sempre; no dev, só os itens que o widget criou para o usuário (item
+     do Meu Pluggy é da conta do Meu Pluggy, o Wallet só solta). **Falha da Pluggy não impede a
+     exclusão**: fica no log `[SECURITY]` (com `userId` e `connectionId`, sem e-mail nem valores)
+     e em `provider_calls` com `reason = ACCOUNT_DELETION`, para revogar à mão depois.
+  2. Depois, numa transação, a linha do usuário é travada com `FOR UPDATE` de verdade
+     (`findByIdLockingReferences`; o `PESSIMISTIC_WRITE` do Hibernate vira `FOR NO KEY UPDATE`
+     no Postgres e não seguraria um vínculo concorrente), as conexões vinculadas no meio do
+     caminho também são revogadas, e o `users` é apagado.
+  3. O cascade do schema leva `connections`, `accounts`, `transactions`, `balance_snapshots`,
+     `credit_card_bills`, `investments`, `investment_snapshots`, `sync_runs`, `fixed_expenses`,
+     `planning_settings`, `dismissed_fixed_expense_suggestions` e `refresh_tokens`.
+  4. No BFF, o cookie `wallet_refresh` é apagado e o cache de telas do usuário, descartado.
+- Só o próprio usuário exclui a própria conta (o id vem do JWT) e a rota é idempotente: excluir
+  de novo responde 204. Depois disso o access token ainda válido (até 15 min) não acha mais
+  ninguém: `/me` responde 401 e não há dado para ler.
+- **`provider_calls` fica**, de propósito: sem chave estrangeira, sem dado financeiro, e os 180
+  dias de retenção também guardam o registro de que os itens foram revogados. O `user_id` que
+  sobra não aponta para ninguém (pseudônimo) e some quando a retenção vence.
 
 Ver também [[Core]].
