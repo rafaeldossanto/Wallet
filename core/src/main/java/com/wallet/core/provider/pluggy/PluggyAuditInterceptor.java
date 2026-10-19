@@ -59,7 +59,7 @@ class PluggyAuditInterceptor implements ClientHttpRequestInterceptor {
             response = execution.execute(request, body);
             int status = response.getStatusCode().value();
             return new RecordedResponse(response, () -> recorder.record(call.finish(status, errorCodeOf(status))));
-        } catch (IOException ex) {
+        } catch (IOException | RuntimeException ex) {
             if (nonNull(response)) {
                 response.close();
             }
@@ -83,9 +83,10 @@ class PluggyAuditInterceptor implements ClientHttpRequestInterceptor {
 
     /**
      * Could not connect (refused, unknown host, connect timeout: what a blocked egress looks like),
-     * connected but no answer in time, or the connection dropped mid-call.
+     * connected but no answer in time, or the connection dropped mid-call. Anything else the HTTP
+     * client throws counts as the last.
      */
-    static String errorCodeOf(IOException ex) {
+    static String errorCodeOf(Exception ex) {
         if (ex instanceof HttpConnectTimeoutException || ex instanceof ConnectException) {
             return UNREACHABLE;
         }

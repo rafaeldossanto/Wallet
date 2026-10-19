@@ -232,6 +232,25 @@ class PluggyAuditInterceptorTest {
                 .containsExactly(tuple("AUTH", null, PluggyAuditInterceptor.UNREACHABLE));
     }
 
+    /** Not only I/O: whatever else the HTTP client throws leaves its record too. */
+    @Test
+    void aCallThatFailsWithAnUncheckedExceptionIsRecordedToo() {
+        RestClient client = RestClient.builder()
+                .baseUrl(pluggy.baseUrl())
+                .requestInterceptor(new PluggyAuditInterceptor(recorder, clock))
+                .requestInterceptor((request, body, execution) -> {
+                    throw new IllegalStateException("HTTP client closed");
+                })
+                .build();
+
+        assertThatThrownBy(() -> client.get().uri("/items/{id}", ITEM_ID).retrieve().toBodilessEntity())
+                .hasMessageContaining("HTTP client closed");
+
+        assertThat(recorded).extracting(ProviderCall::operation, ProviderCall::outcome, ProviderCall::httpStatus,
+                        ProviderCall::errorCode)
+                .containsExactly(tuple("FIND_ITEM", ProviderCallOutcome.FAILURE, null, PluggyAuditInterceptor.CONNECTION_FAILED));
+    }
+
     @Test
     void endpointsWithoutANameAreNamedAfterTheirPathWithoutIds() {
         assertThat(PluggyOperations.of(HttpMethod.POST, URI.create("https://api.pluggy.ai/connect_token")))
