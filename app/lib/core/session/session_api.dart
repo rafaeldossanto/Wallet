@@ -62,4 +62,13 @@ class SessionApi {
       _api.post('/api/auth/logout', body: refreshToken == null ? null : {'refreshToken': refreshToken});
 
   Future<UserProfile> me() async => UserProfile.fromJson(Json.of(await _api.get('/api/me')));
+
+  /// Longer than the BFF waits for the core on this call (`wallet.core.slow-read-timeout`, 2 min):
+  /// the core revokes every bank connection at Pluggy before answering, and the app must hear the
+  /// BFF's answer instead of giving up first on an account that may then be deleted anyway.
+  static const deleteAccountTimeout = Duration(minutes: 2, seconds: 30);
+
+  /// The core checks [password] again before deleting anything, and revokes every bank connection.
+  Future<void> deleteAccount(String password) =>
+      _api.delete('/api/me', body: {'password': password}, receiveTimeout: deleteAccountTimeout);
 }

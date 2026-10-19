@@ -32,6 +32,9 @@ abstract final class Dates {
   /// `30 de set.`.
   static String dayMonth(DateTime day) => DateFormat("d 'de' MMM", locale).format(day);
 
+  /// `17:05`.
+  static String time(DateTime moment) => DateFormat.Hm(locale).format(moment);
+
   /// `Sábado, 3 de outubro de 2026`.
   static String fullDate(DateTime day) =>
       _capitalize(DateFormat("EEEE, d 'de' MMMM 'de' y", locale).format(day).replaceFirst('-feira', ''));

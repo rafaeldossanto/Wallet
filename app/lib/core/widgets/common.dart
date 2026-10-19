@@ -27,7 +27,7 @@ class ContentWidth extends StatelessWidget {
 
 /// A titled block of a screen.
 class SectionCard extends StatelessWidget {
-  const SectionCard({super.key, required this.title, required this.child, this.trailing, this.flush = false});
+  const SectionCard({super.key, required this.title, required this.child, this.trailing, this.flush = false, this.accent});
 
   final String title;
   final Widget child;
@@ -36,8 +36,12 @@ class SectionCard extends StatelessWidget {
   /// The child runs edge to edge: list tiles bring their own padding.
   final bool flush;
 
+  /// Border and title in this color instead of the theme's; the settings' danger zone uses the error color.
+  final Color? accent;
+
   @override
   Widget build(BuildContext context) => Card(
+        shape: _accentShape(context),
         child: Padding(
           padding: EdgeInsets.only(top: 16, bottom: flush ? 8 : 16),
           child: Column(
@@ -49,7 +53,8 @@ class SectionCard extends StatelessWidget {
                   constraints: const BoxConstraints(minHeight: 40),
                   child: Row(
                     children: [
-                      Expanded(child: Text(title, style: Theme.of(context).textTheme.titleMedium)),
+                      Expanded(
+                          child: Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: accent))),
                       ?trailing,
                     ],
                   ),
@@ -61,6 +66,16 @@ class SectionCard extends StatelessWidget {
           ),
         ),
       );
+
+  /// The theme's card shape with the border in [accent]; null keeps the theme's.
+  ShapeBorder? _accentShape(BuildContext context) {
+    final color = accent;
+    final shape = Theme.of(context).cardTheme.shape;
+    if (color == null || shape is! OutlinedBorder) {
+      return null;
+    }
+    return shape.copyWith(side: BorderSide(color: color));
+  }
 }
 
 /// A block that did not load while the rest of the screen did.

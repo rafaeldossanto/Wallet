@@ -4,7 +4,7 @@ import 'package:dio/dio.dart';
 /// `sync.too_soon`...) or one of the app's own network codes; screens translate it and never
 /// show [serverMessage], which is English and meant for logs.
 class ApiException implements Exception {
-  const ApiException(this.code, {this.status, this.serverMessage});
+  const ApiException(this.code, {this.status, this.serverMessage, this.lockedUntil});
 
   static const networkUnreachable = 'network.unreachable';
   static const networkTimeout = 'network.timeout';
@@ -13,6 +13,9 @@ class ApiException implements Exception {
   final String code;
   final int? status;
   final String? serverMessage;
+
+  /// On `auth.locked`: when the account takes passwords again, in local time.
+  final DateTime? lockedUntil;
 
   bool get isUnauthorized => status == 401;
 
@@ -29,8 +32,11 @@ class ApiException implements Exception {
         final response = error.response;
         final data = response?.data;
         if (data is Map && data['code'] is String) {
+          final lockedUntil = data['lockedUntil'];
           return ApiException(data['code'] as String,
-              status: response?.statusCode, serverMessage: data['message'] as String?);
+              status: response?.statusCode,
+              serverMessage: data['message'] as String?,
+              lockedUntil: lockedUntil is String ? DateTime.tryParse(lockedUntil)?.toLocal() : null);
         }
         return ApiException(unexpected, status: response?.statusCode);
       case DioExceptionType.badCertificate:

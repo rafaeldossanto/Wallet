@@ -377,6 +377,34 @@ cor normal do texto com `-`, porque vermelho faria toda compra parecer problema.
 
 Detalhes em [[Autenticação]].
 
+## Excluir conta (desde 2026-10-19)
+
+Ajustes → **Zona de perigo** (cartão com a borda e o título na cor de erro) → **Excluir conta**
+abre um diálogo (`DeleteAccountDialog`) que diz o que vai embora, inclusive que as conexões são
+revogadas na Pluggy, e pede duas coisas: marcar "Entendo que não dá para desfazer" e digitar a
+senha de novo. O botão **Excluir de vez** só se habilita com a caixa marcada.
+
+- **Contrato:** `DELETE /api/me` com `{"password"}` (`SessionApi.deleteAccount`). Ver [[BFF]] e
+  [[Modelo de Dados#Exclusão]].
+- **Senha vazia** (ou só espaços) é barrada no app e nem é enviada; o core responderia
+  `validation.failed`.
+- **Pode demorar:** o core revoga cada banco na Pluggy antes de responder, e o BFF espera até
+  2 min (`wallet.core.slow-read-timeout`). Essa chamada tem `receiveTimeout` de 2 min 30 s, para o
+  app ouvir a resposta do BFF em vez de desistir antes. Enquanto isso o diálogo mostra uma barra de
+  progresso e o aviso, e não aceita segundo toque, Cancelar nem o gesto de voltar.
+- **Respostas:**
+  - 204: `SessionController.deleteAccount` apaga o refresh token do `flutter_secure_storage` e o
+    access token da memória, e o login abre com "Sua conta foi excluída".
+  - 403 `auth.wrong_password`: o erro aparece no campo, que é limpo, e a sessão continua.
+    O texto avisa que cada erro conta para o bloqueio.
+  - 423 `auth.locked`: "Tente de novo às 17:15", pelo `lockedUntil` do erro (a data entra quando
+    o bloqueio acaba em outro dia). Sem o campo, a frase dos 15 minutos.
+  - 5xx (como 503 `bff.core_unavailable`): a frase do erro mais "Nada foi apagado; você pode
+    tentar de novo". Excluir duas vezes dá 204, então tentar de novo é seguro.
+  - Sem rede ou timeout: as frases de sempre do `errorMessage`.
+- O `errorMessage` (`l10n.dart`) ganhou `auth.wrong_password` e o horário no `auth.locked`, que
+  vale também para o login.
+
 ## Dados que mudam por baixo
 
 A sincronização roda no fundo do core. A tela de Conexões consulta a lista a cada 3 s

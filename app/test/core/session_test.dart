@@ -145,4 +145,54 @@ void main() {
     expect(session.accessToken, isNull);
     expect(store.token, isNull);
   });
+
+  group('deleteAccount', () {
+    test('sends the password with room for a slow core, then ends the session and forgets the token', () async {
+      bff.signedIn();
+      bff.json('DELETE', '/api/me', null, status: 204);
+      await session.restore();
+
+      await session.deleteAccount('certa1234');
+
+      final call = bff.calls('DELETE', '/api/me').single;
+      expect(call.data, {'password': 'certa1234'});
+      expect(call.headers['Authorization'], 'Bearer access-1');
+      // Longer than the BFF's 2 minutes while the core revokes the banks at Pluggy.
+      expect(call.receiveTimeout, SessionApi.deleteAccountTimeout);
+      expect(SessionApi.deleteAccountTimeout, greaterThan(const Duration(minutes: 2)));
+      expect(session.status, SessionStatus.signedOut);
+      expect(session.lastSignOutReason, SignOutReason.accountDeleted);
+      expect(session.accessToken, isNull);
+      expect(session.user, isNull);
+      expect(store.token, isNull);
+    });
+
+    test('a wrong password keeps the session and reaches the caller', () async {
+      bff.signedIn();
+      bff.error('DELETE', '/api/me', 403, 'auth.wrong_password');
+      await session.restore();
+
+      await expectLater(session.deleteAccount('errada123'),
+          throwsA(isA<ApiException>().having((error) => error.code, 'code', 'auth.wrong_password')));
+
+      expect(session.status, SessionStatus.signedIn);
+      expect(session.accessToken, 'access-1');
+      expect(store.token, 'refresh-2');
+    });
+
+    test('a locked account says until when', () async {
+      bff.signedIn();
+      bff.json('DELETE', '/api/me',
+          {'code': 'auth.locked', 'message': 'Too many failed logins', 'lockedUntil': '2026-10-19T20:15:00Z'},
+          status: 423);
+      await session.restore();
+
+      await expectLater(
+          session.deleteAccount('certa1234'),
+          throwsA(isA<ApiException>()
+              .having((error) => error.status, 'status', 423)
+              .having((error) => error.lockedUntil, 'lockedUntil', DateTime.utc(2026, 10, 19, 20, 15).toLocal())));
+      expect(session.status, SessionStatus.signedIn);
+    });
+  });
 }

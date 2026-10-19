@@ -14,7 +14,7 @@ enum SessionStatus {
   signedIn,
 }
 
-enum SignOutReason { requested, expired, idle }
+enum SignOutReason { requested, expired, idle, accountDeleted }
 
 /// The signed-in user and the access token, in memory only.
 class SessionController extends ChangeNotifier {
@@ -107,6 +107,14 @@ class SessionController extends ChangeNotifier {
       // The session ends on this device anyway; the core expires the token on its own.
     }
     await _end(reason);
+  }
+
+  /// Deletes the account for good (the core asks for [password] again) and ends the session on this
+  /// device. A refusal ([ApiException]: wrong password, locked, offline) leaves the session as it
+  /// was and reaches the caller, which says why.
+  Future<void> deleteAccount(String password) async {
+    await _api.deleteAccount(password);
+    await _end(SignOutReason.accountDeleted);
   }
 
   Future<void> _start(SessionTokens tokens) async {
