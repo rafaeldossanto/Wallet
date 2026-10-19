@@ -36,7 +36,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccountLockedException.class)
     public ResponseEntity<ErrorResponse> handleLocked(AccountLockedException ex) {
         log.warn("[EXCEPTION] {}: {}", ex.getCode(), ex.getMessage());
-        return ResponseEntity.status(HttpStatus.LOCKED)
+        return ResponseEntity.status(statusOf(ex.getType()))
                 .body(new ErrorResponse(ex.getCode(), ex.getMessage(), List.of(), ex.getLockedUntil()));
     }
 

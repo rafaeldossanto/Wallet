@@ -78,8 +78,9 @@ public class AuthService {
             throw new AccountLockedException(user.getLockedUntil());
         }
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            loginAttemptService.registerFailure(user.getId());
-            throw invalidCredentials();
+            throw loginAttemptService.registerFailure(user.getId())
+                    .<DomainException>map(AccountLockedException::new)
+                    .orElseGet(AuthService::invalidCredentials);
         }
         if (user.getFailedLoginCount() > 0 || nonNull(user.getLockedUntil())) {
             loginAttemptService.registerSuccess(user.getId());

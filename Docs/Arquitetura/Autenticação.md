@@ -47,7 +47,8 @@ entregá-los a cada plataforma.
 - `BCryptPasswordEncoder` via `DelegatingPasswordEncoder`, para permitir trocar o
   algoritmo depois.
 - 5 erros seguidos travam o login por 15 min (`auth.locked`). Mesma resposta para
-  e-mail inexistente e senha errada (`auth.invalid_credentials`).
+  e-mail inexistente e senha errada (`auth.invalid_credentials`). A tentativa que trava já
+  responde 423 `auth.locked`, não mais um "senha errada" que o usuário tentaria de novo.
 - **Desde 2026-10-19** o 423 `auth.locked` traz o fim do bloqueio num campo,
   `{"code":"auth.locked","message":"...","lockedUntil":"2026-10-19T20:15:00Z"}`
   (`AccountLockedException`), no login e na exclusão de conta. O app mostra o horário

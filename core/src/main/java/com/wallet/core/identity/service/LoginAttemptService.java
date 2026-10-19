@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 
 import static java.util.Objects.nonNull;
@@ -31,18 +32,23 @@ public class LoginAttemptService {
         return nonNull(user.getLockedUntil()) && user.getLockedUntil().isAfter(clock.instant());
     }
 
+    /**
+     * @return until when, when this failure is the one that locked the account: the caller answers
+     *         {@code auth.locked} right away instead of a wrong password the user would retry
+     */
     @Transactional
-    public void registerFailure(UUID userId) {
-        userRepository.findByIdForUpdate(userId).ifPresent(user -> {
+    public Optional<Instant> registerFailure(UUID userId) {
+        return userRepository.findByIdForUpdate(userId).flatMap(user -> {
             int failures = user.getFailedLoginCount() + 1;
             if (failures >= properties.maxFailedLogins()) {
                 Instant lockedUntil = clock.instant().plus(properties.lockoutDuration());
                 user.setLockedUntil(lockedUntil);
                 user.setFailedLoginCount(0);
                 log.warn("[SECURITY] User {} locked until {} after {} failed logins", userId, lockedUntil, failures);
-            } else {
-                user.setFailedLoginCount(failures);
+                return Optional.of(lockedUntil);
             }
+            user.setFailedLoginCount(failures);
+            return Optional.empty();
         });
     }
 
