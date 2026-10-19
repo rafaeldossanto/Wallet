@@ -62,6 +62,9 @@ class PluggyAuditInterceptorTest {
             .options(wireMockConfig().dynamicPort())
             .build();
 
+    /** The production default: a busy build machine must not turn a slow local answer into a failure. */
+    private static final Duration PATIENT = Duration.ofSeconds(10);
+
     private final MutableClock clock = new MutableClock(Instant.parse("2026-10-18T12:00:00Z"));
     private final List<ProviderCall> recorded = new CopyOnWriteArrayList<>();
     private final ProviderCallRecorder recorder = new ProviderCallRecorder(null) {
@@ -74,7 +77,7 @@ class PluggyAuditInterceptorTest {
 
     @BeforeEach
     void setUp() {
-        provider = providerAt(pluggy.baseUrl(), Duration.ofSeconds(2));
+        provider = providerAt(pluggy.baseUrl(), PATIENT);
         pluggy.stubFor(post("/auth").willReturn(okJson("{\"apiKey\":\"" + API_KEY + "\"}")));
     }
 
@@ -200,8 +203,9 @@ class PluggyAuditInterceptorTest {
 
     @Test
     void aSlowAnswerIsRecordedAsATimeoutWithItsDuration() {
-        PluggyFinancialDataProvider impatient = providerAt(pluggy.baseUrl(), Duration.ofMillis(300));
-        pluggy.stubFor(get(urlEqualTo("/items/" + ITEM_ID)).willReturn(okJson(fixture("item.json")).withFixedDelay(2000)));
+        // A second of patience, not less: on a busy machine the auth alone can take a few hundred ms.
+        PluggyFinancialDataProvider impatient = providerAt(pluggy.baseUrl(), Duration.ofSeconds(1));
+        pluggy.stubFor(get(urlEqualTo("/items/" + ITEM_ID)).willReturn(okJson(fixture("item.json")).withFixedDelay(5000)));
 
         assertThatThrownBy(() -> impatient.findItem(ITEM_ID)).isInstanceOf(DomainException.class);
 
@@ -209,7 +213,7 @@ class PluggyAuditInterceptorTest {
             assertThat(call.operation()).isEqualTo("FIND_ITEM");
             assertThat(call.httpStatus()).isNull();
             assertThat(call.errorCode()).isEqualTo(PluggyAuditInterceptor.TIMEOUT);
-            assertThat(call.durationMs()).isGreaterThanOrEqualTo(300);
+            assertThat(call.durationMs()).isGreaterThanOrEqualTo(1000);
         });
     }
 
@@ -220,7 +224,7 @@ class PluggyAuditInterceptorTest {
         try (ServerSocket socket = new ServerSocket(0)) {
             closedPort = socket.getLocalPort();
         }
-        PluggyFinancialDataProvider unreachable = providerAt("http://localhost:" + closedPort, Duration.ofSeconds(2));
+        PluggyFinancialDataProvider unreachable = providerAt("http://localhost:" + closedPort, PATIENT);
 
         assertThatThrownBy(() -> unreachable.findItem(ITEM_ID)).isInstanceOf(DomainException.class);
 

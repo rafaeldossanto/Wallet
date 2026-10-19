@@ -283,7 +283,7 @@ class PluggyFinancialDataProviderTest {
 
     private PluggyFinancialDataProvider providerWith(String clientId, String clientSecret) {
         PluggyProperties properties = new PluggyProperties(
-                pluggy.baseUrl(), clientId, clientSecret, Duration.ofSeconds(2), Duration.ofHours(2));
+                pluggy.baseUrl(), clientId, clientSecret, Duration.ofSeconds(10), Duration.ofHours(2));
         RestClient restClient = PluggyConfig.restClient(RestClient.builder(), properties);
         return new PluggyFinancialDataProvider(new PluggyClient(restClient, properties, clock));
     }

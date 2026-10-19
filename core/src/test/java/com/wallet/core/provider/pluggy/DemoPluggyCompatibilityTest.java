@@ -42,7 +42,7 @@ class DemoPluggyCompatibilityTest {
     void start() throws IOException {
         demo = DemoPluggy.start(clock);
         PluggyProperties properties = new PluggyProperties(
-                demo.baseUrl(), "demo", "demo", Duration.ofSeconds(2), Duration.ofHours(2));
+                demo.baseUrl(), "demo", "demo", Duration.ofSeconds(10), Duration.ofHours(2));
         provider = new PluggyFinancialDataProvider(new PluggyClient(
                 PluggyConfig.restClient(RestClient.builder(), properties), properties, clock));
     }
