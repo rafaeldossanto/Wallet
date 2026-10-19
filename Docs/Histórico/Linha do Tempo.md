@@ -187,3 +187,27 @@ atualizado: 2026-10-18
   aparecem no cartão de gastos fixos, com um toque para adicionar (formulário preenchido) e um
   para dispensar de vez. Sem pagamento de fatura, sem o que já é gasto fixo e sem o que parou de
   sair. Ver [[Core#Gastos fixos sugeridos pelo extrato (desde 2026-10-18)]].
+
+## 2026-10-19
+
+- A `dev` foi para a `main` em três PRs do Rafael: #1 (Android, auditoria da Pluggy, planejamento
+  do mês), #2 (segurança e LGPD) e #3 (excluir conta pelo app). Nenhuma versão nova foi publicada:
+  a última continua sendo a v0.1.3. Antes do #1, a revisão corrigiu quatro pontos: o duplo toque
+  no planejamento dava 500; falhas por exceção não verificada não eram auditadas; uma atualização
+  pronta se perdia na checagem seguinte; e as respostas da instalação no Android não ficavam
+  presas à sessão certa.
+- Auditoria de segurança e LGPD (achados A1, A2, A3, A19 e L1):
+  - Chave de gateway entre BFF e core (`X-Gateway-Key`, `WALLET_GATEWAY_KEY`). O core recusa com
+    403 tudo o que chega sem ela, menos o health. Com `SPRING_PROFILES_ACTIVE=prod`, a subida
+    falha sem uma chave forte. O core escuta no loopback por padrão.
+  - O rate limit conta o IP real da conexão e só aceita `X-Forwarded-For` vindo de
+    `WALLET_TRUSTED_PROXIES`.
+  - Teto de 256 KB no corpo das requisições (413).
+  - Exclusão da conta (`DELETE /api/me`, LGPD art. 18, VI), pedindo a senha de novo. Revoga cada
+    banco na Pluggy e apaga o usuário e tudo dele em cascata. `provider_calls` fica 180 dias como
+    prova da revogação.
+  - O `.env.example` na raiz lista todas as variáveis. Ver [[Autenticação]] e [[BFF]].
+- Excluir conta pelo app, em Ajustes → Zona de perigo. O usuário confirma, digita a senha de novo
+  e a tela fica travada enquanto o core revoga os bancos (até 2 min). A conta bloqueada por senha
+  errada agora diz até quando (`lockedUntil` no 423). Fica em aberto: o access token ainda vale
+  até 15 min depois da exclusão. Ver [[App Flutter]].
