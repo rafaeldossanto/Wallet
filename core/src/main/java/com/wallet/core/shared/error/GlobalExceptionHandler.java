@@ -32,6 +32,14 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(ex.getCode(), ex.getMessage()));
     }
 
+    /** Like any domain error, plus until when: the app tells the user the time, not "15 minutes". */
+    @ExceptionHandler(AccountLockedException.class)
+    public ResponseEntity<ErrorResponse> handleLocked(AccountLockedException ex) {
+        log.warn("[EXCEPTION] {}: {}", ex.getCode(), ex.getMessage());
+        return ResponseEntity.status(statusOf(ex.getType()))
+                .body(new ErrorResponse(ex.getCode(), ex.getMessage(), List.of(), ex.getLockedUntil()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
         List<ErrorResponse.FieldViolation> fields = ex.getBindingResult().getFieldErrors().stream()

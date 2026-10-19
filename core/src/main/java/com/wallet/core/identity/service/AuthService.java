@@ -9,6 +9,7 @@ import com.wallet.core.identity.entity.User;
 import com.wallet.core.identity.mapper.TokenMapper;
 import com.wallet.core.identity.mapper.UserMapper;
 import com.wallet.core.identity.repository.UserRepository;
+import com.wallet.core.shared.error.AccountLockedException;
 import com.wallet.core.shared.error.DomainException;
 import com.wallet.core.shared.error.ErrorType;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -74,12 +75,12 @@ public class AuthService {
         }
         User user = found.get();
         if (loginAttemptService.isLocked(user)) {
-            throw new DomainException(ErrorType.LOCKED, "auth.locked",
-                    "Too many failed logins; try again after " + user.getLockedUntil());
+            throw new AccountLockedException(user.getLockedUntil());
         }
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            loginAttemptService.registerFailure(user.getId());
-            throw invalidCredentials();
+            throw loginAttemptService.registerFailure(user.getId())
+                    .<DomainException>map(AccountLockedException::new)
+                    .orElseGet(AuthService::invalidCredentials);
         }
         if (user.getFailedLoginCount() > 0 || nonNull(user.getLockedUntil())) {
             loginAttemptService.registerSuccess(user.getId());

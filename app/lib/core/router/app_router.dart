@@ -70,8 +70,9 @@ String? _redirect(SessionController session, GoRouterState state) {
       if (_publicPaths.contains(path)) {
         return null;
       }
-      // Whoever signed out on purpose starts over at the home next time.
-      if (session.lastSignOutReason == SignOutReason.requested) {
+      // Whoever signed out on purpose, or deleted the account, starts over at the home next time.
+      final reason = session.lastSignOutReason;
+      if (reason == SignOutReason.requested || reason == SignOutReason.accountDeleted) {
         return '/login';
       }
       return _with('/login', path == '/splash' ? from : _returnTo(state));

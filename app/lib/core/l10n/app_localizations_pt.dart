@@ -162,6 +162,10 @@ class AppLocalizationsPt extends AppLocalizations {
       'Por segurança, sua sessão terminou depois de 30 minutos sem uso.';
 
   @override
+  String get loginAccountDeleted =>
+      'Sua conta foi excluída, com todos os seus dados.';
+
+  @override
   String get registerSubtitle => 'Crie sua conta do Wallet.';
 
   @override
@@ -870,6 +874,55 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsSignOut => 'Sair';
 
   @override
+  String get settingsDangerZone => 'Zona de perigo';
+
+  @override
+  String get settingsDeleteAccount => 'Excluir conta';
+
+  @override
+  String get settingsDeleteAccountHelp =>
+      'Apaga sua conta e todos os dados no Wallet, e revoga o acesso aos seus bancos.';
+
+  @override
+  String get deleteAccountTitle => 'Excluir sua conta?';
+
+  @override
+  String get deleteAccountWarning =>
+      'Isso não pode ser desfeito. Vão embora de vez:';
+
+  @override
+  String get deleteAccountWhatGoes =>
+      '• suas contas, cartões, faturas, transações e investimentos no Wallet;\n• seu planejamento e gastos fixos;\n• o acesso do Wallet aos seus bancos: as conexões são revogadas na Pluggy.';
+
+  @override
+  String get deleteAccountConfirmCheck => 'Entendo que não dá para desfazer';
+
+  @override
+  String get deleteAccountPasswordHelp =>
+      'Para confirmar, digite a senha da sua conta. Cada senha errada conta para o bloqueio temporário da conta.';
+
+  @override
+  String get deleteAccountPasswordRequired =>
+      'Digite sua senha para confirmar.';
+
+  @override
+  String get deleteAccountAction => 'Excluir de vez';
+
+  @override
+  String get deleteAccountInProgress =>
+      'Revogando o acesso aos seus bancos e apagando os dados. Pode levar até 2 minutos; não feche o app.';
+
+  @override
+  String get deleteAccountNotConfirmed =>
+      'Não deu para confirmar a exclusão. Tente de novo: se a conta já tiver sido excluída, o Wallet avisa.';
+
+  @override
+  String get showPassword => 'Mostrar senha';
+
+  @override
+  String get hidePassword => 'Esconder senha';
+
+  @override
   String get settingsAbout =>
       'Wallet lê seus dados pelo Open Finance, por meio da Pluggy. Nenhum pagamento sai daqui.';
 
@@ -1034,7 +1087,26 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get errorAuthLocked =>
-      'Muitas tentativas erradas. Espere 15 minutos e tente de novo.';
+      'Muitas tentativas erradas. Espere alguns minutos e tente de novo.';
+
+  @override
+  String errorAuthLockedUntil(String when) {
+    return 'Muitas tentativas erradas. Tente de novo $when.';
+  }
+
+  @override
+  String lockedUntilToday(String time) {
+    return 'às $time';
+  }
+
+  @override
+  String lockedUntilDay(String date, String time) {
+    return 'em $date às $time';
+  }
+
+  @override
+  String get errorWrongPassword =>
+      'Senha incorreta. Cada erro conta para o bloqueio da conta.';
 
   @override
   String get errorEmailTaken => 'Já existe uma conta com este e-mail.';

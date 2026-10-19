@@ -334,6 +334,12 @@ abstract class AppLocalizations {
   /// **'Por segurança, sua sessão terminou depois de 30 minutos sem uso.'**
   String get loginSessionIdle;
 
+  /// No description provided for @loginAccountDeleted.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sua conta foi excluída, com todos os seus dados.'**
+  String get loginAccountDeleted;
+
   /// No description provided for @registerSubtitle.
   ///
   /// In pt, this message translates to:
@@ -1534,6 +1540,90 @@ abstract class AppLocalizations {
   /// **'Sair'**
   String get settingsSignOut;
 
+  /// No description provided for @settingsDangerZone.
+  ///
+  /// In pt, this message translates to:
+  /// **'Zona de perigo'**
+  String get settingsDangerZone;
+
+  /// No description provided for @settingsDeleteAccount.
+  ///
+  /// In pt, this message translates to:
+  /// **'Excluir conta'**
+  String get settingsDeleteAccount;
+
+  /// No description provided for @settingsDeleteAccountHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Apaga sua conta e todos os dados no Wallet, e revoga o acesso aos seus bancos.'**
+  String get settingsDeleteAccountHelp;
+
+  /// No description provided for @deleteAccountTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Excluir sua conta?'**
+  String get deleteAccountTitle;
+
+  /// No description provided for @deleteAccountWarning.
+  ///
+  /// In pt, this message translates to:
+  /// **'Isso não pode ser desfeito. Vão embora de vez:'**
+  String get deleteAccountWarning;
+
+  /// No description provided for @deleteAccountWhatGoes.
+  ///
+  /// In pt, this message translates to:
+  /// **'• suas contas, cartões, faturas, transações e investimentos no Wallet;\n• seu planejamento e gastos fixos;\n• o acesso do Wallet aos seus bancos: as conexões são revogadas na Pluggy.'**
+  String get deleteAccountWhatGoes;
+
+  /// No description provided for @deleteAccountConfirmCheck.
+  ///
+  /// In pt, this message translates to:
+  /// **'Entendo que não dá para desfazer'**
+  String get deleteAccountConfirmCheck;
+
+  /// No description provided for @deleteAccountPasswordHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Para confirmar, digite a senha da sua conta. Cada senha errada conta para o bloqueio temporário da conta.'**
+  String get deleteAccountPasswordHelp;
+
+  /// No description provided for @deleteAccountPasswordRequired.
+  ///
+  /// In pt, this message translates to:
+  /// **'Digite sua senha para confirmar.'**
+  String get deleteAccountPasswordRequired;
+
+  /// No description provided for @deleteAccountAction.
+  ///
+  /// In pt, this message translates to:
+  /// **'Excluir de vez'**
+  String get deleteAccountAction;
+
+  /// No description provided for @deleteAccountInProgress.
+  ///
+  /// In pt, this message translates to:
+  /// **'Revogando o acesso aos seus bancos e apagando os dados. Pode levar até 2 minutos; não feche o app.'**
+  String get deleteAccountInProgress;
+
+  /// No description provided for @deleteAccountNotConfirmed.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não deu para confirmar a exclusão. Tente de novo: se a conta já tiver sido excluída, o Wallet avisa.'**
+  String get deleteAccountNotConfirmed;
+
+  /// No description provided for @showPassword.
+  ///
+  /// In pt, this message translates to:
+  /// **'Mostrar senha'**
+  String get showPassword;
+
+  /// No description provided for @hidePassword.
+  ///
+  /// In pt, this message translates to:
+  /// **'Esconder senha'**
+  String get hidePassword;
+
   /// No description provided for @settingsAbout.
   ///
   /// In pt, this message translates to:
@@ -1807,8 +1897,32 @@ abstract class AppLocalizations {
   /// No description provided for @errorAuthLocked.
   ///
   /// In pt, this message translates to:
-  /// **'Muitas tentativas erradas. Espere 15 minutos e tente de novo.'**
+  /// **'Muitas tentativas erradas. Espere alguns minutos e tente de novo.'**
   String get errorAuthLocked;
+
+  /// No description provided for @errorAuthLockedUntil.
+  ///
+  /// In pt, this message translates to:
+  /// **'Muitas tentativas erradas. Tente de novo {when}.'**
+  String errorAuthLockedUntil(String when);
+
+  /// No description provided for @lockedUntilToday.
+  ///
+  /// In pt, this message translates to:
+  /// **'às {time}'**
+  String lockedUntilToday(String time);
+
+  /// No description provided for @lockedUntilDay.
+  ///
+  /// In pt, this message translates to:
+  /// **'em {date} às {time}'**
+  String lockedUntilDay(String date, String time);
+
+  /// No description provided for @errorWrongPassword.
+  ///
+  /// In pt, this message translates to:
+  /// **'Senha incorreta. Cada erro conta para o bloqueio da conta.'**
+  String get errorWrongPassword;
 
   /// No description provided for @errorEmailTaken.
   ///

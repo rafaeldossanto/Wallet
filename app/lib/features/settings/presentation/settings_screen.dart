@@ -11,6 +11,7 @@ import '../../../core/theme/theme_controller.dart';
 import '../../../core/updates/update_views.dart';
 import '../../../core/updates/updater.dart';
 import '../../../core/widgets/common.dart';
+import 'delete_account_dialog.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -24,6 +25,7 @@ class SettingsScreen extends StatelessWidget {
     final isDesktop = context.watch<DesktopSettings?>() != null;
     // Android: the updater without the window's settings.
     final updates = context.watch<Updater?>() != null;
+    final danger = Theme.of(context).colorScheme.error;
     return Scaffold(
       appBar: AppBar(title: Text(l10n.navSettings)),
       body: ListView(
@@ -101,6 +103,18 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   SectionCard(title: l10n.settingsUpdates, flush: true, child: const UpdateTile()),
                 ],
+                const SizedBox(height: 16),
+                SectionCard(
+                  title: l10n.settingsDangerZone,
+                  accent: danger,
+                  flush: true,
+                  child: ListTile(
+                    leading: Icon(Icons.delete_forever_outlined, color: danger),
+                    title: Text(l10n.settingsDeleteAccount, style: TextStyle(color: danger)),
+                    subtitle: Text(l10n.settingsDeleteAccountHelp),
+                    onTap: () => showDeleteAccountDialog(context),
+                  ),
+                ),
                 const SizedBox(height: 16),
                 Text(l10n.settingsAbout,
                     textAlign: TextAlign.center,

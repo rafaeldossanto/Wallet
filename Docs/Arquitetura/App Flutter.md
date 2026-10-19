@@ -377,6 +377,42 @@ cor normal do texto com `-`, porque vermelho faria toda compra parecer problema.
 
 Detalhes em [[Autenticação]].
 
+## Excluir conta (desde 2026-10-19)
+
+Ajustes → **Zona de perigo** (cartão com a borda e o título na cor de erro) → **Excluir conta**
+abre um diálogo (`DeleteAccountDialog`) que diz o que vai embora, inclusive que as conexões são
+revogadas na Pluggy, e pede duas coisas: marcar "Entendo que não dá para desfazer" e digitar a
+senha de novo. O botão **Excluir de vez** só se habilita com a caixa marcada.
+
+- **Contrato:** `DELETE /api/me` com `{"password"}` (`SessionApi.deleteAccount`). Ver [[BFF]] e
+  [[Modelo de Dados#Exclusão]].
+- **Senha vazia** (ou só espaços) é barrada no app e nem é enviada; o core responderia
+  `validation.failed`.
+- **Pode demorar:** o core revoga cada banco na Pluggy antes de responder, e o BFF espera até
+  2 min (`wallet.core.slow-read-timeout`). Essa chamada tem `receiveTimeout` de 2 min 30 s, para o
+  app ouvir a resposta do BFF em vez de desistir antes. Enquanto isso o diálogo mostra uma barra de
+  progresso e o aviso, e não aceita segundo toque, Cancelar nem o gesto de voltar.
+- **Respostas:**
+  - 204: `SessionController.deleteAccount` apaga o refresh token do `flutter_secure_storage` e o
+    access token da memória, e o login abre com "Sua conta foi excluída".
+  - 403 `auth.wrong_password`: o erro aparece no campo, que é limpo, e a sessão continua.
+    O texto avisa que cada erro conta para o bloqueio, sem números: quantas tentativas e por
+    quanto tempo são configuração do core.
+  - 423 `auth.locked`: "Tente de novo às 17:16", pelo `lockedUntil` do erro, com o minuto
+    arredondado para cima (um bloqueio até 17:15:42 ainda vale às 17:15) e a data quando o
+    bloqueio acaba em outro dia. Vem já na tentativa que bloqueia, não só na seguinte. Sem o
+    campo, "Espere alguns minutos".
+  - 5xx (como 503 `bff.core_unavailable`), sem rede ou timeout: a frase do erro mais "Não deu
+    para confirmar a exclusão. Tente de novo: se a conta já tiver sido excluída, o Wallet avisa".
+    O app não promete que nada foi apagado: o core revoga os bancos antes da transação que apaga,
+    e um core mais lento que os 2 min do BFF termina depois do 503. Excluir duas vezes dá 204,
+    então tentar de novo resolve.
+  - Se nenhuma resposta confirmou a exclusão e a renovação seguinte da sessão é recusada (o
+    refresh token foi junto com a conta), o login diz "Sua conta foi excluída" e não "Sua sessão
+    expirou".
+- O `errorMessage` (`l10n.dart`) ganhou `auth.wrong_password` e o horário no `auth.locked`, que
+  vale também para o login.
+
 ## Dados que mudam por baixo
 
 A sincronização roda no fundo do core. A tela de Conexões consulta a lista a cada 3 s

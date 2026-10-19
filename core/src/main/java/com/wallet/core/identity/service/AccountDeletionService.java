@@ -4,6 +4,7 @@ import com.wallet.core.connection.ConnectionRevocation;
 import com.wallet.core.connection.RevocationReport;
 import com.wallet.core.identity.entity.User;
 import com.wallet.core.identity.repository.UserRepository;
+import com.wallet.core.shared.error.AccountLockedException;
 import com.wallet.core.shared.error.DomainException;
 import com.wallet.core.shared.error.ErrorType;
 import lombok.extern.slf4j.Slf4j;
@@ -68,16 +69,18 @@ public class AccountDeletionService {
 
     /**
      * 403 and not 401 for a wrong password: the BFF relays the core's 401 as an expired session and
-     * the app would log the user out. A locked account answers as at login.
+     * the app would log the user out. A locked account answers as at login, the attempt that locks
+     * it included, so the user learns it at once and not on the next try.
      */
     private void confirm(User user, String password) {
         if (loginAttemptService.isLocked(user)) {
-            throw new DomainException(ErrorType.LOCKED, "auth.locked",
-                    "Too many failed logins; try again after " + user.getLockedUntil());
+            throw new AccountLockedException(user.getLockedUntil());
         }
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
-            loginAttemptService.registerFailure(user.getId());
-            throw new DomainException(ErrorType.FORBIDDEN, "auth.wrong_password", "The password does not match");
+            throw loginAttemptService.registerFailure(user.getId())
+                    .<DomainException>map(AccountLockedException::new)
+                    .orElseGet(() -> new DomainException(ErrorType.FORBIDDEN, "auth.wrong_password",
+                            "The password does not match"));
         }
     }
 

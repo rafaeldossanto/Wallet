@@ -126,13 +126,20 @@ class AuthFlowIT {
     @Test
     void fiveWrongPasswordsLockTheAccountForFifteenMinutes() throws Exception {
         String email = registered();
-        for (int attempt = 0; attempt < 5; attempt++) {
+        for (int attempt = 1; attempt < 5; attempt++) {
             login(email, "wrong password!").andExpect(status().isUnauthorized());
         }
 
+        // The fifth one says so itself, with until when as a field: the app says the time instead of
+        // reading the English message.
+        String lockedUntil = TestClockConfiguration.START.plus(Duration.ofMinutes(15)).toString();
+        login(email, "wrong password!")
+                .andExpect(status().isLocked())
+                .andExpect(jsonPath("$.code").value("auth.locked"))
+                .andExpect(jsonPath("$.lockedUntil").value(lockedUntil));
         login(email, PASSWORD)
                 .andExpect(status().isLocked())
-                .andExpect(jsonPath("$.code").value("auth.locked"));
+                .andExpect(jsonPath("$.lockedUntil").value(lockedUntil));
 
         clock.advance(Duration.ofMinutes(16));
         login(email, PASSWORD).andExpect(status().isOk());

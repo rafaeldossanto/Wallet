@@ -32,7 +32,9 @@ class ApiClient {
 
   Future<dynamic> put(String path, {Object? body}) => _send(() => dio.put<dynamic>(path, data: body));
 
-  Future<void> delete(String path) => _send(() => dio.delete<dynamic>(path));
+  /// [receiveTimeout] replaces the usual 20 s for a call the server is known to take long on.
+  Future<void> delete(String path, {Object? body, Duration? receiveTimeout}) => _send(() => dio.delete<dynamic>(path,
+      data: body, options: receiveTimeout == null ? null : Options(receiveTimeout: receiveTimeout)));
 
   Future<dynamic> _send(Future<Response<dynamic>> Function() request) async {
     try {

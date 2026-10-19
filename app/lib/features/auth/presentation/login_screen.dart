@@ -57,6 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final notice = switch (reason) {
       SignOutReason.expired => l10n.loginSessionExpired,
       SignOutReason.idle => l10n.loginSessionIdle,
+      SignOutReason.accountDeleted => l10n.loginAccountDeleted,
       SignOutReason.requested || null => null,
     };
     return AuthLayout(

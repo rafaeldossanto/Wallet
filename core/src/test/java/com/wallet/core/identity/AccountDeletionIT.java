@@ -168,14 +168,20 @@ class AccountDeletionIT {
         Seeded mine = seed(owner.id());
         stubItem(mine.widgetItem(), owner.id());
 
-        for (int attempt = 1; attempt <= 5; attempt++) {
+        for (int attempt = 1; attempt < 5; attempt++) {
             deleteAccount(owner.id(), "not-the-password")
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.code").value("auth.wrong_password"));
         }
+        // The fifth says the account is now locked, not "wrong password" again.
+        deleteAccount(owner.id(), "not-the-password")
+                .andExpect(status().isLocked())
+                .andExpect(jsonPath("$.code").value("auth.locked"))
+                .andExpect(jsonPath("$.lockedUntil").isString());
         deleteAccount(owner.id(), PASSWORD)
                 .andExpect(status().isLocked())
-                .andExpect(jsonPath("$.code").value("auth.locked"));
+                .andExpect(jsonPath("$.code").value("auth.locked"))
+                .andExpect(jsonPath("$.lockedUntil").isString());
 
         assertThat(users.existsById(owner.id())).isTrue();
         assertThat(rowsOf(owner.id(), mine)).allSatisfy((table, rows) -> assertThat(rows).as(table).isPositive());

@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.UncheckedIOException;
+import java.time.Instant;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -35,11 +36,20 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void aLockedAccountSaysUntilWhen() throws Exception {
+        mockMvc.perform(get("/fake/locked"))
+                .andExpect(status().isLocked())
+                .andExpect(jsonPath("$.code").value("auth.locked"))
+                .andExpect(jsonPath("$.lockedUntil").value("2026-10-19T20:15:00Z"));
+    }
+
+    @Test
     void domainExceptionKeepsItsCodeAndMapsItsType() throws Exception {
         mockMvc.perform(get("/fake/not-found"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("thing.not_found"))
-                .andExpect(jsonPath("$.fields").doesNotExist());
+                .andExpect(jsonPath("$.fields").doesNotExist())
+                .andExpect(jsonPath("$.lockedUntil").doesNotExist());
 
         mockMvc.perform(get("/fake/too-soon"))
                 .andExpect(status().isTooManyRequests())
@@ -92,6 +102,11 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/too-soon")
         public String tooSoon() {
             throw new DomainException(ErrorType.TOO_MANY_REQUESTS, "sync.too_soon", "Synced a minute ago");
+        }
+
+        @GetMapping("/locked")
+        public String locked() {
+            throw new AccountLockedException(Instant.parse("2026-10-19T20:15:00Z"));
         }
 
         @GetMapping("/boom")
