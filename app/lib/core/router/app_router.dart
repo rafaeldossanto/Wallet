@@ -9,6 +9,7 @@ import '../../features/connections/presentation/connections_screen.dart';
 import '../../features/insights/presentation/insights_screen.dart';
 import '../../features/investments/presentation/investments_screen.dart';
 import '../../features/overview/presentation/overview_screen.dart';
+import '../../features/planning/presentation/planning_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/transactions/presentation/transactions_screen.dart';
 import '../session/session_controller.dart';
@@ -44,6 +45,7 @@ GoRouter createRouter(SessionController session) => GoRouter(
               ),
             ]),
             _branch('/investments', (context, state) => buildInvestments(context)),
+            _branch('/planning', (context, state) => buildPlanning(context)),
             _branch('/insights', (context, state) => buildInsights(context)),
             _branch('/connections', (context, state) => buildConnections(context)),
             _branch('/settings', (context, state) => const SettingsScreen()),

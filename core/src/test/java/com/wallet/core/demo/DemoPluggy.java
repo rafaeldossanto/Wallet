@@ -2,6 +2,7 @@ package com.wallet.core.demo;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
@@ -47,6 +48,7 @@ public final class DemoPluggy implements AutoCloseable {
     public static final String ITAU_ITEM = "demo-itau";
     public static final String XP_ITEM = "demo-xp";
     public static final List<String> ITEMS = List.of(NUBANK_ITEM, ITAU_ITEM, XP_ITEM, BANK_ITEM, BROKER_ITEM);
+    public static final String CONNECT_TOKEN = "demo-connect-token";
 
     private static final ZoneId BRAZIL = ZoneId.of("America/Sao_Paulo");
 
@@ -103,11 +105,12 @@ public final class DemoPluggy implements AutoCloseable {
                     Habit.sometimes(0.06, "MERCADOLIVRE*COMPRA", "Online shopping", 45, 380),
                     Habit.sometimes(0.05, "CINEMA SHOPPING", "Entertainment", 38, 90)));
 
-    /** The salary account: rent, bills at home, savings, and a card for groceries and fuel. */
+    /** The salary account: rent, bills at home, savings, and a card for groceries, fuel and a purchase in installments. */
     private static final Bank ITAU = new Bank(ITAU_ITEM, 201, "Itaú", 23,
             new Account("itau-checking", "Conta Corrente", "4321/12345-6", "6200.00"),
             new Account("itau-savings", "Poupança", "4321/54321-0", "25000.00"), money("128.40"),
-            new Card("itau-card", "Cartão Itaú Visa", "7310", "15000.00", 3, 7, null),
+            new Card("itau-card", "Cartão Itaú Visa", "7310", "15000.00", 3, 7,
+                    new Installments("COLCHAO LOJA DO SONO", "Shopping", "215.00", 6, 16, LocalDate.of(2026, 8, 1))),
             money("9800.00"), money("2800.00"),
             List.of(
                     Habit.monthly(9, "CONDOMINIO EDIFICIO SOL", "Housing", 690, 690),
@@ -180,6 +183,10 @@ public final class DemoPluggy implements AutoCloseable {
         try (exchange) {
             String method = exchange.getRequestMethod();
             String path = exchange.getRequestURI().getPath();
+            if ("POST".equals(method) && "/connect_token".equals(path)) {
+                connectToken(exchange);
+                return;
+            }
             Map<String, String> query = query(exchange.getRequestURI().getRawQuery());
             Object body = route(method, path, query);
             if (isNull(body)) {
@@ -213,6 +220,22 @@ public final class DemoPluggy implements AutoCloseable {
             case "/investments" -> page(investments(query.get("itemId"), today));
             default -> null;
         };
+    }
+
+    /**
+     * Answers like Pluggy, including its rule for the redirect: HTTPS or a deep link, never plain
+     * HTTP or localhost. The real widget does not accept the demo token, so in the app the demo
+     * items are still linked by their Item IDs.
+     */
+    private void connectToken(HttpExchange exchange) throws IOException {
+        JsonNode options = json.readTree(exchange.getRequestBody()).path("options");
+        String redirectUri = options.path("oauthRedirectUri").asString("");
+        if (options.path("clientUserId").asString("").isEmpty()
+                || redirectUri.startsWith("http://") || redirectUri.contains("localhost") || redirectUri.contains("127.0.0.1")) {
+            send(exchange, 400, Map.of("code", 400, "message", "Invalid connect token options"));
+            return;
+        }
+        send(exchange, 200, Map.of("accessToken", CONNECT_TOKEN));
     }
 
     private void send(HttpExchange exchange, int status, Object body) throws IOException {
@@ -323,25 +346,46 @@ public final class DemoPluggy implements AutoCloseable {
     private List<Map<String, Object>> transactionsJson(String accountId, LocalDate from, LocalDate to, LocalDate today) {
         LocalDate start = isNull(from) || from.isBefore(FIRST_DAY) ? FIRST_DAY : from;
         LocalDate end = isNull(to) || to.isAfter(today) ? today : to;
-        boolean card = BANKS.stream().anyMatch(bank -> nonNull(bank.card()) && bank.card().id().equals(accountId));
+        Card card = BANKS.stream()
+                .map(Bank::card)
+                .filter(candidate -> nonNull(candidate) && candidate.id().equals(accountId))
+                .findFirst().orElse(null);
         return transactions(accountId, start, end, today).stream().map(transaction -> {
             Map<String, Object> value = new LinkedHashMap<>();
             value.put("id", transaction.id());
             value.put("accountId", transaction.accountId());
             value.put("date", instant(transaction.date()));
             value.put("description", transaction.description());
-            boolean credit = card ? transaction.amount().signum() < 0 : transaction.amount().signum() > 0;
+            boolean credit = nonNull(card) ? transaction.amount().signum() < 0 : transaction.amount().signum() > 0;
             value.put("type", credit ? "CREDIT" : "DEBIT");
             value.put("amount", transaction.amount());
             value.put("currencyCode", "BRL");
             value.put("category", transaction.category());
             value.put("status", transaction.date().equals(today) ? "PENDING" : "POSTED");
             value.put("providerId", "of-" + transaction.id());
-            value.put("creditCardMetadata", isNull(transaction.installment()) ? null : Map.of(
-                    "installmentNumber", transaction.installment(),
-                    "totalInstallments", transaction.installments()));
+            value.put("creditCardMetadata", nonNull(card) && !credit ? cardMetadata(card, transaction, today) : null);
             return value;
         }).toList();
+    }
+
+    /**
+     * Like Pluggy: the installment, and the bill the charge is on once that bill closed. A charge
+     * on the open cycle has no bill yet.
+     */
+    private static Map<String, Object> cardMetadata(Card card, DemoTransaction charge, LocalDate today) {
+        LocalDate closing = charge.date().withDayOfMonth(card.closingDay());
+        if (charge.date().isAfter(closing)) {
+            closing = closing.plusMonths(1);
+        }
+        boolean billed = !closing.isAfter(today) && !closing.minusMonths(1).plusDays(1).isBefore(FIRST_DAY);
+        if (isNull(charge.installment()) && !billed) {
+            return null;
+        }
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("installmentNumber", charge.installment());
+        metadata.put("totalInstallments", charge.installments());
+        metadata.put("billId", billed ? billId(card, closing) : null);
+        return metadata;
     }
 
     /** Bank accounts: negative is money out. Card: positive is a charge, negative a payment (Pluggy's convention). */
@@ -407,8 +451,8 @@ public final class DemoPluggy implements AutoCloseable {
         Random random = new Random(day.toEpochDay() * 31 + bank.seed() + 7);
         Installments installments = card.installments();
         if (nonNull(installments) && day.getDayOfMonth() == installments.dayOfMonth()) {
-            int number = (int) ChronoUnit.MONTHS.between(FIRST_DAY.withDayOfMonth(1), day.withDayOfMonth(1)) + 1;
-            if (number <= installments.total()) {
+            int number = (int) ChronoUnit.MONTHS.between(installments.firstMonth(), day.withDayOfMonth(1)) + 1;
+            if (number >= 1 && number <= installments.total()) {
                 out.add(new DemoTransaction(card.id() + "-" + day + "-installment", card.id(), day,
                         "%s %02d/%02d".formatted(installments.description(), number, installments.total()),
                         installments.amount(), installments.category(), number, installments.total()));
@@ -450,7 +494,7 @@ public final class DemoPluggy implements AutoCloseable {
                 continue;
             }
             Map<String, Object> bill = new LinkedHashMap<>();
-            bill.put("id", card.id() + "-bill-" + closing.getYear() + "-" + closing.getMonthValue());
+            bill.put("id", billId(card, closing));
             bill.put("dueDate", instant(closing.plusDays(card.daysToDue())));
             bill.put("billClosingDate", instant(closing));
             bill.put("totalAmount", total);
@@ -459,6 +503,10 @@ public final class DemoPluggy implements AutoCloseable {
             bills.add(bill);
         }
         return bills;
+    }
+
+    private static String billId(Card card, LocalDate closing) {
+        return card.id() + "-bill-" + closing.getYear() + "-" + closing.getMonthValue();
     }
 
     /** The charges of the cycle that closes on {@code closing}; payments do not count. */
@@ -535,10 +583,15 @@ public final class DemoPluggy implements AutoCloseable {
         }
     }
 
-    /** A purchase split in equal monthly installments, starting in the history's first month. */
-    private record Installments(String description, String category, BigDecimal amount, int total, int dayOfMonth) {
+    /** A purchase split in equal monthly installments, from {@code firstMonth} (the history's first month by default). */
+    private record Installments(String description, String category, BigDecimal amount, int total, int dayOfMonth,
+                                LocalDate firstMonth) {
         Installments(String description, String category, String amount, int total, int dayOfMonth) {
-            this(description, category, new BigDecimal(amount), total, dayOfMonth);
+            this(description, category, amount, total, dayOfMonth, FIRST_DAY);
+        }
+
+        Installments(String description, String category, String amount, int total, int dayOfMonth, LocalDate firstMonth) {
+            this(description, category, new BigDecimal(amount), total, dayOfMonth, firstMonth.withDayOfMonth(1));
         }
     }
 

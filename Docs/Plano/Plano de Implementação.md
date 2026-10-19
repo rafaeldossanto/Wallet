@@ -1,6 +1,6 @@
 ---
 tags: [plano, tarefas]
-atualizado: 2026-10-02
+atualizado: 2026-10-18
 ---
 
 # Plano de Implementação
@@ -538,9 +538,57 @@ automática pelos Releases do GitHub, conferida por SHA-256. Primeira versão pu
 
 **Depois:** assinatura de código, macOS.
 
+---
+
+### T20 — Planejamento do mês
+
+**Pedido do Rafael em 2026-10-18:** um "facilitador" para a conta que ele faz à mão todo mês com
+o holerite e a fatura de cada banco: salário líquido − cada fatura de cartão (compra por compra)
+− os gastos fixos = o que sobra. Mockup aprovado por ele antes.
+
+- Salário lido do extrato (entrada com a categoria de salário numa conta, não cartão), líquido
+  porque é o que o Open Finance vê. Sem salário no mês ainda, o do mês anterior como previsão,
+  marcada; a pessoa pode definir um salário esperado no lugar da previsão.
+- Cada cartão com a fatura que vence no mês e as compras dela (categoria, parcela, data). O total
+  é o do banco; o que as compras não explicam aparece como outros lançamentos.
+- Gastos fixos (o que não passa no cartão) cadastrados uma vez e repetidos todo mês: criar,
+  editar, excluir. Sugestões a partir dos débitos recorrentes ficam para depois.
+- Tela Planejamento no app e um cartão "Sobra do mês" na visão geral.
+
+**Feito em 2026-10-18:** módulo `planning` no core (migration V8, `fixed_expenses` e
+`planning_settings`; `GET /internal/planning/month`, gastos fixos e salário esperado), a regra
+de qual compra é de qual fatura no `banking` (ligação da Pluggy ou ciclo da fatura), rotas
+`/api/planning` no BFF com cache por mês, e a tela no app. A fatura que ainda não fechou entra
+estimada pelo ciclo da última, marcada como aberta. A Pluggy de demonstração ganhou a ligação das
+compras às faturas fechadas e uma compra parcelada no cartão do Itaú. Testes: `BillCyclesTest`,
+`MonthPlannerTest`, `PlanningFlowIT` (8 cenários), `PlanningRoutesTest` (9) e os de widget do
+app; conferido de ponta a ponta no navegador com `demo-nubank` e `demo-itau`. Detalhes em
+[[Core]], [[BFF]] e [[App Flutter]].
+
+**Depois:** ~~sugerir gastos fixos a partir dos débitos que se repetem~~ (feito em 2026-10-18,
+abaixo); marcar à mão qual entrada é o salário quando a Pluggy não a categoriza como `Salary`;
+conferir com dados reais (T02) se a ligação `billId` das parcelas vem como na documentação.
+
+**Sugestões de gasto fixo, feito em 2026-10-18:** o core acha os débitos de conta (não cartão)
+que se repetem todo mês nos últimos meses (mesma descrição sem números, até 3 dias do mesmo dia,
+valor no máximo o dobro, em 3 meses, sem pagamento de fatura nem hábito de várias vezes por mês,
+e que não pararam) em `BankingQueries.recurringDebits`, e o `planning` tira os que já são gastos
+fixos (nome ou valor parecido no mesmo dia) e os dispensados (migration V9,
+`dismissed_fixed_expense_suggestions`, com a impressão digital HMAC da descrição, nunca o texto).
+Rotas `GET /internal/planning/fixed-expense-suggestions` e `DELETE .../{id}`, repassadas pelo BFF
+em `/api/planning/fixed-expense-suggestions` sem cache, e no app as sugestões no cartão de gastos
+fixos com um toque para adicionar (formulário preenchido) e o × para dispensar. Testes:
+`RecurringDebitsTest`, `FixedExpenseSuggestionsTest`, `PlanningFlowIT` (+3), `DemoPlanningIT` (a
+demo do Itaú sugere seis), `PlanningRoutesTest` (+3) e os de widget do app. Detalhes em
+[[Core#Gastos fixos sugeridos pelo extrato (desde 2026-10-18)]], [[BFF]] e [[App Flutter]].
+A conferir com dados reais (T02): como os bancos escrevem as descrições dos débitos automáticos e
+dos boletos, e se a tolerância de 3 dias e do dobro do valor bastam.
+
 ## Backlog — antes de abrir para outras pessoas
 
-- Plano Dados da Pluggy, widget Pluggy Connect no celular e `connect_token`.
+- Plano Dados da Pluggy. (~~Widget Pluggy Connect e `connect_token`~~ feitos no Android em
+  2026-10-18, ver [[Fluxo de Conexão]]; faltam o iOS e o `webhookUrl` no token, junto com os
+  webhooks.)
 - Webhooks no core com header secreto, lista de IPs e fila de eventos idempotente. O
   BFF encaminha a rota pública do webhook para o core.
 - Segundo fator no login web (passkey ou TOTP).

@@ -12,9 +12,11 @@ import java.net.http.HttpClient;
 @EnableConfigurationProperties(PluggyProperties.class)
 public class PluggyConfig {
 
+    /** Every call goes through the audit trail; the builder is a fresh copy, so no other client gets it. */
     @Bean
-    RestClient pluggyRestClient(RestClient.Builder builder, PluggyProperties properties) {
-        return restClient(builder, properties);
+    RestClient pluggyRestClient(RestClient.Builder builder, PluggyProperties properties,
+                                PluggyAuditInterceptor auditInterceptor) {
+        return restClient(builder.requestInterceptor(auditInterceptor), properties);
     }
 
     /** Also used by the adapter test, which runs without a Spring context. */

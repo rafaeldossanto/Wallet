@@ -55,6 +55,10 @@ class ConnectionsApi {
   Future<List<Connection>> list() async =>
       [for (final item in Json.listOf(await _api.get('/api/connections'))) Connection.fromJson(item)];
 
+  /// Opens the Pluggy Connect widget for 30 minutes, for one connection.
+  Future<String> connectToken() async =>
+      Json.of(await _api.post('/api/connections/connect-token')).string('connectToken');
+
   Future<Connection> link(String itemId) async =>
       Connection.fromJson(Json.of(await _api.post('/api/connections', body: {'providerItemId': itemId})));
 

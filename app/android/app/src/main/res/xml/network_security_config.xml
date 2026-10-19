@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Plain HTTP is allowed. Until the BFF is deployed with HTTPS, the app talks to it on Rafael's PC
+     over the Wi-Fi (http://192.168.x.x:8080, typed on the login screen), and the emulator reaches
+     the computer at http://10.0.2.2:8080. A LAN address is not known when the app is built, and
+     this file cannot name an address range, so the exception covers every host.
+     Once the BFF has HTTPS (WALLET_BFF_URL), set cleartextTrafficPermitted to false: HTTPS only,
+     Android's default. The emulator keeps HTTP with a copy of this file under
+     src/debug/res/xml/ allowing just 10.0.2.2. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

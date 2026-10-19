@@ -27,6 +27,10 @@ status: decidido
 >
 > Consequência: construir primeiro a leitura e as telas de dados; deixar a tela de
 > conexão para o fim e testá-la nos 15 dias grátis do plano Dados.
+>
+> **2026-10-18:** a tela "Conectar banco" com o widget foi feita no Android (ver
+> [[Fluxo de Conexão]]), para testar no trial do Rafael, que acaba por volta de 2026-10-21.
+> Depois disso o widget só funciona no plano pago; o vínculo pelo Item ID continua no app.
 
 - **Até 5 conexões**, todas do mesmo titular.
 - **Atualização automática a cada 24 horas.** Sincronização em tempo real não é

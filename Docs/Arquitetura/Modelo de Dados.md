@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, banco]
-atualizado: 2026-09-29
+atualizado: 2026-10-18
 ---
 
 # Modelo de Dados
@@ -12,6 +12,9 @@ PostgreSQL 18, migrations com **Flyway**, nomes em inglês. Dinheiro em
 erDiagram
     users ||--o{ refresh_tokens : "tem"
     users ||--o{ connections : "tem"
+    users ||--o{ fixed_expenses : "cadastra"
+    users ||--o| planning_settings : "ajusta"
+    users ||--o{ dismissed_fixed_expense_suggestions : "dispensa"
     connections ||--o{ accounts : "tem"
     connections ||--o{ investments : "tem"
     connections ||--o{ sync_runs : "registra"
@@ -74,6 +77,31 @@ seria carregada para a frente para sempre.
 `started_at`, `finished_at`, `accounts_count`, `transactions_upserted`,
 `transactions_deleted`. Índice único parcial: uma `RUNNING` por conexão. Ver
 [[Sincronização]].
+
+**provider_calls** — a auditoria das chamadas à Pluggy, uma linha por requisição HTTP:
+`id`, `called_at`, `provider` (`PLUGGY`), `operation` (`FIND_ITEM`, `LIST_TRANSACTIONS`...),
+`reason` (`LINK`, `UNLINK`, `INITIAL_SYNC`, `SCHEDULED_SYNC`, `MANUAL_SYNC`,
+`WEBHOOK_SYNC`), `user_id`, `connection_id`, `provider_item_id`, `outcome`
+(`SUCCESS`/`FAILURE`), `http_status`, `error_code`, `duration_ms`. Índices em `called_at` e
+em (`connection_id`, `called_at`). **Sem chave estrangeira**, por isso fica fora do diagrama:
+o registro precisa sobreviver ao desvínculo e à exclusão do usuário. Nenhum dado financeiro,
+token ou credencial. Apagado depois de 180 dias. Ver [[Core#Auditoria das chamadas à Pluggy (desde 2026-10-18)]].
+
+**fixed_expenses** — os gastos fixos do planejamento (o que não passa no cartão): `id`,
+`user_id` (FK `users`, cascata), `name`, `amount` (maior que zero), `day_of_month` (1 a 31; nos
+meses mais curtos cai no último dia), `category` (uma categoria da Pluggy, opcional),
+`created_at`, `updated_at`. Repetem em todo mês. Ver [[Core#Planejamento do mês (desde 2026-10-18)]].
+
+**planning_settings** — uma linha por usuário que ajustou o planejamento: `user_id` (chave e FK
+`users`, cascata), `expected_salary` (maior que zero; vazio = prever pelo mês anterior),
+`created_at`, `updated_at`.
+
+**dismissed_fixed_expense_suggestions** (V9) — as sugestões de gasto fixo que a pessoa dispensou,
+para não voltarem: `id`, `user_id` (FK `users`, cascata), `description_key` (impressão digital
+HMAC das palavras da descrição dos débitos, nunca a descrição), `day_of_month` (1 a 31; a dispensa
+cobre 3 dias para cada lado), `created_at`. Único por (`user_id`, `description_key`,
+`day_of_month`). As sugestões em si não são gravadas: saem das transações a cada leitura. Ver
+[[Core#Gastos fixos sugeridos pelo extrato (desde 2026-10-18)]].
 
 > [!warning] Validação do Hibernate
 > `ddl-auto: validate` recusa `CHAR(n)` e `TEXT` onde a entidade tem `String`, porque

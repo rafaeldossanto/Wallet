@@ -3,8 +3,8 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wallet/core/desktop/github_release_feed.dart';
-import 'package:wallet/core/desktop/updater.dart';
+import 'package:wallet/core/updates/github_release_feed.dart';
+import 'package:wallet/core/updates/updater.dart';
 
 import '../support/fake_bff.dart';
 
@@ -25,10 +25,14 @@ class _FakeFeed implements ReleaseFeed {
 
 class _FakeStore implements InstallerStore {
   final fetched = <String>[];
+  Object? failure;
 
   @override
   Future<String> fetch(Release release) async {
     fetched.add(release.version);
+    if (failure case final failure?) {
+      throw failure;
+    }
     return r'C:\updates\Wallet-Setup-' '${release.version}.exe';
   }
 }
@@ -36,8 +40,28 @@ class _FakeStore implements InstallerStore {
 class _FakeLauncher implements InstallerLauncher {
   final launches = <(String, Relaunch)>[];
 
+  /// What the system answers to the next launches, in order; empty is "launched".
+  final refusals = <InstallProblem?>[];
+
+  /// Whether the user turns the setting on when sent to it.
+  bool allows = true;
+  int allowRequests = 0;
+
   @override
-  Future<void> launch(String installer, Relaunch relaunch) async => launches.add((installer, relaunch));
+  Future<void> launch(String installer, Relaunch relaunch) async {
+    launches.add((installer, relaunch));
+    if (refusals.isNotEmpty) {
+      if (refusals.removeAt(0) case final problem?) {
+        throw InstallRefused(problem);
+      }
+    }
+  }
+
+  @override
+  Future<bool> allowInstalls() async {
+    allowRequests++;
+    return allows;
+  }
 }
 
 Release _release(String version) =>
@@ -199,6 +223,40 @@ void main() {
         ..release = _release('0.2.0');
       await subject.check();
       expect(subject.state, isA<UpdateReady>());
+    });
+
+    test('a later check keeps the update waiting and why it did not install, also when it fails', () async {
+      feed.release = _release('0.2.0');
+      final subject = updater();
+      await subject.check();
+      launcher.refusals.add(InstallProblem.conflict);
+      await subject.restartToUpdate();
+      final seen = <UpdateState>[];
+      subject.addListener(() => seen.add(subject.state));
+
+      await subject.check();
+      feed.failure = DioException(requestOptions: RequestOptions(), type: DioExceptionType.connectionError);
+      await subject.check();
+
+      expect(subject.state, isA<UpdateReady>().having((ready) => ready.problem, 'problem', InstallProblem.conflict));
+      expect(seen, isEmpty, reason: 'the notice and its button stay as they were');
+      expect(store.fetched, ['0.2.0'], reason: 'downloaded once');
+    });
+
+    test('a newer release replaces the update waiting; when its download fails, the waiting one stays', () async {
+      feed.release = _release('0.2.0');
+      final subject = updater();
+      await subject.check();
+
+      feed.release = _release('0.3.0');
+      store.failure = DioException(requestOptions: RequestOptions(), type: DioExceptionType.connectionError);
+      await subject.check();
+      expect(subject.state, isA<UpdateReady>().having((ready) => ready.version, 'version', '0.2.0'));
+
+      store.failure = null;
+      await subject.check();
+      expect(subject.state, isA<UpdateReady>().having((ready) => ready.version, 'version', '0.3.0'));
+      expect(store.fetched, ['0.2.0', '0.3.0', '0.3.0']);
     });
   });
 

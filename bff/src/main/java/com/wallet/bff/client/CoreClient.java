@@ -56,9 +56,20 @@ public class CoreClient {
         call(() -> postSpec(path, body).toBodilessEntity());
     }
 
-    public void delete(String path) {
-        call(() -> restClient.delete()
+    public <T> T put(String path, Object body, ParameterizedTypeReference<T> type) {
+        return call(() -> restClient.put()
                 .uri(path)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .onStatus(HttpStatusCode::isError, RELAY_ERRORS)
+                .body(type));
+    }
+
+    /** @param uriVariables fill {@code {name}} placeholders in {@code path}, encoded strictly: a client's id may hold a {@code /} */
+    public void delete(String path, Object... uriVariables) {
+        call(() -> restClient.delete()
+                .uri(path, uriVariables)
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, RELAY_ERRORS)
                 .toBodilessEntity());

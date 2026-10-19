@@ -9,9 +9,7 @@ import 'core/api/auth_interceptor.dart';
 import 'core/config/server_address.dart';
 import 'core/desktop/desktop.dart';
 import 'core/desktop/desktop_settings.dart';
-import 'core/desktop/desktop_views.dart';
 import 'core/desktop/window_frame.dart';
-import 'core/desktop/updater.dart';
 import 'core/l10n/l10n.dart';
 import 'core/router/app_router.dart';
 import 'core/security/app_lock.dart';
@@ -23,24 +21,31 @@ import 'core/session/session_store.dart';
 import 'core/state/data_changes.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
+import 'core/updates/update_views.dart';
+import 'core/updates/updater.dart';
 import 'features/calendar/data/calendar_api.dart';
 import 'features/cards/data/cards_api.dart';
 import 'features/connections/data/connections_api.dart';
+import 'features/connections/presentation/pluggy_connect_screen.dart';
 import 'features/insights/data/insights_api.dart';
 import 'features/investments/data/investments_api.dart';
 import 'features/overview/data/home_api.dart';
+import 'features/planning/data/planning_api.dart';
 import 'features/transactions/data/transactions_api.dart';
 
 /// Everything the screens need, built once. Tests build it with a fake HTTP adapter.
 class AppDependencies {
-  AppDependencies._(this.api, this.session, this.appLock, this.theme, this.desktop, this.server);
+  AppDependencies._(
+      this.api, this.session, this.appLock, this.theme, this.desktop, this.updater, this.server, this.pluggyConnect);
 
   factory AppDependencies.create({
     ApiClient? api,
     SessionStore? store,
     ThemeController? theme,
     Desktop? desktop,
+    Updater? updater,
     ServerAddress? server,
+    PluggyConnectHost pluggyConnect = const PluggyConnectHost(),
     bool withAppLock = !kIsWeb,
   }) {
     final client = api ?? ApiClient.create(baseUrl: server?.current);
@@ -52,7 +57,7 @@ class AppDependencies {
     );
     client.dio.interceptors.add(AuthInterceptor(session, client.dio));
     return AppDependencies._(client, session, withAppLock ? AppLock(session: session) : null,
-        theme ?? ThemeController(MemoryThemePreference()), desktop, server);
+        theme ?? ThemeController(MemoryThemePreference()), desktop, updater ?? desktop?.updater, server, pluggyConnect);
   }
 
   final ApiClient api;
@@ -63,8 +68,15 @@ class AppDependencies {
   /// The Windows app's window settings and updater; null on the phone and in the browser.
   final Desktop? desktop;
 
+  /// The installed app's updater: the Windows one or the Android one; null on the iPhone and in
+  /// the browser.
+  final Updater? updater;
+
   /// The BFF's address, typed on the login screen; null in the browser.
   final ServerAddress? server;
+
+  /// How "Conectar banco" shows Pluggy Connect on Android.
+  final PluggyConnectHost pluggyConnect;
   final DataChanges dataChanges = DataChanges();
 
   List<SingleChildWidget> get providers => [
@@ -73,7 +85,7 @@ class AppDependencies {
         ChangeNotifierProvider.value(value: theme),
         ChangeNotifierProvider<AppLock?>.value(value: appLock),
         ChangeNotifierProvider<DesktopSettings?>.value(value: desktop?.settings),
-        ChangeNotifierProvider<Updater?>.value(value: desktop?.updater),
+        ChangeNotifierProvider<Updater?>.value(value: updater),
         ChangeNotifierProvider<ServerAddress?>.value(value: server),
         Provider(create: (_) => HomeApi(api)),
         Provider(create: (_) => CalendarApi(api)),
@@ -81,7 +93,9 @@ class AppDependencies {
         Provider(create: (_) => CardsApi(api)),
         Provider(create: (_) => InvestmentsApi(api)),
         Provider(create: (_) => InsightsApi(api)),
+        Provider(create: (_) => PlanningApi(api)),
         Provider(create: (_) => ConnectionsApi(api)),
+        Provider.value(value: pluggyConnect),
       ];
 }
 
@@ -150,7 +164,7 @@ class _WalletAppState extends State<WalletApp> {
         final content = Consumer<AppLock?>(
           builder: (context, lock, _) => Stack(children: [
             app,
-            if (dependencies.desktop != null) const UpdateToast(),
+            if (dependencies.updater != null) const UpdateToast(),
             if (lock?.isLocked ?? false) const LockScreen(),
           ]),
         );

@@ -25,4 +25,13 @@ void main() {
     expect(AppConfig.isWindows, isFalse);
     expect(AppConfig.bffUrl, 'http://10.0.2.2:8080');
   });
+
+  test('only Android connects the bank through Pluggy Connect; iOS, the PC and the browser use the Item ID', () {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    expect(AppConfig.usesPluggyConnect, isTrue);
+    for (final platform in [TargetPlatform.iOS, TargetPlatform.windows, TargetPlatform.macOS]) {
+      debugDefaultTargetPlatformOverride = platform;
+      expect(AppConfig.usesPluggyConnect, isFalse, reason: '$platform');
+    }
+  });
 }

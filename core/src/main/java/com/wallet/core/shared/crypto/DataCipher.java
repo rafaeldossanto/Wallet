@@ -5,6 +5,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Cipher;
+import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -13,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.HexFormat;
 
 import static java.util.Objects.isNull;
 import static org.springframework.util.StringUtils.hasText;
@@ -22,6 +24,8 @@ import static org.springframework.util.StringUtils.hasText;
  *
  * <p>Stored as {@code v1:base64(iv || ciphertext+tag)}. The version prefix lets a future key
  * rotation tell old values from new ones.
+ *
+ * <p>{@link #fingerprint} is for the other need: finding a value again without storing it.
  */
 @Slf4j
 @Component
@@ -32,12 +36,19 @@ public class DataCipher {
     private static final int KEY_BYTES = 32;
     private static final int IV_BYTES = 12;
     private static final int TAG_BITS = 128;
+    private static final String HMAC = "HmacSHA256";
+    /** 128 bits: no two texts of one user will ever share a fingerprint. */
+    private static final int FINGERPRINT_BYTES = 16;
 
     private final SecretKey key;
+    private final SecretKey fingerprintKey;
     private final SecureRandom random = new SecureRandom();
 
     public DataCipher(CryptoProperties properties) {
-        this.key = new SecretKeySpec(resolveKey(properties.dataKey()), "AES");
+        byte[] keyBytes = resolveKey(properties.dataKey());
+        this.key = new SecretKeySpec(keyBytes, "AES");
+        // Its own key, derived from the data key: the AES key is never used for anything else.
+        this.fingerprintKey = new SecretKeySpec(hmac(new SecretKeySpec(keyBytes, HMAC), "wallet-fingerprint-v1"), HMAC);
     }
 
     public String encrypt(String plaintext) {
@@ -78,6 +89,29 @@ public class DataCipher {
         } catch (GeneralSecurityException | IllegalArgumentException ex) {
             log.warn("[CRYPTO] Could not decrypt a value (written with another key?)");
             return null;
+        }
+    }
+
+    /**
+     * A keyed hash (HMAC-SHA256, 32 hex characters): the same text always gives the same
+     * fingerprint, so it can be stored and compared, and without the key a database dump does not
+     * tell which text it was. Like {@link #encrypt}, it changes with the key.
+     */
+    public String fingerprint(String text) {
+        if (isNull(text)) {
+            return null;
+        }
+        byte[] digest = hmac(fingerprintKey, text);
+        return HexFormat.of().formatHex(digest, 0, FINGERPRINT_BYTES);
+    }
+
+    private static byte[] hmac(SecretKey macKey, String text) {
+        try {
+            Mac mac = Mac.getInstance(HMAC);
+            mac.init(macKey);
+            return mac.doFinal(text.getBytes(StandardCharsets.UTF_8));
+        } catch (GeneralSecurityException ex) {
+            throw new IllegalStateException("HMAC-SHA256 is not available in this JVM", ex);
         }
     }
 

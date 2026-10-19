@@ -15,6 +15,9 @@ import '../../../core/widgets/theme_toggle.dart';
 import '../../calendar/data/calendar_api.dart';
 import '../../calendar/presentation/calendar_cards.dart';
 import '../../calendar/presentation/calendar_controller.dart';
+import '../../planning/data/planning_api.dart';
+import '../../planning/presentation/plan_bar.dart';
+import '../../planning/presentation/planning_controller.dart';
 import '../../transactions/presentation/transaction_tile.dart';
 import '../data/home_api.dart';
 import 'overview_controller.dart';
@@ -35,7 +38,11 @@ class OverviewScreen extends StatelessWidget {
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
-          onRefresh: () => Future.wait([controller.refresh(), context.read<CalendarController>().refresh()]),
+          onRefresh: () => Future.wait([
+            controller.refresh(),
+            context.read<CalendarController>().refresh(),
+            context.read<PlanningController>().refresh(),
+          ]),
           child: LayoutBuilder(
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= twoColumnsWidth;
@@ -128,6 +135,7 @@ class _Dashboard extends StatelessWidget {
     const gap = SizedBox(height: 16);
     final netWorth = _NetWorthCard(data: data);
     final month = _MonthCard(data: data);
+    const leftover = _LeftoverCard();
     const calendar = SpendingCalendarCard();
     const day = SpendingListCard();
     final accounts = _AccountsCard(data: data);
@@ -141,7 +149,7 @@ class _Dashboard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(flex: 3, child: Column(children: [netWorth, gap, month, gap, accounts, gap, recent])),
+              Expanded(flex: 3, child: Column(children: [netWorth, gap, month, gap, leftover, gap, accounts, gap, recent])),
               const SizedBox(width: 16),
               Expanded(flex: 2, child: Column(children: [calendar, gap, day, gap, cards])),
             ],
@@ -156,13 +164,15 @@ class _Dashboard extends StatelessWidget {
           gap,
           month,
           gap,
+          leftover,
+          gap,
           cards,
           gap,
           accounts,
           gap,
           recent,
         ]
-        else ...[netWorth, gap, calendar, gap, day, gap, month, gap, cards, gap, accounts, gap, recent],
+        else ...[netWorth, gap, calendar, gap, day, gap, month, gap, leftover, gap, cards, gap, accounts, gap, recent],
       ],
     );
   }
@@ -252,6 +262,47 @@ class _MonthCard extends StatelessWidget {
                 value: MoneyText(overview.monthBalance),
               ),
             ]),
+    );
+  }
+}
+
+/// What is left of this month's salary after the card bills and the fixed expenses; the way to
+/// the planning screen.
+class _LeftoverCard extends StatelessWidget {
+  const _LeftoverCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = Theme.of(context);
+    final planning = context.watch<PlanningController>();
+    return SectionCard(
+      title: l10n.planningLeftover,
+      trailing: TextButton(onPressed: () => context.go('/planning'), child: Text(l10n.overviewSeePlanning)),
+      child: switch (planning.state) {
+        Loading<MonthPlan>() => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Center(child: SizedBox.square(dimension: 24, child: CircularProgressIndicator(strokeWidth: 2))),
+          ),
+        Failed<MonthPlan>() => const UnavailableNotice(),
+        Loaded<MonthPlan>(:final value) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              MoneyText(value.totals.leftover, style: theme.textTheme.headlineSmall),
+              const SizedBox(height: 12),
+              PlanBar(slices: planSlices(value, context), track: theme.colorScheme.surfaceContainerHighest, height: 10),
+              const SizedBox(height: 8),
+              Text(
+                l10n.overviewLeftoverDetail(
+                    value.totals.salary.format(), value.totals.bills.format(), value.totals.fixedExpenses.format()),
+                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+              if (value.salary.predicted)
+                Text(l10n.overviewLeftoverPredicted,
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            ],
+          ),
+      },
     );
   }
 }
@@ -401,6 +452,8 @@ Widget buildOverview(BuildContext context) => MultiProvider(
             create: (context) => OverviewController(context.read<HomeApi>(), dataChanges: context.read())..load()),
         ChangeNotifierProvider(
             create: (context) => CalendarController(context.read<CalendarApi>(), dataChanges: context.read())..load()),
+        ChangeNotifierProvider(
+            create: (context) => PlanningController(context.read<PlanningApi>(), dataChanges: context.read())..load()),
       ],
       child: const OverviewScreen(),
     );

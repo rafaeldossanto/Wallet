@@ -8,10 +8,11 @@ import 'package:shared_preferences_platform_interface/shared_preferences_async_p
 import 'package:wallet/core/desktop/desktop.dart';
 import 'package:wallet/core/desktop/desktop_settings.dart';
 import 'package:wallet/core/desktop/desktop_views.dart';
-import 'package:wallet/core/desktop/updater.dart';
 import 'package:wallet/core/desktop/window_frame.dart';
 import 'package:wallet/core/l10n/l10n.dart';
 import 'package:wallet/core/theme/app_theme.dart';
+import 'package:wallet/core/updates/update_views.dart';
+import 'package:wallet/core/updates/updater.dart';
 
 import '../support/fake_bff.dart';
 
@@ -32,6 +33,9 @@ class _Launcher implements InstallerLauncher {
 
   @override
   Future<void> launch(String installer, Relaunch relaunch) async => relaunches.add(relaunch);
+
+  @override
+  Future<bool> allowInstalls() async => true;
 }
 
 class _Window implements WindowControls {

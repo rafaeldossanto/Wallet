@@ -58,24 +58,42 @@ class GitHubReleaseFeed implements ReleaseFeed {
 /// Read through the release download link, which always points at the newest release and, unlike
 /// api.github.com, is not limited to 60 requests an hour per connection.
 class ManifestReleaseFeed implements ReleaseFeed {
-  ManifestReleaseFeed({Dio? dio, this.repository = 'rafaeldossanto/Wallet'})
-      : _dio = dio ??
+  ManifestReleaseFeed({
+    Dio? dio,
+    this.repository = 'rafaeldossanto/Wallet',
+    this.manifest = 'latest.json',
+    this.fileField = 'installer',
+    String userAgent = 'Wallet-desktop',
+  }) : _dio = dio ??
             Dio(BaseOptions(
               connectTimeout: const Duration(seconds: 10),
               receiveTimeout: const Duration(seconds: 20),
-              headers: {'User-Agent': 'Wallet-desktop'},
+              headers: {'User-Agent': userAgent},
             ));
+
+  /// `latest-android.json`, published by the Android workflow next to each APK:
+  /// `{"version": "0.1.5", "apk": "Wallet-0.1.5.apk", "sha256": "…"}`. The Android app reads only
+  /// this one, never the API.
+  ManifestReleaseFeed.android({Dio? dio, String repository = 'rafaeldossanto/Wallet'})
+      : this(dio: dio, repository: repository, manifest: 'latest-android.json', fileField: 'apk', userAgent: 'Wallet-android');
 
   final Dio _dio;
   final String repository;
 
-  /// Null when the newest release has no manifest (the ones before 0.1.2) or there is no release.
+  /// The manifest's file name in the release.
+  final String manifest;
+
+  /// The manifest's field with the installer's file name.
+  final String fileField;
+
+  /// Null when the newest release has no manifest (the ones before 0.1.2 for Windows, before 0.1.4
+  /// for Android) or there is no release.
   @override
   Future<Release?> latest() async {
     final Response<String> response;
     try {
       response = await _dio.get<String>(
-        'https://github.com/$repository/releases/latest/download/latest.json',
+        'https://github.com/$repository/releases/latest/download/$manifest',
         // GitHub serves release files as octet-stream: decoded here, not by Dio.
         options: Options(responseType: ResponseType.plain),
       );
@@ -86,11 +104,11 @@ class ManifestReleaseFeed implements ReleaseFeed {
       rethrow;
     }
     // A byte order mark at the start would stop jsonDecode.
-    final manifest = Json.of(jsonDecode(response.data!.replaceFirst(String.fromCharCode(0xFEFF), '')));
-    final version = manifest.string('version');
-    final installer = manifest.string('installer');
-    final sha256 = manifest.string('sha256').toLowerCase();
-    if (parseVersion(version) == null || !RegExp(r'^[0-9a-f]{64}$').hasMatch(sha256)) {
+    final json = Json.of(jsonDecode(response.data!.replaceFirst(String.fromCharCode(0xFEFF), '')));
+    final version = json.stringOrNull('version') ?? '';
+    final installer = json.stringOrNull(fileField) ?? '';
+    final sha256 = (json.stringOrNull('sha256') ?? '').toLowerCase();
+    if (parseVersion(version) == null || installer.isEmpty || !RegExp(r'^[0-9a-f]{64}$').hasMatch(sha256)) {
       return null;
     }
     return Release(

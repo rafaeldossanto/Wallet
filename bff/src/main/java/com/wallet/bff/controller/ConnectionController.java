@@ -2,6 +2,7 @@ package com.wallet.bff.controller;
 
 import com.wallet.bff.auth.CurrentUserId;
 import com.wallet.bff.model.dto.request.LinkConnectionRequest;
+import com.wallet.bff.model.dto.response.ConnectTokenResponse;
 import com.wallet.bff.model.dto.response.ConnectionResponse;
 import com.wallet.bff.model.dto.response.SyncStartedResponse;
 import com.wallet.bff.service.ConnectionService;
@@ -35,6 +36,12 @@ public class ConnectionController {
     @ResponseStatus(HttpStatus.CREATED)
     public ConnectionResponse link(@CurrentUserId UUID userId, @RequestBody LinkConnectionRequest request) {
         return connectionService.link(userId, request);
+    }
+
+    /** For the Pluggy Connect widget on Android; the item it creates comes back through {@link #link}. */
+    @PostMapping("/connect-token")
+    public ConnectTokenResponse connectToken() {
+        return connectionService.connectToken();
     }
 
     @DeleteMapping("/{connectionId}")

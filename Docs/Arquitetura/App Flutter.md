@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, flutter, app]
-atualizado: 2026-10-03
+atualizado: 2026-10-18
 ---
 
 # App Flutter
@@ -27,8 +27,11 @@ Construído em 2026-10-02 (T12 a T18 do [[Plano de Implementação]]), em `Work/
 | `window_manager`, `screen_retriever` | Janela do Windows: tamanho, centro, esconder na bandeja |
 | `tray_manager` | Ícone e menu na bandeja do Windows |
 | `win32_registry` | "Abrir com o Windows" |
-| `crypto` | SHA-256 do instalador baixado pelo atualizador |
+| `crypto` | SHA-256 do instalador (ou do APK) baixado pelo atualizador |
+| `path_provider` | A pasta privada do app no Android, onde o atualizador guarda o APK |
 | `shared_preferences` | A escolha de tema (`SharedPreferencesAsync`, a API atual) |
+| `webview_flutter` | O widget Pluggy Connect no Android ("Conectar banco") |
+| `url_launcher` | Abrir a autorização do Open Finance no app do banco (ou no navegador) |
 
 O `flutter_localizations` fica só porque o `gen-l10n` exige; os delegates usados vêm do
 `material_ui` (`GlobalMaterialLocalizations.delegates`). O `fl_chart` ainda importa o
@@ -44,6 +47,9 @@ app/lib/
     api/          ApiClient (dio), ApiException, AuthInterceptor, Json, adaptador web/io
     session/      SessionApi, SessionController, SessionStore (celular · web)
     security/     AppLock (biometria), LockScreen, IdleTimeout (web)
+    desktop/      só o Windows: janela, bandeja, "Abrir com o Windows", Inno Setup
+    android/      só o Android: o atualizador e o canal para o instalador do sistema
+    updates/      o atualizador dos dois (Updater, manifestos, download com SHA-256, avisos)
     router/       rotas e shell adaptativo
     state/        Loadable, LoadController, DataChanges
     models/       Account, Transaction, CreditCard, Bill
@@ -53,7 +59,7 @@ app/lib/
     l10n/         app_pt.arb e as classes geradas
     widgets/      LoadableView, SectionCard, StatTile, MoneyText, MoneyLineChart, ThemeToggle...
   features/
-    auth/  overview/  calendar/  transactions/  cards/  investments/  insights/  connections/  settings/
+    auth/  overview/  calendar/  transactions/  cards/  investments/  planning/  insights/  connections/  settings/
 ```
 
 Cada feature tem `data/` (chamadas ao BFF e modelos) e `presentation/` (telas e
@@ -63,19 +69,20 @@ controllers).
 
 | Largura | Navegação |
 |---|---|
-| < 600 px (celular) | Barra inferior: Início, Extrato, Cartões, Investir e **Mais** (Gastos, Conexões, Ajustes) |
+| < 600 px (celular) | Barra inferior: Início, Extrato, Cartões, Investir e **Mais** (Planejamento, Gastos, Conexões, Ajustes) |
 | ≥ 600 px | Trilho flutuante de botões redondos (`WalletRail`): a marca, os destinos com dica ao passar o mouse, a troca de tema e as iniciais do usuário (vão para Ajustes) |
 
 Rotas: `/home`, `/transactions?accountId=`, `/cards`, `/cards/:id?name=` (faturas),
-`/investments`, `/insights`, `/connections`, `/settings`, além de `/splash`, `/login` e
+`/investments`, `/planning`, `/insights`, `/connections`, `/settings`, além de `/splash`, `/login` e
 `/register`. Ninguém vê dado antes de a sessão ser confirmada; um link aberto deslogado volta
 depois do login (`?from=`), menos quando a pessoa saiu de propósito.
 
 ## Com quem o app fala
 
 Só com o [[BFF]]: `http://localhost:8080` no navegador, no Windows e no iOS,
-`http://10.0.2.2:8080` no emulador Android (HTTP liberado só no build de debug). Muda com
-`--dart-define=WALLET_BFF_URL=`. Toda chamada leva `X-Wallet-Client: mobile`, `desktop` ou
+`http://10.0.2.2:8080` no emulador Android. Muda com `--dart-define=WALLET_BFF_URL=`, e no
+celular e no tablet pelo endereço digitado na tela de login. O Android aceita HTTP em todos os
+builds até o deploy com HTTPS (ver "App no tablet Android"). Toda chamada leva `X-Wallet-Client: mobile`, `desktop` ou
 `web`.
 
 ## App de Windows (desde 2026-10-04)
@@ -131,6 +138,8 @@ projeto Flutter e o mesmo código Dart; o Flutter gera o executável nativo a pa
     `--dart-define=WALLET_VERSION`) nunca se atualiza.
   - O instalador recebe `/RELAUNCH=open|tray|none` e decide se reabre o app. Sem assinatura de
     código não há aviso do SmartScreen na atualização, porque o arquivo não vem do navegador.
+  - Desde 2026-10-18 o atualizador fica em `lib/core/updates/`, dividido com o Android; o que é
+    só do Windows (Inno Setup, janela, bandeja) continua em `lib/core/desktop/`.
 - **Ícone:** os cartões empilhados (ver "Ícone" abaixo), num `app_icon.ico` com 8 tamanhos e cantos
   arredondados, também usado na bandeja.
 - **Instalador:** Inno Setup (`windows/installer/wallet.iss`). Instala só para o usuário, em
@@ -159,6 +168,81 @@ projeto Flutter e o mesmo código Dart; o Flutter gera o executável nativo a pa
   Windows instalado; este PC não tem Visual Studio. O que é lógica (quando atualizar, a
   conferência do SHA-256, os Ajustes) tem teste; o resto é conferido pelo Rafael no app instalado.
 
+## App no iPhone (desde 2026-10-18)
+
+Pedido do Rafael, que tem um iPhone 11 e não quer pagar o Apple Developer Program por enquanto.
+
+- O workflow **iOS** compila num Mac do GitHub um `.ipa` **sem assinatura**. Quem assina é o
+  AltStore (ou o Sideloadly) na instalação, com um Apple ID gratuito; a assinatura vale 7 dias e o
+  AltStore renova sozinho quando o iPhone e o PC com o AltServer estão na mesma Wi-Fi.
+- Cada versão publica junto um `altstore.json` (fonte do AltStore), lido pelo link
+  `releases/latest/download/altstore.json`: o Wallet aparece no AltStore para instalar e
+  atualizar pelo celular. As permissões listadas ali precisam bater com o `Info.plist`, senão o
+  AltStore recusa; o workflow tira os textos do próprio `Info.plist`.
+- **Servidor:** no celular, `localhost` é o próprio celular. A tela de login mostra "Servidor: … ·
+  Alterar", onde se digita o endereço do PC na Wi-Fi (`192.168.0.10` vira
+  `http://192.168.0.10:8080`). Fica salvo no aparelho e vale já na próxima requisição
+  (`lib/core/config/server_address.dart`). No navegador não aparece.
+- `NSLocalNetworkUsageDescription` no `Info.plist`: sem ele o iOS 14+ bloqueia o acesso ao PC na
+  rede local. O HTTP para a rede local já era liberado (`NSAllowsLocalNetworking`).
+- Passo a passo para instalar no README ("App no iPhone").
+
+## App no tablet Android (desde 2026-10-18)
+
+Pedido do Rafael, para o tablet Android dele. Sem Play Store: um APK instalado à mão.
+
+- O workflow **Android** compila em Linux (JDK 21) um `Wallet-<versão>.apk` e o anexa à execução;
+  numa tag `v<versão>`, espera o Release que o Desktop cria e anexa o APK a ele.
+- **Assinatura:** o Android só instala uma versão nova por cima se as duas tiverem a mesma chave.
+  O modelo do Flutter assinava o release com a chave de debug, que muda de máquina para máquina.
+  Agora há uma keystore própria (RSA 4096, alias `wallet`), gerada em 2026-10-18 e guardada fora do
+  git em `%USERPROFILE%\.wallet\android` com o `key.properties`. O `android/app/build.gradle.kts`
+  lê a chave de `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` e
+  `ANDROID_KEY_PASSWORD`, ou de um `key.properties` apontado por `ANDROID_KEY_PROPERTIES`; sem
+  nenhum dos dois, cai na chave de debug. No CI, os quatro segredos `ANDROID_*` do repositório
+  (a keystore vai em base64); faltando, o APK sai com a de debug e a execução avisa.
+- **HTTP:** o tablet fala com o BFF no PC pela Wi-Fi, em `http://192.168.x.x:8080`. O
+  `res/xml/network_security_config.xml` libera HTTP para qualquer endereço, porque o da rede local
+  não se sabe na hora do build e o arquivo não aceita faixa de IP. Antes só o build de debug
+  (emulador) aceitava HTTP. Com o deploy em HTTPS, volta a ser só HTTPS.
+- O endereço do PC se digita na tela de login, como no iPhone. O firewall do Windows precisa
+  deixar o Java receber conexões na rede privada.
+- **Atualização pelo próprio app (desde 2026-10-18, a partir da 0.1.4):** pedido do Rafael, para
+  as versões novas chegarem ao tablet com um toque, como no Windows, sem entrar no GitHub. É o
+  mesmo `Updater` do Windows (ao abrir e a cada 6 horas, mais cedo depois de falha), com outras
+  peças (`lib/core/android/`):
+  - **Onde lê:** o `latest-android.json` (`{version, apk, sha256}`) que o workflow Android publica
+    junto do APK, pelo link `releases/latest/download/latest-android.json`. Nunca a API do GitHub
+    (60 consultas por hora sem login). O `latest.json` do Windows continua só do Desktop. Numa
+    tag, o APK sobe antes do manifesto, para ninguém ler um manifesto sem o APK.
+  - **Download:** em segundo plano, para a pasta privada do app (`path_provider`, `files/updates`),
+    e só fica se o SHA-256 bater. O APK de uma versão já instalada é apagado na primeira vez que
+    ela abre.
+  - **Instalação, nunca sozinha:** o aviso do canto diz "Nova versão disponível" com **Atualizar**,
+    que entrega o APK ao instalador do Android pela API de sessão do `PackageInstaller`
+    (`android/app/src/main/kotlin/com/wallet/wallet/UpdateInstaller.kt`, canal
+    `wallet/package_installer`); o `ACTION_INSTALL_PACKAGE` está depreciado. O APK é copiado para a
+    sessão, então nenhum arquivo é compartilhado com outro app (sem `FileProvider`). No Android 12+
+    a sessão exige a confirmação do usuário (`USER_ACTION_REQUIRED`), mesmo podendo dispensá-la.
+  - **Permissão:** o manifesto declara `REQUEST_INSTALL_PACKAGES`. Na primeira vez o Android não
+    deixa o Wallet instalar apps: o aviso explica e **Abrir configurações** leva direto a Instalar
+    apps desconhecidos → Wallet ("Permitir desta fonte"); de volta ao app, a confirmação do
+    Android aparece sozinha.
+  - **Depois:** o Android fecha o Wallet para trocar a versão e não o reabre. Na abertura seguinte o
+    app compara com a versão que rodou da última vez (guardada nas preferências) e avisa "Wallet
+    atualizado".
+  - **Recusas:** se o usuário cancela, a atualização continua esperando. Se o APK tem outra
+    assinatura (um APK de debug instalado, ou um Release gerado sem os segredos), o Android recusa
+    e o aviso diz para desinstalar e instalar o dos Releases. Outra falha oferece "Tentar de novo".
+  - Ajustes → Atualizações mostra a versão, o estado e "Procurar agora". Um APK sem
+    `--dart-define=WALLET_VERSION` nunca se atualiza.
+  - Verificado no emulador `trilha_pixel` (Android 15), com um app de teste chamando o canal: sem a
+    permissão vem a recusa; "Abrir configurações" cai direto em Instalar apps desconhecidos →
+    Wallet e volta com a resposta, sem reiniciar o app; a confirmação do Android aparece;
+    Cancelar devolve a atualização à espera; Atualizar instala a versão nova por cima, e o Android
+    fecha o app sem reabrir. O Wallet passa a constar como instalador dele mesmo.
+- Passo a passo para instalar e os segredos no README ("App no tablet Android").
+
 ## Tema
 
 Claro e escuro; escuro por padrão. Troca no botão de sol/lua (no trilho, ou no topo da
@@ -186,9 +270,46 @@ lida antes do primeiro quadro, então o app nunca abre no tema errado.
   Sem dia selecionado, a lista ao lado mostra os gastos do **mês inteiro** (com o dia e o banco
   de cada um, paginada com "Ver mais"); tocar num dia mostra só aquele dia; tocar de novo no
   mesmo dia volta ao mês. O total vem do calendário, então lista e calendário batem.
-- Arranjo: duas colunas a partir de 1000 px de conteúdo (patrimônio, mês, contas e últimas
-  movimentações à esquerda; calendário, lista e cartões à direita); entre 720 e 1000 px,
+- Arranjo: duas colunas a partir de 1000 px de conteúdo (patrimônio, mês, sobra do mês, contas e
+  últimas movimentações à esquerda; calendário, lista e cartões à direita); entre 720 e 1000 px,
   calendário e lista lado a lado; uma coluna no celular.
+
+## Planejamento (desde 2026-10-18)
+
+Quanto sobra do salário no mês, pedido do Rafael depois de fazer a conta à mão com o holerite e
+as faturas. Aba **Planejamento** (no trilho e no "Mais" do celular), com o seletor de mês (até o
+mês que vem; depois disso não há fatura para mostrar). As regras estão no [[Core#Planejamento do mês (desde 2026-10-18)]];
+o app não faz conta com dinheiro, só lê os totais.
+
+- **Resumo** (cartão azul, como o que abre a visão geral): a sobra em destaque e uma barra
+  empilhada com o salário dividido entre cada fatura, os gastos fixos e a sobra (verde-limão),
+  com a legenda. O cartão aparece pelo nome do banco ("Nubank"), ou pelo do cartão quando o banco
+  tem dois. Mês no vermelho: a barra divide o que sai e o cartão diz quanto falta.
+- **Salário líquido:** o valor, o selo **Previsto** quando ainda não caiu, e de onde veio (caiu em
+  tal dia, previsto pelo mês anterior, valor que você definiu). **Ajustar** abre o salário esperado
+  (digitado como se escreve aqui: `3.400,00`), e **Usar o automático** volta à previsão.
+- **Uma fatura por cartão:** logo e nome do banco, vencimento, total do banco, as compras da maior
+  para a menor com o dia, a categoria, a parcela ("Parcela 2/3") e "Estorno" em verde; quatro de
+  cada vez e **mais N compras** para ver o resto. "Outros lançamentos" mostra o que o banco cobra
+  além das compras listadas. Fatura que ainda não fechou leva o selo **Aberta**, com o dia em que
+  deve fechar.
+- **Gastos fixos:** a lista com o dia do mês e a categoria, o total, **Adicionar** e, tocando num,
+  editar ou excluir (com confirmação). A categoria é opcional e sai de uma lista curta de
+  categorias da Pluggy (aluguel, moradia, faculdade, contas da casa, plano de saúde...).
+- **Sugestões do seu extrato** (desde 2026-10-18), no fim do cartão de gastos fixos: os débitos que
+  se repetem todo mês nas contas e ainda não são gastos fixos ([[Core#Gastos fixos sugeridos pelo extrato (desde 2026-10-18)]]),
+  cada um com "R$ 690,00 · todo dia 9 · em 4 meses". Um toque (ou o **+**) abre o formulário de
+  gasto fixo já preenchido com nome, valor, dia e categoria, que dá para mudar antes de salvar; o
+  **×** dispensa para sempre ("Sugestão dispensada. Ela não volta a aparecer."). Três de cada vez
+  e **mais N sugestões**. Carregando, sem nenhuma ou com erro, a parte simplesmente não aparece.
+  Um `FixedExpenseSuggestionsController` próprio, só na tela de planejamento (a visão geral não
+  busca sugestões); salvar um gasto fixo toca o `DataChanges`, que recarrega as sugestões e tira
+  a que acabou de virar gasto fixo. Dispensar não mexe no plano.
+- **Visão geral:** o cartão **Sobra do mês** com a sobra do mês corrente, a mesma barra, a linha
+  "Salário · faturas · fixos" e "Ver planejamento".
+- Mudar um gasto fixo ou o salário toca o `DataChanges`, e a tela e o cartão da visão geral
+  buscam os números novos (o BFF já descartou o cache do planejamento).
+- A partir de 900 px de conteúdo, salário e gastos fixos à esquerda e as faturas à direita.
 
 ## Investimentos (desde 2026-10-03)
 
@@ -265,10 +386,18 @@ sozinhas. O BFF usa a mesma consulta para descartar o cache das telas daquele us
 
 ## Conectar banco
 
-- **Agora (Meu Pluggy):** Conexões → "Vincular conexão" pede o Item ID copiado do painel da
-  Pluggy. Em debug, o diálogo lembra os IDs da Pluggy de demonstração (`demo-nubank`,
-  `demo-itau`, `demo-xp` e os básicos `demo-banco` e `demo-corretora`).
-- **Produção:** widget `flutter_pluggy_connect` no celular (backlog).
+- **Android (desde 2026-10-18, pedido do Rafael):** Conexões → **Conectar banco** abre o widget
+  Pluggy Connect em tela cheia (uma WebView, `pluggy_connect_screen.dart`). A pessoa escolhe o
+  banco, a autorização do Open Finance abre no **app do banco** (onde já está logada), e o banco
+  devolve para o Wallet pelo deep link `com.wallet.wallet://pluggy-connect`. Quando os dados
+  chegam, o app vincula o item e a lista acompanha a primeira sincronização. O tema do widget
+  segue o do app. Detalhes, protocolo e por que não o pacote `flutter_pluggy_connect` em
+  [[Fluxo de Conexão]].
+- **Item ID (Meu Pluggy e a demo):** "Vincular conexão" pede o Item ID copiado do painel da
+  Pluggy; no Android fica no ícone de link no topo de Conexões ("Vincular pelo Item ID"), e é o
+  único caminho no iOS (pausado), no PC e no navegador. Em debug, o diálogo lembra os IDs da
+  Pluggy de demonstração (`demo-nubank`, `demo-itau`, `demo-xp` e os básicos `demo-banco` e
+  `demo-corretora`).
 
 Ver [[Fluxo de Conexão]].
 
@@ -280,23 +409,36 @@ Ver [[Fluxo de Conexão]].
 
 ## Testes
 
-92 testes com um BFF em memória (`test/support/fake_bff.dart`):
+157 testes com um BFF em memória (`test/support/fake_bff.dart`):
 
-- Unitários: `Money`, sessão (restaurar, recusar, servidor fora), interceptor (duas chamadas
+- Unitários: `Money` (inclusive o valor digitado num formulário, `1.234,56`), sessão (restaurar, recusar, servidor fora), interceptor (duas chamadas
   com 401 geram **um** refresh), bloqueio por biometria, inatividade no navegador,
   conexões (acompanhamento e aviso às outras telas), patrimônio sem os dias zerados,
   histórico de investimentos (começo no primeiro dia com dado, perda, período abandonado
   descartado, atualização que falha mantendo a linha), estilos CSS dos logos passados para os
   elementos, o app de PC se identificando como `desktop`, o atualizador (quando baixa, quando
   instala e como reabre; manifesto `latest.json` com a API de reserva; novas tentativas mais cedo
-  depois de falha; SHA-256 que não bate).
+  depois de falha; SHA-256 que não bate), o do Android (`latest-android.json` sem a API,
+  download conferido e entregue ao instalador só no toque, a permissão da primeira vez, recusa
+  por outra chave, o canal com o lado nativo, a versão lembrada para o aviso de atualizado), o
+  protocolo do Pluggy Connect (URL, mensagens, evento repetido, quando um item já vale vincular).
 - Widget: login, visão geral (completa, com parte indisponível, sem conexões), shell nos três
   tamanhos e o "Mais", calendário (mês inteiro, dia, tocar de novo), extrato (agrupamento por
   dia, filtros, segunda página), investimentos (rosca, clique na fatia e na legenda, troca de
   período, menos de dois dias, tipos à esquerda na tela larga), rosca dos gastos (fina, clicável),
-  Ajustes → Computador, os avisos de versão nova e de atualizado, a moldura da janela (os três
+  Ajustes → Computador, Ajustes → Atualizações no Android (sem os ajustes da janela), os avisos
+  de versão nova e de atualizado (Reiniciar no Windows, Atualizar e a permissão no Android), a
+  moldura da janela (os três
   botões, arrastar, redimensionar, cantos retos maximizada, vidro que segue o tema),
-  saída voluntária.
+  saída voluntária, o Pluggy Connect com uma página falsa no lugar da WebView
+  (`test/support/fake_pluggy_connect.dart`: token, abrir o banco e os links, sucesso, fechar antes
+  e depois de autorizar, falhas) e "Conectar banco" vinculando o item, o planejamento (sobra,
+  barra e legenda, salário recebido, previsto, definido à mão ou ausente, mês no vermelho, fatura
+  aberta, outros lançamentos, "mais N compras", Ajustar e Usar o automático, gasto fixo criado,
+  editado, excluído com confirmação e recusado pelo servidor, mês anterior e limite do próximo,
+  duas colunas na tela larga, sugestões do extrato: lista, formulário preenchido, valores mudados
+  antes de salvar, dispensa e dispensa recusada, "mais N sugestões", nenhuma ou com erro), o
+  cartão "Sobra do mês" da visão geral e o Planejamento no "Mais" e no trilho.
 
 Além disso, verificado à mão em 2026-10-02 no Chrome (build release) e no emulador
 `trilha_pixel`, contra o core e o BFF reais com a Pluggy de demonstração.

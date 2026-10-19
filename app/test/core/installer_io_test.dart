@@ -4,8 +4,8 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wallet/core/desktop/installer_io.dart';
-import 'package:wallet/core/desktop/updater.dart';
+import 'package:wallet/core/updates/installer_io.dart';
+import 'package:wallet/core/updates/updater.dart';
 
 /// Serves [bytes] for every request and counts the downloads.
 class _Download implements HttpClientAdapter {
@@ -59,6 +59,21 @@ void main() {
     server.bytes = [...installer.take(4000), 0, 0];
 
     await expectLater(installers.fetch(release('0.2.0', installer)), throwsA(isA<InstallerMismatch>()));
+    expect(files(), isEmpty);
+  });
+
+  test('the Android APK keeps its own name, and goes once the version it brought is running', () async {
+    final apks = DownloadedInstallers(
+      dio: Dio()..httpClientAdapter = server,
+      directory: directory,
+      fileName: (version) => 'Wallet-$version.apk',
+    );
+
+    final path = await apks.fetch(release('0.2.0', installer));
+    expect(path, endsWith('${Platform.pathSeparator}Wallet-0.2.0.apk'));
+    expect(files(), ['Wallet-0.2.0.apk']);
+
+    await apks.clear();
     expect(files(), isEmpty);
   });
 

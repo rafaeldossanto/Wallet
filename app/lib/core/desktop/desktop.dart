@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../updates/updater.dart';
 import 'desktop_settings.dart';
-import 'updater.dart';
 
 export 'desktop_start_stub.dart' if (dart.library.io) 'desktop_start_io.dart' show startDesktop;
 

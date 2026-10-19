@@ -171,6 +171,58 @@ class ConnectionFlowIT {
     @Test
     void connectionsNeedAToken() throws Exception {
         mockMvc.perform(get("/internal/connections")).andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/internal/connections/connect-token")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void theConnectTokenIsForTheSignedInUserAndBringsThemBackToTheApp() throws Exception {
+        when(provider.createConnectToken(userId.toString(), "com.wallet.wallet://pluggy-connect")).thenReturn("connect-token-1");
+
+        mockMvc.perform(post("/internal/connections/connect-token").with(as(userId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.connectToken").value("connect-token-1"));
+    }
+
+    @Test
+    void aProviderOutageWhileCreatingTheConnectTokenIsPassedOn() throws Exception {
+        when(provider.createConnectToken(anyString(), anyString())).thenThrow(ProviderErrors.unavailable("timeout"));
+
+        mockMvc.perform(post("/internal/connections/connect-token").with(as(userId)))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("provider.unavailable"));
+    }
+
+    /** While developing, items from the widget sit next to Meu Pluggy ones, and still have an owner. */
+    @Test
+    void anItemTheWidgetCreatedForSomeoneElseCannotBeLinked() throws Exception {
+        link(userId, stubItem(UUID.randomUUID().toString()))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("connection.item_not_found"));
+    }
+
+    @Test
+    void anItemTheWidgetCreatedForTheUserIsLinkedAndRevokedWhenUnlinked() throws Exception {
+        String itemId = stubItem(userId.toString());
+        String body = link(userId, itemId).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+
+        mockMvc.perform(delete("/internal/connections/" + JsonPath.read(body, "$.id")).with(as(userId)))
+                .andExpect(status().isNoContent());
+
+        verify(provider).deleteItem(itemId);
+    }
+
+    @Test
+    void unlinkingStillWorksWhenTheProviderCannotSayWhoseItemItIs() throws Exception {
+        String itemId = stubItem(null);
+        String body = link(userId, itemId).andReturn().getResponse().getContentAsString();
+        awaitFirstSyncs();
+        when(provider.findItem(itemId)).thenThrow(ProviderErrors.unavailable("timeout"));
+
+        mockMvc.perform(delete("/internal/connections/" + JsonPath.read(body, "$.id")).with(as(userId)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/internal/connections").with(as(userId))).andExpect(jsonPath("$").isEmpty());
+        verify(provider, never()).deleteItem(anyString());
     }
 
     private String stubItem(String clientUserId) {

@@ -67,6 +67,11 @@ public class ScreenCache {
         cache.asMap().keySet().removeIf(key -> key.userId().equals(userId));
     }
 
+    /** Every variant of one of the user's screens (every month of a monthly screen). */
+    public void evictScreen(UUID userId, String screen) {
+        cache.asMap().keySet().removeIf(key -> key.userId().equals(userId) && key.screen().equals(screen));
+    }
+
     private record Key(UUID userId, String screen, String variant) {
     }
 }

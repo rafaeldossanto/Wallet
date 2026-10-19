@@ -18,6 +18,11 @@ abstract final class AppConfig {
   /// The installed Windows app, where the lock is Windows Hello.
   static bool get isWindows => !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
 
+  /// "Conectar banco" opens the Pluggy Connect widget, and the bank's app comes back through the
+  /// deep link in the AndroidManifest. Elsewhere (iOS for now, desktop, browser) a connection is
+  /// linked by its Item ID.
+  static bool get usesPluggyConnect => !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
   /// What the BFF calls this app in `X-Wallet-Client`. The browser gets the refresh token in a
   /// cookie; the phone and desktop apps get it in the body and keep it in the system's vault.
   static String get client {

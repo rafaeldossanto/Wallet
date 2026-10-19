@@ -104,4 +104,126 @@ abstract final class Fixtures {
         'consentExpiresAt': '2027-10-02T09:00:00Z',
         'createdAt': '2026-09-01T12:00:00Z',
       };
+
+  /// A month's plan with made-up numbers: salary 3100.00, two bills (512.40 and 230.00) and two
+  /// fixed expenses (450.00 and 1200.00), so 707.60 left.
+  static Map<String, Object?> plan({
+    String month = '2026-10',
+    Map<String, Object?>? salary,
+    List<Map<String, Object?>>? bills,
+    List<Map<String, Object?>>? fixedExpenses,
+    Map<String, Object?>? totals,
+  }) =>
+      {
+        'month': month,
+        'salary': salary ?? planSalary(),
+        'bills': bills ??
+            [
+              planBill(
+                accountId: cardId,
+                cardName: 'Cartão Demo',
+                institution: 'Banco Demo',
+                total: '512.40',
+                otherCharges: '12.40',
+                items: [
+                  planItem('Fone de ouvido', '200.00', category: 'Electronics'),
+                  planItem('Bicicleta', '150.00', category: 'Sports practice', installment: (2, 3), date: '2026-08-15'),
+                  planItem('Mercado', '150.00', category: 'Groceries'),
+                ],
+              ),
+              planBill(
+                accountId: '6f1c2a9e-0000-4000-8000-000000000004',
+                cardName: 'Cartão Roxo',
+                institution: 'Nubank',
+                digits: '4821',
+                dueDate: '2026-10-04',
+                total: '230.00',
+                otherCharges: '0.00',
+                items: [
+                  planItem('Tênis', '190.00', category: 'Clothing'),
+                  planItem('Livraria', '60.00', category: 'Bookstore'),
+                  planItem('Estorno livraria', '20.00', category: 'Bookstore', refund: true),
+                ],
+              ),
+            ],
+        'fixedExpenses': fixedExpenses ??
+            [
+              planFixed('fx-1', 'Faculdade', '450.00', 10, category: 'Education'),
+              planFixed('fx-2', 'Aluguel', '1200.00', 31, date: '2026-10-31', category: 'Rent'),
+            ],
+        'totals': totals ?? {'salary': '3100.00', 'bills': '742.40', 'fixedExpenses': '1650.00', 'leftover': '707.60'},
+      };
+
+  static Map<String, Object?> planSalary({
+    String? amount = '3100.00',
+    String? date = '2026-10-05',
+    bool predicted = false,
+    String source = 'RECEIVED',
+    String? expectedAmount,
+  }) =>
+      {'amount': amount, 'date': date, 'predicted': predicted, 'source': source, 'expectedAmount': expectedAmount};
+
+  static Map<String, Object?> planBill({
+    required String accountId,
+    required String cardName,
+    required String total,
+    required List<Map<String, Object?>> items,
+    String? institution,
+    String digits = '5162',
+    String dueDate = '2026-10-10',
+    String? closingDate = '2026-10-03',
+    bool open = false,
+    String otherCharges = '0.00',
+  }) =>
+      {
+        'accountId': accountId,
+        'connectionId': connectionId,
+        'institutionName': institution,
+        'institutionImageUrl': null,
+        'cardName': cardName,
+        'numberLastDigits': digits,
+        'dueDate': dueDate,
+        'closingDate': closingDate,
+        'total': total,
+        'open': open,
+        'items': items,
+        'otherCharges': otherCharges,
+      };
+
+  static Map<String, Object?> planItem(String description, String amount,
+          {String? category, (int, int)? installment, String date = '2026-09-20', bool refund = false}) =>
+      {
+        'transactionId': 'tx-$description',
+        'date': date,
+        'description': description,
+        'amount': amount,
+        'direction': refund ? 'INFLOW' : 'OUTFLOW',
+        'category': category,
+        'installmentNumber': installment?.$1,
+        'installmentTotal': installment?.$2,
+      };
+
+  /// A debit that repeats every month, as the server suggests it; made-up numbers.
+  static Map<String, Object?> suggestion(String id, String name, String amount, int dayOfMonth,
+          {String? category, int months = 3, String lastDate = '2026-10-09'}) =>
+      {
+        'id': id,
+        'name': name,
+        'amount': amount,
+        'dayOfMonth': dayOfMonth,
+        'category': category,
+        'months': months,
+        'lastDate': lastDate,
+      };
+
+  static Map<String, Object?> planFixed(String id, String name, String amount, int dayOfMonth,
+          {String? date, String? category}) =>
+      {
+        'id': id,
+        'name': name,
+        'amount': amount,
+        'dayOfMonth': dayOfMonth,
+        'date': date ?? '2026-10-${dayOfMonth.toString().padLeft(2, '0')}',
+        'category': category,
+      };
 }

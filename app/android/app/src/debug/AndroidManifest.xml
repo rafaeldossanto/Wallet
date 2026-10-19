@@ -4,7 +4,6 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- Debug builds talk to the BFF over plain HTTP at 10.0.2.2 (the computer, seen from the
-         emulator). Release builds keep Android's default: HTTPS only. -->
-    <application android:usesCleartextTraffic="true"/>
+    <!-- Plain HTTP to the BFF (10.0.2.2 from the emulator, the PC's address from a phone) is
+         allowed in every build, by res/xml/network_security_config.xml. -->
 </manifest>

@@ -1,5 +1,7 @@
 package com.wallet.bff.client;
 
+import com.wallet.bff.model.dto.request.ExpectedSalaryRequest;
+import com.wallet.bff.model.dto.request.FixedExpenseRequest;
 import com.wallet.bff.model.dto.request.LinkConnectionRequest;
 import com.wallet.bff.model.dto.request.LoginRequest;
 import com.wallet.bff.model.dto.request.RefreshRequest;
@@ -7,11 +9,16 @@ import com.wallet.bff.model.dto.request.RegisterRequest;
 import com.wallet.bff.model.dto.response.AccountResponse;
 import com.wallet.bff.model.dto.response.BillResponse;
 import com.wallet.bff.model.dto.response.CalendarResponse;
+import com.wallet.bff.model.dto.response.ConnectTokenResponse;
 import com.wallet.bff.model.dto.response.ConnectionResponse;
 import com.wallet.bff.model.dto.response.CreditCardResponse;
+import com.wallet.bff.model.dto.response.ExpectedSalaryResponse;
+import com.wallet.bff.model.dto.response.FixedExpenseResponse;
+import com.wallet.bff.model.dto.response.FixedExpenseSuggestionResponse;
 import com.wallet.bff.model.dto.response.NetWorthResponse;
 import com.wallet.bff.model.dto.response.OverviewResponse;
 import com.wallet.bff.model.dto.response.PageResponse;
+import com.wallet.bff.model.dto.response.PlanningResponse;
 import com.wallet.bff.model.dto.response.PortfolioResponse;
 import com.wallet.bff.model.dto.response.SpendingResponse;
 import com.wallet.bff.model.dto.response.SyncStartedResponse;
@@ -62,6 +69,10 @@ public class CoreApi {
 
     public ConnectionResponse link(LinkConnectionRequest request) {
         return client.post("/internal/connections", request, new ParameterizedTypeReference<>() {});
+    }
+
+    public ConnectTokenResponse connectToken() {
+        return client.post("/internal/connections/connect-token", null, new ParameterizedTypeReference<>() {});
     }
 
     public void unlink(UUID connectionId) {
@@ -116,5 +127,44 @@ public class CoreApi {
     public NetWorthResponse netWorth(LocalDate from, LocalDate to) {
         return client.get("/internal/insights/net-worth", Map.of("from", from, "to", to),
                 new ParameterizedTypeReference<>() {});
+    }
+
+    /** The month's plan as the core computes it, without the institutions' names. */
+    public PlanningResponse planning(String month) {
+        Map<String, Object> query = nonNull(month) ? Map.of("month", month) : Map.of();
+        return client.get("/internal/planning/month", query, new ParameterizedTypeReference<>() {});
+    }
+
+    public List<FixedExpenseResponse> fixedExpenses() {
+        return client.get("/internal/planning/fixed-expenses", Map.of(), new ParameterizedTypeReference<>() {});
+    }
+
+    public FixedExpenseResponse createFixedExpense(FixedExpenseRequest request) {
+        return client.post("/internal/planning/fixed-expenses", request, new ParameterizedTypeReference<>() {});
+    }
+
+    public FixedExpenseResponse updateFixedExpense(UUID id, FixedExpenseRequest request) {
+        return client.put("/internal/planning/fixed-expenses/" + id, request, new ParameterizedTypeReference<>() {});
+    }
+
+    public void deleteFixedExpense(UUID id) {
+        client.delete("/internal/planning/fixed-expenses/" + id);
+    }
+
+    public List<FixedExpenseSuggestionResponse> fixedExpenseSuggestions() {
+        return client.get("/internal/planning/fixed-expense-suggestions", Map.of(), new ParameterizedTypeReference<>() {});
+    }
+
+    /** The id is the app's to send and the core's to check: it travels as a URI variable. */
+    public void dismissFixedExpenseSuggestion(String id) {
+        client.delete("/internal/planning/fixed-expense-suggestions/{id}", id);
+    }
+
+    public ExpectedSalaryResponse setExpectedSalary(ExpectedSalaryRequest request) {
+        return client.put("/internal/planning/expected-salary", request, new ParameterizedTypeReference<>() {});
+    }
+
+    public void clearExpectedSalary() {
+        client.delete("/internal/planning/expected-salary");
     }
 }

@@ -1,6 +1,6 @@
 ---
 tags: [historico]
-atualizado: 2026-10-03
+atualizado: 2026-10-18
 ---
 
 # Linha do Tempo
@@ -138,3 +138,52 @@ atualizado: 2026-10-03
   branco sobre o preto). Aplicado em todos os ícones (Windows, bandeja, favicon, web, Android,
   iOS) e publicado na v0.1.3. Ele não conseguiu terminar a conexão dos bancos no Meu Pluggy; a
   T02 segue pendente.
+
+## 2026-10-18
+
+- iPhone sem a conta paga da Apple: o workflow iOS gera um `.ipa` sem assinatura, que o AltStore
+  assina com um Apple ID gratuito (7 dias, renovação automática), e uma fonte do AltStore para
+  instalar e atualizar pelo celular. A tela de login ganhou o endereço do servidor, para o
+  celular falar com o BFF no PC pela Wi-Fi. O tablet Android ganha um APK numa sessão paralela.
+- Branches: a `master` virou `main` (produção, de onde saem as versões) e há a `dev` (trabalho).
+  Os workflows recusam tag de versão fora da `main`.
+- Tablet Android: o workflow Android gera um APK a cada mudança no `app/` e o anexa aos Releases
+  numa tag. Ganhou uma chave de assinatura própria, fora do git, para as versões novas instalarem
+  por cima sem perder os dados, e o app passou a aceitar HTTP para falar com o BFF no PC pela
+  Wi-Fi até o deploy com HTTPS. Faltam os quatro segredos `ANDROID_*` no GitHub, que o Rafael
+  cria. Ver [[App Flutter]].
+- Auditoria das chamadas à Pluggy, pedido do Rafael depois de discutir a segurança da
+  integração. Em vez de um serviço gateway à parte, decidido contra (o módulo `provider` já
+  isola a Pluggy; o deploy terá restrição de saída, webhook entrando pelo BFF e cofre de
+  segredos), cada requisição do core à Pluggy vira uma linha em `provider_calls` e uma linha de
+  log `chave=valor`: quando, quem, qual conexão, qual operação, por quê, status e duração, sem
+  nenhum dado financeiro ou credencial. Guardada por 180 dias. Ver [[Core]].
+- "Conectar banco" no Android com o widget Pluggy Connect, pedido do Rafael para cair direto no
+  app do banco onde ele já está logado. O core cria o connect token (com o id do usuário e o deep
+  link de volta), o BFF repassa, e o app abre o widget numa WebView; a autorização do Open Finance
+  vai para o app do banco e volta por `com.wallet.wallet://pluggy-connect`. O vínculo pelo Item ID
+  continua para o Meu Pluggy, a demo, o iOS, o PC e o navegador. Para testar no trial, que acaba
+  por volta de 2026-10-21. Ver [[Fluxo de Conexão]].
+- O tablet Android passou a se atualizar pelo próprio app, como o Windows, pedido do Rafael para
+  as versões novas chegarem com um toque, sem entrar no GitHub. O workflow Android publica um
+  `latest-android.json` junto do APK; o app o lê pelo link de download (nunca pela API), baixa o
+  APK em segundo plano para a pasta privada e confere o SHA-256. Nada instala sozinho: o aviso do
+  canto oferece Atualizar, que entrega o APK ao instalador do Android pela API de sessão do
+  `PackageInstaller`; na primeira vez o app explica e abre a permissão "Instalar apps
+  desconhecidos". O atualizador saiu de `core/desktop` para `core/updates`, dividido pelos dois.
+  Vale a partir da 0.1.4, que ainda se instala à mão. Ver [[App Flutter]].
+- Containers com nome claro, pedido do Rafael para entender o que está rodando no Docker: em vez
+  dos nomes aleatórios, o Postgres do core aparece como `wallet-core-demo-db-xxxx` (demo),
+  `wallet-core-pluggy-db-xxxx` (Pluggy de verdade) ou `wallet-core-test-db-xxxx` (testes). Ver [[Core]].
+- Planejamento do mês, pedido do Rafael depois de fazer à mão, com o holerite e as faturas, a
+  conta de quanto sobra do salário: salário líquido − faturas − gastos fixos. O salário vem do
+  extrato (previsto pelo mês anterior até cair, ou o valor que ele definir), cada cartão mostra a
+  fatura que vence no mês com as compras e parcelas (o total é o do banco; a diferença aparece
+  como outros lançamentos), e os gastos fixos fora do cartão (mensalidade, aluguel, boletos) são
+  cadastrados uma vez. Nova aba Planejamento e um cartão "Sobra do mês" na visão geral. Ver
+  [[Core]] e [[App Flutter]].
+- Gastos fixos sugeridos pelo extrato, o passo combinado para depois do cadastro à mão: os débitos
+  de conta que se repetem todo mês (condomínio, luz, água, internet, plano de saúde, aluguel)
+  aparecem no cartão de gastos fixos, com um toque para adicionar (formulário preenchido) e um
+  para dispensar de vez. Sem pagamento de fatura, sem o que já é gasto fixo e sem o que parou de
+  sair. Ver [[Core#Gastos fixos sugeridos pelo extrato (desde 2026-10-18)]].

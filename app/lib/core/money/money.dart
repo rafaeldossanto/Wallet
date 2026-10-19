@@ -13,6 +13,19 @@ class Money implements Comparable<Money> {
 
   static Money? tryParse(String? value) => value == null ? null : Money.parse(value);
 
+  /// What someone types in a form: `1.234,56`, `220,16`, `R$ 50` or `220.16`. Null when it is not
+  /// an amount with at most two decimal places.
+  static Money? tryParseInput(String text) {
+    var value = text.replaceAll('R\$', '').replaceAll(RegExp(r'\s'), '');
+    if (value.contains(',')) {
+      value = value.replaceAll('.', '').replaceAll(',', '.');
+    }
+    if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(value)) {
+      return null;
+    }
+    return Money.parse(value);
+  }
+
   Money operator +(Money other) => Money._(amount + other.amount);
 
   Money operator -(Money other) => Money._(amount - other.amount);
@@ -49,6 +62,12 @@ class Money implements Comparable<Money> {
     final sign = negative ? '-' : (signed && rounded > Decimal.zero ? '+' : '');
     return '${sign}R\$ $grouped,$cents';
   }
+
+  /// `1234.56`: how the BFF expects money, as text.
+  String toApi() => amount.round(scale: 2).toStringAsFixed(2);
+
+  /// `1234,56`: the amount as someone would type it back into a form.
+  String toInput() => toApi().replaceAll('.', ',');
 
   /// `R$ 45 mil`, for chart axes where the full amount does not fit.
   String formatCompact() {

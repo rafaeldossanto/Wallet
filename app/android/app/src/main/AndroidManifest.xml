@@ -1,14 +1,21 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+    <!-- The updater hands new versions to Android's installer (UpdateInstaller.kt). The user still
+         allows it once, in "Instalar apps desconhecidos", and confirms every update. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <application
         android:label="Wallet"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:networkSecurityConfig="@xml/network_security_config">
+        <!-- singleTask: when the bank sends the user back through the deep link below, the running
+             activity gets it, with Pluggy Connect still open, and whatever the bank left on top of
+             it in this task is cleared. With singleTop a second copy of the app could start. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTop"
+            android:launchMode="singleTask"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
@@ -22,9 +29,23 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- The only deep link is the bank's return, and the open Connect page carries on from
+                 there; Flutter's own deep linking would push it to the router as a route. -->
+            <meta-data
+              android:name="flutter_deeplinking_enabled"
+              android:value="false"
+              />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <!-- Pluggy Connect: after the user authorizes in the bank's app, Pluggy redirects to
+                 com.wallet.wallet://pluggy-connect, the core's wallet.provider.oauth-redirect-uri. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="com.wallet.wallet" android:host="pluggy-connect"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

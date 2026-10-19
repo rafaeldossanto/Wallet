@@ -69,6 +69,20 @@ class PluggyClient {
                 .toBodilessEntity());
     }
 
+    /** Needs the apiKey, so only the backend can do it; the token itself lasts 30 minutes. */
+    String createConnectToken(String clientUserId, String oauthRedirectUri) {
+        PluggyDtos.ConnectTokenResponse response = withApiKey(apiKey -> restClient.post()
+                .uri("/connect_token")
+                .header(API_KEY_HEADER, apiKey)
+                .body(new PluggyDtos.ConnectTokenRequest(new PluggyDtos.ConnectTokenOptions(clientUserId, oauthRedirectUri)))
+                .retrieve()
+                .body(PluggyDtos.ConnectTokenResponse.class));
+        if (isNull(response) || isNull(response.accessToken())) {
+            throw ProviderErrors.unavailable("empty connect token response");
+        }
+        return response.accessToken();
+    }
+
     List<PluggyDtos.Account> getAccounts(String itemId) {
         return getAllPages("/accounts", Map.of("itemId", itemId), new ParameterizedTypeReference<>() {});
     }

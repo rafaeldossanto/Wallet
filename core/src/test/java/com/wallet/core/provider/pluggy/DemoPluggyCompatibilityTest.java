@@ -4,9 +4,11 @@ import com.wallet.core.MutableClock;
 import com.wallet.core.demo.DemoPluggy;
 import com.wallet.core.provider.ProviderAccount;
 import com.wallet.core.provider.ProviderBill;
+import com.wallet.core.provider.ProviderErrors;
 import com.wallet.core.provider.ProviderInvestment;
 import com.wallet.core.provider.ProviderItemStatus;
 import com.wallet.core.provider.ProviderTransaction;
+import com.wallet.core.shared.error.DomainException;
 import com.wallet.core.shared.finance.AccountKind;
 import com.wallet.core.shared.finance.Direction;
 import com.wallet.core.shared.money.Money;
@@ -22,6 +24,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * The demo Pluggy read through the real adapter: if the adapter changes what it expects, the demo
@@ -39,7 +42,7 @@ class DemoPluggyCompatibilityTest {
     void start() throws IOException {
         demo = DemoPluggy.start(clock);
         PluggyProperties properties = new PluggyProperties(
-                demo.baseUrl(), "demo", "demo", Duration.ofSeconds(2), Duration.ofHours(2));
+                demo.baseUrl(), "demo", "demo", Duration.ofSeconds(10), Duration.ofHours(2));
         provider = new PluggyFinancialDataProvider(new PluggyClient(
                 PluggyConfig.restClient(RestClient.builder(), properties), properties, clock));
     }
@@ -78,6 +81,16 @@ class DemoPluggyCompatibilityTest {
         assertThat(provider.findItem(DemoPluggy.ITAU_ITEM).institutionImageUrl()).endsWith("/201.svg");
         assertThat(provider.findItem(DemoPluggy.XP_ITEM).institutionImageUrl()).endsWith("/202.svg");
         assertThat(provider.findItem(DemoPluggy.BANK_ITEM).institutionImageUrl()).isNull();
+    }
+
+    /** The app's deep link, as the core sends it by default, passes the redirect rule Pluggy enforces. */
+    @Test
+    void theConnectTokenIsGivenForTheAppsDeepLinkButNotForLocalhost() {
+        assertThat(provider.createConnectToken("user-1", "com.wallet.wallet://pluggy-connect"))
+                .isEqualTo(DemoPluggy.CONNECT_TOKEN);
+        assertThatThrownBy(() -> provider.createConnectToken("user-1", "http://localhost:5000"))
+                .isInstanceOf(DomainException.class)
+                .hasFieldOrPropertyWithValue("code", ProviderErrors.UNAVAILABLE);
     }
 
     @Test
@@ -132,6 +145,36 @@ class DemoPluggyCompatibilityTest {
                 TODAY.minusDays(60), TODAY);
         assertThat(card).anySatisfy(transaction -> assertThat(transaction.installmentTotal()).isEqualTo(10));
         assertThat(card).anySatisfy(transaction -> assertThat(transaction.direction()).isEqualTo(Direction.INFLOW));
+    }
+
+    /**
+     * What the planning screen needs from the demo: a salary, and two cards whose closed bills have
+     * their purchases linked to them (installments included); purchases of the open cycle have no
+     * bill yet.
+     */
+    @Test
+    void theRealLookingBanksGiveAMonthToPlan() {
+        assertThat(provider.listTransactions("itau-checking", AccountKind.CHECKING, TODAY.minusDays(31), TODAY))
+                .anySatisfy(transaction -> {
+                    assertThat(transaction.category()).isEqualTo("Salary");
+                    assertThat(transaction.direction()).isEqualTo(Direction.INFLOW);
+                });
+        for (String cardId : List.of("nubank-card", "itau-card")) {
+            List<ProviderBill> bills = provider.listBills(cardId);
+            List<String> billIds = bills.stream().map(ProviderBill::id).toList();
+            LocalDate lastClosing = bills.getLast().closingDate();
+            List<ProviderTransaction> charges = provider.listTransactions(cardId, AccountKind.CREDIT_CARD,
+                    TODAY.minusDays(60), TODAY).stream()
+                    .filter(transaction -> Direction.OUTFLOW.equals(transaction.direction()))
+                    .toList();
+
+            assertThat(charges).as(cardId).anySatisfy(charge -> assertThat(billIds).contains(charge.billId()));
+            assertThat(charges).as(cardId).anySatisfy(charge -> assertThat(charge.installmentNumber()).isNotNull());
+            assertThat(charges).as(cardId)
+                    .filteredOn(charge -> charge.bookedOn().isAfter(lastClosing))
+                    .isNotEmpty()
+                    .allSatisfy(charge -> assertThat(charge.billId()).isNull());
+        }
     }
 
     @Test

@@ -14,6 +14,7 @@
 **/HELP.md
 app/build/
 app/.dart_tool/
+dist/
 
 # IDE
 .idea/

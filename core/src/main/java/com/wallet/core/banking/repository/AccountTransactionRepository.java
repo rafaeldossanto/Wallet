@@ -19,6 +19,10 @@ public interface AccountTransactionRepository
 
     Optional<AccountTransaction> findByAccountIdAndProviderTransactionId(UUID accountId, String providerTransactionId);
 
+    List<AccountTransaction> findByAccountIdAndDeletedAtIsNullAndBookedOnBetween(UUID accountId, LocalDate from, LocalDate to);
+
+    List<AccountTransaction> findByAccountIdAndDeletedAtIsNullAndProviderBillId(UUID accountId, String providerBillId);
+
     @Query("select max(t.bookedOn) from AccountTransaction t where t.accountId = :accountId and t.deletedAt is null")
     Optional<LocalDate> findLatestBookedOn(@Param("accountId") UUID accountId);
 }

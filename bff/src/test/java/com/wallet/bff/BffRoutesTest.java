@@ -543,6 +543,40 @@ class BffRoutesTest extends BffTestSupport {
         CORE.verify(deleteRequestedFor(urlEqualTo("/internal/connections/" + CONNECTION_ID)));
     }
 
+    /** The Pluggy Connect widget on Android: the core creates the token, with the caller's identity. */
+    @Test
+    void theConnectTokenComesFromTheCoreForTheCaller() throws Exception {
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/connections/connect-token"))
+                .willReturn(okJson("{\"connectToken\":\"connect-token-1\"}")));
+        String rafael = bearer(UUID.randomUUID());
+
+        mockMvc.perform(post("/api/connections/connect-token").header(HttpHeaders.AUTHORIZATION, rafael))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.connectToken").value("connect-token-1"));
+
+        CORE.verify(postRequestedFor(urlEqualTo("/internal/connections/connect-token"))
+                .withHeader(HttpHeaders.AUTHORIZATION, equalTo(rafael)));
+    }
+
+    @Test
+    void theConnectTokenNeedsASession() throws Exception {
+        mockMvc.perform(post("/api/connections/connect-token")).andExpect(status().isUnauthorized());
+
+        CORE.verify(0, postRequestedFor(urlEqualTo("/internal/connections/connect-token")));
+    }
+
+    @Test
+    void aProviderOutageWhileCreatingTheConnectTokenKeepsTheCoresCode() throws Exception {
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/connections/connect-token")).willReturn(aResponse()
+                .withStatus(503)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"code\":\"provider.unavailable\",\"message\":\"Data provider unavailable: timeout\"}")));
+
+        mockMvc.perform(post("/api/connections/connect-token").header(HttpHeaders.AUTHORIZATION, bearer(UUID.randomUUID())))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("provider.unavailable"));
+    }
+
     // ---- fixtures ----------------------------------------------------------------------------
 
     private void home(String bearer) throws Exception {

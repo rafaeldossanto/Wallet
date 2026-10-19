@@ -15,15 +15,18 @@ class InstallerMismatch implements Exception {
   String toString() => 'The installer of $version does not match its SHA-256';
 }
 
-/// Downloads installers into `%LOCALAPPDATA%\Wallet\updates` and keeps one only when its SHA-256
-/// matches the release's. An installer already downloaded and intact is not downloaded again.
+/// Downloads installers into a folder of the app's own (`%LOCALAPPDATA%\Wallet\updates` on
+/// Windows, the app's private storage on Android) and keeps one only when its SHA-256 matches the
+/// release's. An installer already downloaded and intact is not downloaded again.
 class DownloadedInstallers implements InstallerStore {
-  DownloadedInstallers({Dio? dio, Directory? directory})
+  DownloadedInstallers({Dio? dio, Directory? directory, String Function(String version)? fileName})
       : _dio = dio ?? Dio(BaseOptions(connectTimeout: const Duration(seconds: 15))),
-        _directory = directory ?? _defaultDirectory();
+        _directory = directory ?? _defaultDirectory(),
+        _fileName = fileName ?? ((version) => 'Wallet-Setup-$version.exe');
 
   final Dio _dio;
   final Directory _directory;
+  final String Function(String version) _fileName;
 
   static Directory _defaultDirectory() {
     final base = Platform.environment['LOCALAPPDATA'] ?? Directory.systemTemp.path;
@@ -32,7 +35,7 @@ class DownloadedInstallers implements InstallerStore {
 
   @override
   Future<String> fetch(Release release) async {
-    final target = File('${_directory.path}${Platform.pathSeparator}Wallet-Setup-${release.version}.exe');
+    final target = File('${_directory.path}${Platform.pathSeparator}${_fileName(release.version)}');
     if (await target.exists() && await _sha256(target) == release.sha256) {
       return target.path;
     }
@@ -51,8 +54,15 @@ class DownloadedInstallers implements InstallerStore {
     return target.path;
   }
 
+  /// Every installer kept, once the app runs the version they brought.
+  Future<void> clear() async {
+    if (await _directory.exists()) {
+      await _removeOlder(keep: null);
+    }
+  }
+
   /// Installers of versions already installed, or of a download that failed halfway.
-  Future<void> _removeOlder({required String keep}) async {
+  Future<void> _removeOlder({required String? keep}) async {
     await for (final entry in _directory.list()) {
       if (entry is File && entry.path != keep) {
         try {
@@ -65,27 +75,4 @@ class DownloadedInstallers implements InstallerStore {
   }
 
   static Future<String> _sha256(File file) async => (await sha256.bind(file.openRead()).first).toString();
-}
-
-/// Runs the Inno Setup installer silently. `/RELAUNCH` is read by `windows/installer/wallet.iss`
-/// to open the new version (or put it back in the tray) once the files are replaced.
-class InnoSetupLauncher implements InstallerLauncher {
-  const InnoSetupLauncher();
-
-  @override
-  Future<void> launch(String installer, Relaunch relaunch) async {
-    await Process.start(
-      installer,
-      [
-        '/VERYSILENT',
-        '/SUPPRESSMSGBOXES',
-        '/NORESTART',
-        // Closes a Wallet still open, but leaves reopening it to /RELAUNCH.
-        '/CLOSEAPPLICATIONS',
-        '/NORESTARTAPPLICATIONS',
-        '/RELAUNCH=${relaunch.name}',
-      ],
-      mode: ProcessStartMode.detached,
-    );
-  }
 }

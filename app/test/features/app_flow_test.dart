@@ -103,11 +103,33 @@ void main() {
     testWidgets('a part that failed on the server only blanks its own block', (tester) async {
       bff.signedIn();
       bff.json('GET', '/api/home', Fixtures.home(unavailable: ['creditCards']));
+      bff.json('GET', '/api/planning', Fixtures.plan());
       await openApp(tester);
 
       expect(find.text('R\$ 23.456,78'), findsOneWidget);
       await tester.scrollUntilVisible(find.text('Esta parte não carregou agora. Puxe para atualizar.'), 300);
       expect(find.text('Esta parte não carregou agora. Puxe para atualizar.'), findsOneWidget);
+    });
+
+    testWidgets('"Sobra do mês" shows what is left of the salary and opens the planning', (tester) async {
+      bff.signedIn();
+      bff.json('GET', '/api/home', Fixtures.home());
+      bff.json('GET', '/api/planning', Fixtures.plan(
+        salary: Fixtures.planSalary(date: '2026-10-05', predicted: true, source: 'PREVIOUS_MONTH'),
+      ));
+      await openApp(tester);
+
+      await tester.ensureVisible(find.text('Ver planejamento'));
+      await tester.pumpAndSettle();
+      expect(find.text('Sobra do mês'), findsOneWidget);
+      expect(find.text('R\$ 707,60'), findsOneWidget);
+      expect(find.text('Salário R\$ 3.100,00 · faturas R\$ 742,40 · fixos R\$ 1.650,00'), findsOneWidget);
+      expect(find.text('Com o salário previsto.'), findsOneWidget);
+
+      await tester.tap(find.text('Ver planejamento'));
+      await tester.pumpAndSettle();
+      expect(find.text('Planejamento'), findsWidgets);
+      expect(find.text('Salário líquido'), findsOneWidget);
     });
 
     testWidgets('a broker with only investments stays out of the accounts block', (tester) async {
@@ -143,7 +165,8 @@ void main() {
       await tester.tap(find.text('Conectar banco'));
       await tester.pumpAndSettle();
 
-      expect(find.widgetWithText(FloatingActionButton, 'Vincular conexão'), findsOneWidget);
+      // Tests run as Android, where the bank is connected through Pluggy Connect.
+      expect(find.widgetWithText(FloatingActionButton, 'Conectar banco'), findsOneWidget);
     });
   });
 
@@ -183,6 +206,27 @@ void main() {
       await tester.tap(find.byTooltip('Tema escuro'));
       await tester.pumpAndSettle();
       expect(Theme.of(tester.element(find.byType(WalletRail))).brightness, Brightness.dark);
+    });
+
+    testWidgets('the planning is in the "Mais" of the phone and in the rail', (tester) async {
+      bff.signedIn();
+      bff.json('GET', '/api/home', Fixtures.home());
+      bff.json('GET', '/api/planning', Fixtures.plan());
+      await openApp(tester);
+
+      await tester.tap(find.text('Mais'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Planejamento'));
+      await tester.pumpAndSettle();
+      expect(find.text('Salário líquido'), findsOneWidget);
+
+      tester.view.physicalSize = const Size(1280, 900);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Início'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Planejamento'));
+      await tester.pumpAndSettle();
+      expect(find.text('Salário líquido'), findsOneWidget);
     });
 
     testWidgets('"Mais" on a phone opens the other destinations', (tester) async {

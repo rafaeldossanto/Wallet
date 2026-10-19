@@ -34,11 +34,23 @@ cd app && flutter run -d chrome --web-port 5000
 
 Sem `PLUGGY_CLIENT_ID` definido, o `test-run` do core sobe um Postgres descartável e uma
 **Pluggy de demonstração** com dados sintéticos gerados a partir da data de hoje. No app,
-crie uma conta, vá em Conexões → Vincular conexão e use os Item IDs `demo-nubank`, `demo-itau`
+crie uma conta, vá em Conexões → Vincular conexão (no Android, o ícone de link no topo) e use os
+Item IDs `demo-nubank`, `demo-itau`
 e `demo-xp` (bancos com cara de reais: conta, poupança, cartões com faturas e parcelas,
 investimentos) ou os básicos `demo-banco` e `demo-corretora`. Com
 `PLUGGY_CLIENT_ID` e `PLUGGY_CLIENT_SECRET` definidos, o mesmo comando fala com a Pluggy de
 verdade. Tudo some quando o core para.
+
+No Docker, cada container diz o que está rodando:
+
+| Container | O que é |
+|---|---|
+| `wallet-core-demo-db-xxxx` | banco do `test-run` com a Pluggy de demonstração |
+| `wallet-core-pluggy-db-xxxx` | banco do `test-run` falando com a Pluggy de verdade |
+| `wallet-core-test-db-xxxx` | banco de um teste de integração (`./mvnw verify`) |
+| `testcontainers-ryuk-…` | faxineiro do Testcontainers: apaga os outros quando o processo termina |
+
+O sufixo de 4 letras deixa duas execuções ao mesmo tempo sem disputar o nome.
 
 ## Core
 
@@ -162,6 +174,142 @@ cada mudança no `app/`: abra a última execução em Actions → Desktop e baix
 - Para rodar com `flutter run -d windows` é preciso o Visual Studio Community (2022 ou 2026) com a carga
   "Desenvolvimento para desktop com C++" (só o compilador é usado).
 
+### App no iPhone (sem a conta paga da Apple)
+
+O workflow **iOS** gera, num Mac do GitHub, um `Wallet-<versão>.ipa` sem assinatura. Quem assina
+é o AltStore (ou o Sideloadly) na hora de instalar, com um Apple ID comum e gratuito. Sem o Apple
+Developer Program, a assinatura vale **7 dias**; o AltStore renova sozinho.
+
+Uma vez, no PC (Windows):
+
+1. Instale o **iTunes** e o **iCloud** baixados do site da Apple, não os da Microsoft Store.
+2. Instale o **AltServer** (altstore.io). Com o iPhone no cabo, clique no ícone dele na bandeja →
+   *Install AltStore* → escolha o iPhone. Ele pede um Apple ID: pode ser um secundário, criado só
+   para isso.
+3. No iPhone: Ajustes → Geral → VPN e Gerenciamento de Dispositivos → confie no seu Apple ID. E
+   Ajustes → Privacidade e Segurança → **Modo de Desenvolvedor** → ligar (o iPhone reinicia).
+
+No iPhone:
+
+4. Abra o AltStore → *Sources* → **+** → cole
+   `https://github.com/rafaeldossanto/Wallet/releases/latest/download/altstore.json` e instale o
+   Wallet. As versões novas aparecem ali mesmo, para atualizar.
+5. A renovação dos 7 dias acontece sozinha quando o iPhone e o PC (com o AltServer aberto) estão
+   na mesma Wi-Fi. Se vencer, o Wallet não abre até você abrir o AltStore e tocar em *Refresh*.
+
+Sem AltStore: o **Sideloadly** (sideloadly.io) instala o `.ipa` baixado dos Releases com o iPhone
+no cabo, mas aí a renovação dos 7 dias é manual.
+
+Para usar (até o deploy):
+
+- Core e BFF rodando no PC, e o iPhone na mesma Wi-Fi.
+- Na primeira vez que o BFF sobe, o Windows pergunta se o Java pode usar a rede: permita em redes
+  privadas.
+- Descubra o endereço do PC com `ipconfig` (Endereço IPv4, algo como `192.168.0.10`).
+- Na tela de login do Wallet, **Servidor: … · Alterar** → digite o endereço → Salvar. O iPhone
+  pergunta se o Wallet pode acessar a rede local: permita.
+
+O Apple ID gratuito assina até 3 apps por vez. Quando houver deploy (HTTPS público), a variável
+`WALLET_BFF_URL` do repositório entra no build e nada disso de endereço é preciso.
+
+### App no tablet Android
+
+O workflow **Android** gera um `Wallet-<versão>.apk` a cada mudança no `app/`: abra a última
+execução em Actions → Android e baixe o arquivo em *Artifacts* (exige estar logado no GitHub).
+Uma tag `v<versão>` também anexa o APK aos *Releases*, que qualquer um baixa.
+
+Para instalar:
+
+1. Baixe o `.apk` no próprio tablet e toque nele.
+2. Na primeira vez, o Android pede para o navegador (ou o app de arquivos) poder instalar apps:
+   Configurações → **Instalar apps desconhecidos** → permitir. Se o Play Protect avisar que não
+   conhece o app, *Instalar mesmo assim*.
+3. Uma versão nova instala por cima da antiga, sem perder os dados, porque todo APK sai assinado
+   com a mesma chave. Um APK gerado sem os segredos de assinatura (o workflow avisa) usa outra
+   chave, e o Android só o aceita depois de desinstalar o anterior.
+
+Com o tablet no cabo e a depuração USB ligada, `adb install -r Wallet-<versão>.apk` também instala.
+
+**Atualizações (desde a 0.1.4):** depois da primeira instalação, não precisa mais entrar no GitHub.
+O Wallet procura a versão nova nos Releases ao abrir e a cada 6 horas (pelo `latest-android.json`
+que o workflow publica junto do APK), baixa em segundo plano e confere o SHA-256. Aí o canto da
+tela avisa "Nova versão disponível":
+
+1. Toque em **Atualizar**. Na primeira vez, o Wallet explica que o Android precisa de uma
+   permissão: **Abrir configurações** → ligue **Permitir desta fonte** → volte para o Wallet.
+2. O Android pergunta se quer atualizar o app: **Atualizar**. Ele fecha o Wallet para trocar a
+   versão; abra de novo, e o canto confirma "Wallet atualizado".
+
+Nada instala sem você tocar em Atualizar e confirmar. Ajustes → Atualizações mostra a versão,
+o que está acontecendo e "Procurar agora". Um APK de desenvolvimento (sem
+`--dart-define=WALLET_VERSION`) nunca se atualiza. Se o Android recusar a versão nova porque ela
+foi assinada com outra chave (um APK de debug instalado, ou um Release gerado sem os segredos), o
+Wallet avisa: aí é desinstalar e instalar o APK dos Releases à mão.
+
+Para usar (até o deploy):
+
+- Core e BFF rodando no PC, e o tablet na mesma Wi-Fi.
+- Na primeira vez que o BFF sobe, o Windows pergunta se o Java pode usar a rede: permita em redes
+  privadas. A Wi-Fi precisa estar como rede **Privada** no Windows; se a pergunta já passou, é em
+  Firewall do Windows → Permitir um aplicativo → Java, coluna Privada.
+- Descubra o endereço do PC com `ipconfig` (Endereço IPv4, algo como `192.168.0.10`).
+- Na tela de login do Wallet, **Servidor: … · Alterar** → digite o endereço → Salvar.
+
+O app aceita HTTP (`res/xml/network_security_config.xml`) porque o BFF no PC não tem HTTPS; com o
+deploy, volta a ser só HTTPS.
+
+**A chave de assinatura** é uma keystore que fica fora do git, em `%USERPROFILE%\.wallet\android`:
+`wallet-release.jks`, o `key.properties` com as senhas e o alias, e `wallet-release.jks.base64.txt`
+(a keystore em texto, para o GitHub). Guarde uma cópia: perder a chave obriga a desinstalar o app
+para trocar. O
+workflow a recebe por quatro segredos do repositório (Settings → Secrets and variables → Actions):
+
+| Segredo | Valor |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | O conteúdo de `wallet-release.jks.base64.txt` |
+| `ANDROID_KEYSTORE_PASSWORD` | `storePassword` do `key.properties` |
+| `ANDROID_KEY_ALIAS` | `keyAlias` do `key.properties` (`wallet`) |
+| `ANDROID_KEY_PASSWORD` | `keyPassword` do `key.properties` |
+
+Gerar o APK aqui no PC, com a mesma chave (sai em `build/app/outputs/flutter-apk/`):
+
+```powershell
+cd app
+$env:ANDROID_KEY_PROPERTIES = "$HOME\.wallet\android\key.properties"
+flutter build apk --release --dart-define=WALLET_VERSION=0.1.4
+```
+
+#### Conectar banco pelo Pluggy Connect (Android)
+
+No tablet, Conexões → **Conectar banco** abre o widget da Pluggy; escolhido o banco, a autorização
+abre no app do banco e, confirmada, o Android volta ao Wallet, que vincula a conexão. Precisa da
+Pluggy de verdade com o widget liberado (o trial do plano Dados, até ~2026-10-21, ou o plano pago);
+a Pluggy de demonstração não serve aqui, use o Item ID. Para testar:
+
+1. **Credenciais no PC:** crie `PLUGGY_CLIENT_ID` e `PLUGGY_CLIENT_SECRET` como variáveis de
+   ambiente do Windows (Configurações → Sistema → Sobre → Configurações avançadas do sistema →
+   Variáveis de Ambiente), com o Client ID e o Client Secret da aplicação do trial no painel da
+   Pluggy. Feche e abra o terminal, e suba core e BFF como de costume.
+2. **No painel da Pluggy (dashboard.pluggy.ai), na aplicação do trial:**
+   - Os conectores dos bancos que você vai ligar precisam estar ativos, nas versões **Open
+     Finance** (as que abrem o app do banco). Se o banco só aparece sem "Open Finance" no widget,
+     o acesso ao Open Finance ainda não está liberado na aplicação: peça à Pluggy.
+   - O redirect não se cadastra: o core manda `com.wallet.wallet://pluggy-connect` em cada token
+     (`wallet.provider.oauth-redirect-uri`). Se o painel tiver uma lista de URIs de redirecionamento
+     permitidas, inclua esse endereço. Se a Pluggy recusar, o log do core mostra
+     `[PLUGGY] Request failed: 400 ...` e o app diz que o serviço está fora do ar.
+   - Webhook ainda não: o BFF não tem endereço público.
+3. **No tablet:** o APK novo (do workflow Android da `dev`), o app do banco instalado e logado, e
+   o endereço do PC na tela de login.
+4. Conexões → Conectar banco → escolha o banco → autorize no app dele. Se o navegador perguntar
+   se pode abrir o Wallet, permita. De volta, espere o widget terminar de buscar os dados: a
+   conexão aparece como "Atualizando" e vira "Ativa" quando a primeira sincronização termina.
+
+O core continua em `WALLET_CONNECTION_MODE=MEU_PLUGGY` (o padrão), em que valem os dois caminhos:
+os itens do widget só podem ser vinculados pelo dono, e os do Meu Pluggy continuam entrando pelo
+Item ID. `PLUGGY_CONNECT` (produção) aceita só itens do widget. Detalhes em
+`Docs/Arquitetura/Fluxo de Conexão.md`.
+
 ## Branches
 
 Só duas, desde 2026-10-18:
@@ -186,11 +334,15 @@ só quando a pasta dela muda (`.github/workflows/`):
 | BFF | `./mvnw -B verify` com JDK 25 (core simulado no WireMock) |
 | App | Flutter 3.47.6: traduções geradas batendo com o `.arb`, `flutter analyze` e `flutter test` |
 | Desktop | Em Windows: compila o app, monta o instalador (Inno Setup) e anexa o `.exe` à execução; numa tag `v*`, publica nos Releases |
+| Android | Em Linux, com JDK 21: compila o APK assinado e anexa o `.apk` e o `latest-android.json` à execução; numa tag `v*`, anexa os dois aos Releases |
 
-Nenhum workflow precisa de segredo. Quando um teste falha, os relatórios ficam 7 dias como
-artefato da execução.
+Só o Android usa segredos: os quatro `ANDROID_*` da chave de assinatura ("App no tablet
+Android"). Sem eles o APK sai com a chave de debug, e a execução avisa. Quando um teste falha, os
+relatórios ficam 7 dias como artefato da execução.
 
 ## Segredos
 
 Segredos (senha do banco, Pluggy, chaves de JWT e de criptografia) vêm só de variáveis
-de ambiente. O `.gitignore` também bloqueia `application-local.yaml`, `.env` e `.pem`.
+de ambiente. O `.gitignore` também bloqueia `application-local.yaml`, `.env` e `.pem`, e o de
+`app/android` bloqueia keystores e `key.properties`. A chave de assinatura do Android fica em
+`%USERPROFILE%\.wallet\android`, fora do repositório, e no GitHub só como segredo.

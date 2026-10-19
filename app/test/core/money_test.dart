@@ -52,4 +52,28 @@ void main() {
       expect(Money.parse('2').compareTo(Money.parse('1')), greaterThan(0));
     });
   });
+
+  group('typed in a form', () {
+    test('reads amounts the way people here write them', () {
+      expect(Money.tryParseInput('1.234,56'), Money.parse('1234.56'));
+      expect(Money.tryParseInput('220,16'), Money.parse('220.16'));
+      expect(Money.tryParseInput(' R\$ 50 '), Money.parse('50'));
+      expect(Money.tryParseInput('R\$${nbsp}99,9'), Money.parse('99.90'));
+      expect(Money.tryParseInput('220.16'), Money.parse('220.16'));
+    });
+
+    test('refuses what is not an amount in cents', () {
+      expect(Money.tryParseInput(''), isNull);
+      expect(Money.tryParseInput('abc'), isNull);
+      expect(Money.tryParseInput('10,001'), isNull);
+      expect(Money.tryParseInput('-10,00'), isNull);
+      expect(Money.tryParseInput('1.234'), isNull);
+    });
+
+    test('goes to the BFF with a dot and back to the form with a comma', () {
+      expect(Money.parse('220.1').toApi(), '220.10');
+      expect(Money.parse('3400').toApi(), '3400.00');
+      expect(Money.parse('1234.5').toInput(), '1234,50');
+    });
+  });
 }
