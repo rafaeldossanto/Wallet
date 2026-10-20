@@ -1,6 +1,6 @@
 ---
 tags: [historico]
-atualizado: 2026-10-18
+atualizado: 2026-10-19
 ---
 
 # Linha do Tempo
@@ -191,11 +191,10 @@ atualizado: 2026-10-18
 ## 2026-10-19
 
 - A `dev` foi para a `main` em três PRs do Rafael: #1 (Android, auditoria da Pluggy, planejamento
-  do mês), #2 (segurança e LGPD) e #3 (excluir conta pelo app). Nenhuma versão nova foi publicada:
-  a última continua sendo a v0.1.3. Antes do #1, a revisão corrigiu quatro pontos: o duplo toque
-  no planejamento dava 500; falhas por exceção não verificada não eram auditadas; uma atualização
-  pronta se perdia na checagem seguinte; e as respostas da instalação no Android não ficavam
-  presas à sessão certa.
+  do mês), #2 (segurança e LGPD) e #3 (excluir conta pelo app). Antes do #1, a revisão corrigiu
+  quatro pontos: o duplo toque no planejamento dava 500; falhas por exceção não verificada não
+  eram auditadas; uma atualização pronta se perdia na checagem seguinte; e as respostas da
+  instalação no Android não ficavam presas à sessão certa.
 - Auditoria de segurança e LGPD (achados A1, A2, A3, A19 e L1):
   - Chave de gateway entre BFF e core (`X-Gateway-Key`, `WALLET_GATEWAY_KEY`). O core recusa com
     403 tudo o que chega sem ela, menos o health. Com `SPRING_PROFILES_ACTIVE=prod`, a subida
@@ -211,3 +210,19 @@ atualizado: 2026-10-18
   e a tela fica travada enquanto o core revoga os bancos (até 2 min). A conta bloqueada por senha
   errada agora diz até quando (`lockedUntil` no 423). Fica em aberto: o access token ainda vale
   até 15 min depois da exclusão. Ver [[App Flutter]].
+- **v0.1.4** publicada nos Releases, a pedido do Rafael, com a tag anotada no merge do PR #3
+  (`99b3e3d`). É a primeira versão com tudo de 2026-10-18 e 2026-10-19: o app Android (APK que se
+  atualiza pelo próprio app e "Conectar banco" pelo Pluggy Connect), o planejamento do mês com os
+  gastos fixos sugeridos, a auditoria das chamadas à Pluggy, as correções de segurança e a
+  exclusão de conta. Seis arquivos: o instalador de Windows com o `latest.json`, o APK com o
+  `latest-android.json` e o `.ipa` com o `altstore.json`.
+  - **O APK saiu com a chave de debug**, porque os quatro segredos `ANDROID_*` ainda não existem no
+    repositório. Um APK assinado depois com a chave própria só instala por cima dele depois de
+    desinstalar. Quando o Rafael criar os segredos, o workflow Android da tag roda de novo e
+    troca o APK e o manifesto (o envio usa `--clobber`). Até lá, esse APK não vai para o tablet.
+  - O Windows e o iPhone não têm essa pendência: o instalador não depende dela, e o `.ipa` é
+    assinado pelo AltStore na instalação.
+- Cofre de memória do projeto, fora do repositório, em `E:\WalletMemory`: tudo deste cofre com
+  mais detalhe de código, as auditorias A1 a A21 e L1 a L19 com a situação de cada achado, as
+  decisões numeradas e o histórico de commits. Serve para retomar o contexto entre sessões do
+  Claude.
