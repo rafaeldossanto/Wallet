@@ -112,7 +112,8 @@ cobre 3 dias para cada lado), `created_at`. Único por (`user_id`, `description_
 - `transactions.description` passa por um `AttributeConverter` com **AES-256-GCM**;
   a chave vem de `WALLET_DATA_KEY`. O valor gravado leva um prefixo de versão da chave
   (`v1:`) para permitir rotação.
-- Sem chave configurada, o core usa uma temporária e avisa no log. Um valor que não
+- Sem chave configurada, o core usa uma temporária e avisa no log; com o perfil `prod`, não
+  sobe. Um valor que não
   decifra (gravado com outra chave) volta como `null` em vez de derrubar a leitura.
 - Valor, data, direção e categoria ficam abertos: são o que as somas e os gráficos
   usam.

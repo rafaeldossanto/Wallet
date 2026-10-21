@@ -226,3 +226,13 @@ atualizado: 2026-10-19
   mais detalhe de código, as auditorias A1 a A21 e L1 a L19 com a situação de cada achado, as
   decisões numeradas e o histórico de commits. Serve para retomar o contexto entre sessões do
   Claude.
+
+## 2026-10-21
+
+- Nada é criado sozinho fora do banco de dados, pedido do Rafael antes do deploy no EC2, para
+  nenhum container ficar esquecido nem um erro de criação passar despercebido e gerar custo. O
+  `test-run` deixou de criar um Postgres no Docker e usa o banco local, o mesmo do
+  `spring-boot:run`, onde os dados ficam salvos. Só os testes de integração ainda criam container,
+  e eles somem sozinhos. Com `SPRING_PROFILES_ACTIVE=prod`, o core não sobe sem as chaves do JWT
+  e de criptografia, em vez de inventar uma chave temporária, como já acontecia com a chave de
+  gateway. As tabelas continuam sendo criadas pelo Flyway. Ver [[Core]].

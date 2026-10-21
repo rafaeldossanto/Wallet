@@ -228,8 +228,12 @@ Erros de leitura: `period.invalid`, `period.too_long` e `page.invalid` (422),
 | `wallet.provider.audit.cleanup-cron` | Quando os registros vencidos são apagados (padrão 04:30, horário de São Paulo) |
 
 Porta **8081**. Todo segredo vem de variável de ambiente; o `application.yaml`
-versionado só tem placeholders com padrões de desenvolvimento. Sem banco local, o core
-sobe contra um Postgres descartável com `./mvnw spring-boot:test-run`.
+versionado só tem placeholders com padrões de desenvolvimento. O `./mvnw spring-boot:test-run`
+sobe o core no mesmo Postgres local do `spring-boot:run`, sem criar container (desde 2026-10-21;
+antes ele criava um Postgres descartável no Docker). Fora dos testes de integração, nada no core
+cria container. Com `SPRING_PROFILES_ACTIVE=prod` o core também não inventa segredo: sem
+`WALLET_GATEWAY_KEY`, sem as chaves do JWT ou sem `WALLET_DATA_KEY`, ele não sobe
+(`ProductionProfile`).
 
 **Pluggy de demonstração (desde 2026-10-02):** sem `PLUGGY_CLIENT_ID`, o `test-run` também
 sobe um servidor HTTP pequeno (`DemoPluggy`, no código de teste) que responde como a Pluggy:
@@ -336,8 +340,8 @@ criar o gasto fixo normalmente (o app abre o formulário preenchido); `DELETE ..
 - Unitário (`*Test`, pelo Surefire no `mvn test`): sem Docker (mappers, normalização de sinal, regras de sync,
   `RecurringDebitsTest` e `FixedExpenseSuggestionsTest` para as sugestões de gasto fixo).
 - Integração (`*IT`, pelo Failsafe no `mvn verify`): Testcontainers com Postgres + WireMock para a Pluggy.
-  No Docker, o banco de cada teste aparece como `wallet-core-test-db-xxxx`; o do `test-run`, como
-  `wallet-core-demo-db-xxxx` (Pluggy de demonstração) ou `wallet-core-pluggy-db-xxxx` (Pluggy de verdade).
+  No Docker, o banco de cada teste aparece como `wallet-core-test-db-xxxx` e é apagado no fim, mesmo
+  se o Docker fechar no meio (AutoRemove). São os únicos containers que o core cria.
 - Teste de modularidade do Spring Modulith.
 - Contrato HTTP das rotas (quem acessa o quê, códigos de erro).
 

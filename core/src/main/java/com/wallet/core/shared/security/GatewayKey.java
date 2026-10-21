@@ -37,13 +37,11 @@ public class GatewayKey {
 
     static final int MIN_LENGTH = 32;
 
-    static final String PRODUCTION_PROFILE = "prod";
-
     /** Only the digest is kept: comparing digests takes the same time whatever the length presented. */
     private final byte[] digest;
 
     public GatewayKey(GatewayProperties properties, Environment environment) {
-        String key = resolve(properties.key(), environment.matchesProfiles(PRODUCTION_PROFILE));
+        String key = resolve(properties.key(), ProductionProfile.isActive(environment));
         if (DEVELOPMENT_KEY.equals(key) && !isLoopback(environment.getProperty("server.address"))) {
             throw new IllegalStateException("The development gateway key is public: with the core reachable from "
                     + "the network (server.address " + environment.getProperty("server.address", "unset") + ") set "

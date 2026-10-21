@@ -18,7 +18,8 @@ Comece por `Docs/Wallet.md`. As tarefas estão em `Docs/Plano/Plano de Implement
 
 ## Ver tudo funcionando sem conta na Pluggy
 
-Com o Docker ligado, em três terminais:
+Com o [banco local](#banco-local-uma-vez) criado e o `WALLET_DB_PASSWORD` definido, em três
+terminais:
 
 ```bash
 cd core && ./mvnw spring-boot:test-run
@@ -32,25 +33,29 @@ cd bff && ./mvnw spring-boot:run
 cd app && flutter run -d chrome --web-port 5000
 ```
 
-Sem `PLUGGY_CLIENT_ID` definido, o `test-run` do core sobe um Postgres descartável e uma
-**Pluggy de demonstração** com dados sintéticos gerados a partir da data de hoje. No app,
+O `test-run` usa o mesmo Postgres local do `spring-boot:run` e não cria nenhum container. Sem
+`PLUGGY_CLIENT_ID` definido, ele sobe também uma **Pluggy de demonstração** com dados sintéticos
+gerados a partir da data de hoje. No app,
 crie uma conta, vá em Conexões → Vincular conexão (no Android, o ícone de link no topo) e use os
 Item IDs `demo-nubank`, `demo-itau`
 e `demo-xp` (bancos com cara de reais: conta, poupança, cartões com faturas e parcelas,
 investimentos) ou os básicos `demo-banco` e `demo-corretora`. Com
 `PLUGGY_CLIENT_ID` e `PLUGGY_CLIENT_SECRET` definidos, o mesmo comando fala com a Pluggy de
-verdade. Tudo some quando o core para.
+verdade. O que for criado fica no banco local depois que o core para. Para começar do zero, exclua
+a conta pelo app (Ajustes → Zona de perigo).
 
-No Docker, cada container diz o que está rodando:
+### Containers no Docker
+
+Só os testes de integração (`./mvnw verify`) criam containers, e eles somem sozinhos:
 
 | Container | O que é |
 |---|---|
-| `wallet-core-demo-db-xxxx` | banco do `test-run` com a Pluggy de demonstração |
-| `wallet-core-pluggy-db-xxxx` | banco do `test-run` falando com a Pluggy de verdade |
-| `wallet-core-test-db-xxxx` | banco de um teste de integração (`./mvnw verify`) |
+| `wallet-core-test-db-xxxx` | banco de um teste de integração |
 | `testcontainers-ryuk-…` | faxineiro do Testcontainers: apaga os outros quando o processo termina |
 
-O sufixo de 4 letras deixa duas execuções ao mesmo tempo sem disputar o nome.
+O sufixo de 4 letras deixa duas execuções ao mesmo tempo sem disputar o nome. Se o Docker for
+fechado no meio, o próprio Docker apaga os containers de teste quando abrir de novo. Nem o core,
+nem o BFF, nem o `test-run` criam container.
 
 ## Core
 
@@ -68,8 +73,9 @@ Depois crie a variável de ambiente `WALLET_DB_PASSWORD` com a mesma senha.
 
 Sem chave configurada, o core gera uma chave temporária a cada inicialização e avisa no log.
 O BFF busca a chave pública no próprio core (JWKS) e pega a nova sozinho, então isso basta
-para desenvolver. O único efeito é que toda sessão acaba quando o core reinicia. Para ter
-chaves fixas:
+para desenvolver. O único efeito é que toda sessão acaba quando o core reinicia. Com
+`SPRING_PROFILES_ACTIVE=prod` não há chave temporária: sem as duas variáveis, o core não sobe.
+Para ter chaves fixas:
 
 ```bash
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out wallet-jwt-private.pem
@@ -82,8 +88,8 @@ Guarde os arquivos fora do repositório e aponte `WALLET_JWT_PRIVATE_KEY` e
 ### Chave da criptografia de dados
 
 A descrição das transações é gravada criptografada (AES-256-GCM). Sem chave, o core usa uma
-temporária e avisa no log: o que for gravado fica ilegível depois de reiniciar. Gere uma
-vez e guarde em `WALLET_DATA_KEY`:
+temporária e avisa no log: o que for gravado fica ilegível depois de reiniciar. Com
+`SPRING_PROFILES_ACTIVE=prod` o core não sobe sem ela. Gere uma vez e guarde em `WALLET_DATA_KEY`:
 
 ```bash
 openssl rand -base64 32
@@ -96,8 +102,8 @@ cd core
 ./mvnw spring-boot:run
 ```
 
-Sem banco local, dá para subir contra um Postgres descartável no Docker:
-`./mvnw spring-boot:test-run`.
+`./mvnw spring-boot:test-run` sobe o mesmo core no mesmo banco, com a Pluggy de demonstração
+quando `PLUGGY_CLIENT_ID` não está definido. Nenhum dos dois cria container.
 
 ### Testar
 

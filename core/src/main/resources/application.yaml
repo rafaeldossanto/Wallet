@@ -48,7 +48,8 @@ wallet:
     key: ${WALLET_GATEWAY_KEY:}
   jwt:
     issuer: wallet-core
-    # PEM text or a path to a .pem file. Both empty = ephemeral key for local development only.
+    # PEM text or a path to a .pem file. Both empty = ephemeral key for local development only;
+    # with SPRING_PROFILES_ACTIVE=prod an empty pair stops the boot.
     private-key: ${WALLET_JWT_PRIVATE_KEY:}
     public-key: ${WALLET_JWT_PUBLIC_KEY:}
     access-token-ttl: 15m
@@ -59,7 +60,8 @@ wallet:
     # A device that lost the refresh response may retry the old token within this window.
     refresh-reuse-tolerance: 1m
   crypto:
-    # base64 of 32 random bytes (openssl rand -base64 32). Empty = ephemeral, development only.
+    # base64 of 32 random bytes (openssl rand -base64 32). Empty = ephemeral, development only;
+    # with SPRING_PROFILES_ACTIVE=prod an empty key stops the boot.
     data-key: ${WALLET_DATA_KEY:}
   sync:
     interval: 6h

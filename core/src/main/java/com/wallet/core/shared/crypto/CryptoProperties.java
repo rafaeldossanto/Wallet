@@ -4,7 +4,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * @param dataKey base64 of 32 random bytes (AES-256): {@code openssl rand -base64 32}.
- *                Empty = ephemeral key for local development only.
+ *                Empty = ephemeral key for local development only;
+ *                refused with the {@code prod} profile.
  */
 @ConfigurationProperties("wallet.crypto")
 public record CryptoProperties(String dataKey) {

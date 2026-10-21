@@ -5,9 +5,11 @@ import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.proc.SecurityContext;
+import com.wallet.core.shared.security.ProductionProfile;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -29,19 +31,30 @@ import static org.springframework.util.StringUtils.hasText;
 /**
  * RS256 keys: the core signs with the private key, and anyone holding the public key (the BFF)
  * can validate but never mint a token.
+ *
+ * <p>Without keys a development machine gets an ephemeral one; with the {@code prod} profile the
+ * boot fails instead, since an ephemeral key logs everyone out on every restart.
  */
 @Slf4j
 @Configuration(proxyBeanMethods = false)
 public class JwtKeyConfig {
 
     @Bean
-    RSAKey jwtSigningKey(JwtProperties properties) {
+    RSAKey jwtSigningKey(JwtProperties properties, Environment environment) {
+        return resolve(properties, ProductionProfile.isActive(environment));
+    }
+
+    static RSAKey resolve(JwtProperties properties, boolean production) {
         boolean hasPrivate = hasText(properties.privateKey());
         boolean hasPublic = hasText(properties.publicKey());
         if (hasPrivate != hasPublic) {
             throw new IllegalStateException("Set both wallet.jwt.private-key and wallet.jwt.public-key, or neither");
         }
         if (!hasPrivate) {
+            if (production) {
+                throw new IllegalStateException("WALLET_JWT_PRIVATE_KEY and WALLET_JWT_PUBLIC_KEY are required with "
+                        + "the prod profile: an ephemeral key would log everyone out on every restart");
+            }
             log.warn("No JWT key configured: using an ephemeral RSA key. Sessions end on every restart. "
                     + "Set WALLET_JWT_PRIVATE_KEY and WALLET_JWT_PUBLIC_KEY to keep them.");
             return ephemeralKey();

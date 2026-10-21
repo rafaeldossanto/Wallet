@@ -10,11 +10,10 @@ import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** The key id is what makes the BFF fetch a new public key: it must follow the key. */
 class JwtKeyConfigTest {
-
-    private final JwtKeyConfig config = new JwtKeyConfig();
 
     @Test
     void theSameKeyKeepsItsIdAcrossRestarts() throws Exception {
@@ -30,10 +29,20 @@ class JwtKeyConfigTest {
     void everyEphemeralKeyHasItsOwnId() {
         JwtProperties noKeys = new JwtProperties("wallet-core", null, null, Duration.ofMinutes(15), Duration.ofDays(30));
 
-        RSAKey beforeRestart = config.jwtSigningKey(noKeys);
-        RSAKey afterRestart = config.jwtSigningKey(noKeys);
+        RSAKey beforeRestart = JwtKeyConfig.resolve(noKeys, false);
+        RSAKey afterRestart = JwtKeyConfig.resolve(noKeys, false);
 
         assertThat(beforeRestart.getKeyID()).isNotEqualTo(afterRestart.getKeyID());
+    }
+
+    /** A server that made up its key would log everyone out on every restart. */
+    @Test
+    void withTheProdProfileMissingKeysStopTheBoot() {
+        JwtProperties noKeys = new JwtProperties("wallet-core", "", "", Duration.ofMinutes(15), Duration.ofDays(30));
+
+        assertThatThrownBy(() -> JwtKeyConfig.resolve(noKeys, true))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("WALLET_JWT_PRIVATE_KEY");
     }
 
     private static KeyPair keyPair() throws Exception {
