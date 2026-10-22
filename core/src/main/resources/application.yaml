@@ -72,12 +72,15 @@ wallet:
     overlap: 7d
     stale-run-after: 15m
   provider:
-    # MEU_PLUGGY: items are pasted from the Meu Pluggy dashboard (development).
-    # PLUGGY_CONNECT: items come from the widget and must belong to the user (production).
+    # MEU_PLUGGY: items are pasted from the Meu Pluggy dashboard (development); any user may link
+    # an item without an owner. PLUGGY_CONNECT: items come from the widget and must belong to the
+    # user (production). With SPRING_PROFILES_ACTIVE=prod anything but PLUGGY_CONNECT stops the boot.
     connection-mode: ${WALLET_CONNECTION_MODE:MEU_PLUGGY}
     # Where the bank sends the user back after authorizing in the Pluggy Connect widget: the Android
     # app's deep link. Changing it means changing the intent filter in the app's AndroidManifest.xml.
     oauth-redirect-uri: com.wallet.wallet://pluggy-connect
+    # Linking one more answers 422 connection.limit_reached.
+    max-connections-per-user: 10
     audit:
       # Every call to Pluggy is recorded in provider_calls; older records are deleted nightly.
       retention: 180d

@@ -59,6 +59,18 @@ class PluggyConnectModeIT {
                 .andExpect(jsonPath("$.code").value("connection.item_not_found"));
     }
 
+    /** Before, the "already linked" check came first and answered 409: proof the item was in use. */
+    @Test
+    void someoneElsesItemLooksUnknownAlsoOnceTheyLinkedIt() throws Exception {
+        UUID owner = TestUsers.register(mockMvc);
+        String itemId = stubItem(owner.toString());
+        link(owner, itemId).andExpect(status().isCreated());
+
+        link(itemId)
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("connection.item_not_found"));
+    }
+
     /** A Meu Pluggy item has no owner, and in production every item must have one. */
     @Test
     void anItemWithoutAnOwnerCannotBeLinked() throws Exception {
@@ -107,7 +119,11 @@ class PluggyConnectModeIT {
     }
 
     private ResultActions link(String itemId) throws Exception {
-        return mockMvc.perform(post("/internal/connections").with(as(userId)).contentType(MediaType.APPLICATION_JSON)
+        return link(userId, itemId);
+    }
+
+    private ResultActions link(UUID user, String itemId) throws Exception {
+        return mockMvc.perform(post("/internal/connections").with(as(user)).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"providerItemId\":\"%s\"}".formatted(itemId)));
     }
 }

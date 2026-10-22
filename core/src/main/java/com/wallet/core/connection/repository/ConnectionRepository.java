@@ -17,7 +17,9 @@ public interface ConnectionRepository extends JpaRepository<Connection, UUID> {
 
     Optional<Connection> findByIdAndUserId(UUID id, UUID userId);
 
-    boolean existsByProviderAndProviderItemId(String provider, String providerItemId);
+    long countByUserId(UUID userId);
+
+    Optional<Connection> findByProviderAndProviderItemId(String provider, String providerItemId);
 
     List<Connection> findByStatusIn(Collection<ConnectionStatus> statuses);
 

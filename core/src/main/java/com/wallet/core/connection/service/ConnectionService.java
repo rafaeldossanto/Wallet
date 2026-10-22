@@ -10,6 +10,7 @@ import com.wallet.core.connection.dto.LinkConnectionRequest;
 import com.wallet.core.connection.entity.Connection;
 import com.wallet.core.connection.mapper.ConnectionMapper;
 import com.wallet.core.connection.repository.ConnectionRepository;
+import com.wallet.core.connection.repository.UserLinkLock;
 import com.wallet.core.provider.FinancialDataProvider;
 import com.wallet.core.provider.ProviderCallContext;
 import com.wallet.core.provider.ProviderCallReason;
@@ -27,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -38,24 +40,44 @@ import static java.util.Objects.isNull;
 public class ConnectionService implements ConnectionRevocation {
 
     private final ConnectionRepository repository;
+    private final UserLinkLock linkLock;
     private final FinancialDataProvider provider;
     private final ConnectionProperties properties;
     private final ApplicationEventPublisher events;
     private final Clock clock;
 
+    /**
+     * Whether an item is already linked is only told to its owner. An item somebody else linked
+     * answers exactly like one that does not exist, after the same call to the provider, so the
+     * answer cannot be used to probe for other people's items.
+     *
+     * <p>Links of one user run one at a time ({@link UserLinkLock}): the ceiling on connections
+     * holds against parallel requests too.
+     */
     @Transactional
     public ConnectionResponse link(UUID userId, LinkConnectionRequest request) {
         String itemId = request.providerItemId();
-        if (repository.existsByProviderAndProviderItemId(ConnectionMapper.PROVIDER_PLUGGY, itemId)) {
+        linkLock.acquire(userId);
+        Optional<Connection> linked = repository.findByProviderAndProviderItemId(ConnectionMapper.PROVIDER_PLUGGY, itemId);
+        if (linked.isPresent() && linked.get().getUserId().equals(userId)) {
             throw alreadyLinked();
         }
+        if (repository.countByUserId(userId) >= properties.maxConnectionsPerUser()) {
+            throw limitReached();
+        }
         ProviderItem item = findItemOwnedBy(userId, itemId);
+        if (linked.isPresent()) {
+            log.warn("[SECURITY] User {} tried to link item {} linked by another user", userId, itemId);
+            throw itemNotFound();
+        }
         try {
             Connection connection = repository.saveAndFlush(ConnectionMapper.toEntity(userId, item, clock.instant()));
             events.publishEvent(new ConnectionLinked(connection.getId(), userId));
             return ConnectionMapper.toResponse(connection);
         } catch (DataIntegrityViolationException ex) {
-            throw alreadyLinked();
+            // Somebody else linked it meanwhile (the user's own links wait on the lock), or the
+            // account is being deleted: either way the item is not this user's to link.
+            throw itemNotFound();
         }
     }
 
@@ -190,6 +212,11 @@ public class ConnectionService implements ConnectionRevocation {
 
     private static DomainException alreadyLinked() {
         return new DomainException(ErrorType.CONFLICT, "connection.already_linked", "This item is already linked");
+    }
+
+    private DomainException limitReached() {
+        return new DomainException(ErrorType.UNPROCESSABLE, "connection.limit_reached",
+                "At most " + properties.maxConnectionsPerUser() + " connections per user");
     }
 
     private static DomainException itemNotFound() {

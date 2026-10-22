@@ -23,13 +23,24 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 import static com.wallet.core.TestUsers.as;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -105,13 +116,79 @@ class ConnectionFlowIT {
     }
 
     @Test
-    void anItemCanOnlyBeLinkedOnce() throws Exception {
+    void linkingTheSameItemAgainSaysItIsAlreadyLinked() throws Exception {
         String itemId = stubItem(null);
         link(userId, itemId).andExpect(status().isCreated());
+        awaitFirstSyncs();
+        clearInvocations(provider);
 
-        link(TestUsers.register(mockMvc), itemId)
+        link(userId, itemId)
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("connection.already_linked"));
+        verify(provider, never()).findItem(itemId);
+    }
+
+    /**
+     * "Already linked" told to anybody would say that somebody uses the Wallet with that item.
+     * An item another user linked answers like one that does not exist, after the same provider call.
+     */
+    @Test
+    void anItemSomebodyElseLinkedLooksLikeAnUnknownOne() throws Exception {
+        String itemId = stubItem(null);
+        link(userId, itemId).andExpect(status().isCreated());
+        awaitFirstSyncs();
+        clearInvocations(provider);
+        String unknownItemId = UUID.randomUUID().toString();
+        when(provider.findItem(unknownItemId)).thenThrow(ProviderErrors.notFound("item"));
+        UUID stranger = TestUsers.register(mockMvc);
+
+        String linkedElsewhere = link(stranger, itemId).andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+        String unknown = link(stranger, unknownItemId).andExpect(status().isNotFound())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(linkedElsewhere).isEqualTo(unknown).contains("connection.item_not_found");
+        verify(provider, times(1)).findItem(itemId);
+        assertThat(connectionsOf(stranger)).isZero();
+    }
+
+    @Test
+    void aUserHoldsAtMostTenConnections() throws Exception {
+        insertSyncedConnections(userId, 10);
+        String itemId = stubItem(null);
+
+        link(userId, itemId)
+                .andExpect(status().isUnprocessableContent())
+                .andExpect(jsonPath("$.code").value("connection.limit_reached"));
+
+        verify(provider, never()).findItem(itemId);
+        assertThat(connectionsOf(userId)).isEqualTo(10);
+    }
+
+    /** Each request counts before the others commit; without the per-user lock all of them would get in. */
+    @Test
+    void parallelLinksDoNotGetPastTheCeiling() throws Exception {
+        insertSyncedConnections(userId, 9);
+        List<String> itemIds = Stream.generate(() -> stubItem(null)).limit(6).toList();
+
+        List<Integer> statuses;
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            CountDownLatch start = new CountDownLatch(1);
+            List<Future<Integer>> responses = itemIds.stream()
+                    .map(itemId -> executor.submit(() -> {
+                        start.await();
+                        return link(userId, itemId).andReturn().getResponse().getStatus();
+                    }))
+                    .toList();
+            start.countDown();
+            statuses = new ArrayList<>();
+            for (Future<Integer> response : responses) {
+                statuses.add(response.get(30, TimeUnit.SECONDS));
+            }
+        }
+
+        assertThat(statuses).containsOnly(201, 422).filteredOn(code -> code == 201).hasSize(1);
+        assertThat(connectionsOf(userId)).isEqualTo(10);
     }
 
     @Test
@@ -234,5 +311,25 @@ class ConnectionFlowIT {
     private ResultActions link(UUID user, String itemId) throws Exception {
         return mockMvc.perform(post("/internal/connections").with(as(user)).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"providerItemId\":\"%s\"}".formatted(itemId)));
+    }
+
+    /** Each with a finished sync, so {@link #awaitFirstSyncs} does not wait for them. */
+    private void insertSyncedConnections(UUID owner, int count) {
+        Timestamp now = Timestamp.from(Instant.parse("2026-10-01T09:00:00Z"));
+        for (int index = 0; index < count; index++) {
+            UUID connectionId = UUID.randomUUID();
+            jdbc.update("""
+                    insert into connections (id, user_id, provider, provider_item_id, status, created_at, updated_at)
+                    values (?, ?, 'PLUGGY', ?, 'ACTIVE', ?, ?)
+                    """, connectionId, owner, "item-" + UUID.randomUUID(), now, now);
+            jdbc.update("""
+                    insert into sync_runs (id, connection_id, trigger, status, started_at, finished_at)
+                    values (?, ?, 'INITIAL', 'SUCCEEDED', ?, ?)
+                    """, UUID.randomUUID(), connectionId, now, now);
+        }
+    }
+
+    private int connectionsOf(UUID owner) {
+        return jdbc.queryForObject("select count(*) from connections where user_id = ?", Integer.class, owner);
     }
 }

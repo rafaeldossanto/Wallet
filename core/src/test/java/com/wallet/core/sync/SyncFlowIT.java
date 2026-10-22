@@ -276,6 +276,38 @@ class SyncFlowIT {
                 .andExpect(jsonPath("$.code").value("sync.too_soon"));
     }
 
+    /** The cooldown used to count successes only: a failing connection could be read again on every tap. */
+    @Test
+    void aFailedSyncStartsTheCooldownToo() throws Exception {
+        when(provider.listAccounts(itemId)).thenThrow(ProviderErrors.unavailable("timeout"));
+        assertThat(syncService.syncNow(connectionId, SyncTrigger.MANUAL)).isEqualTo(SyncRunStatus.FAILED);
+        assertThat(connections.findById(connectionId).orElseThrow().getLastSyncedAt()).isNull();
+
+        mockMvc.perform(post("/internal/connections/" + connectionId + "/sync").with(as(userId)))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("sync.too_soon"));
+        verify(provider, times(1)).findItem(itemId);
+
+        clock.advance(Duration.ofMinutes(15).plusSeconds(1));
+        mockMvc.perform(post("/internal/connections/" + connectionId + "/sync").with(as(userId)))
+                .andExpect(status().isAccepted());
+        awaitFinished();
+    }
+
+    /** Linking reads a year of history; a tap right after would read it all again. */
+    @Test
+    void theFirstSyncAfterLinkingStartsTheCooldownToo() throws Exception {
+        String newItemId = UUID.randomUUID().toString();
+        when(provider.findItem(newItemId)).thenReturn(new ProviderItem(newItemId, "Inter", null,
+                ProviderItemStatus.UPDATING, COLLECTED, null, null));
+        connectionId = link(newItemId);
+        assertThat(awaitFinished().getErrorCode()).isEqualTo("provider.updating");
+
+        mockMvc.perform(post("/internal/connections/" + connectionId + "/sync").with(as(userId)))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("sync.too_soon"));
+    }
+
     @Test
     void manualSyncWhileOneIsRunningIsAConflict() throws Exception {
         insertRunningRun(TestClockConfiguration.START);
