@@ -1,6 +1,6 @@
 ---
 tags: [decisao, open-finance, pluggy]
-atualizado: 2026-09-28
+atualizado: 2026-10-21
 status: decidido
 ---
 
@@ -44,3 +44,7 @@ O provedor fica atrás de uma interface no [[Core]] (ver [[Stack]] e
 [[Risco Regulatório 2026]]). Com o Meu Pluggy a implementação é a mesma da Pluggy
 paga; muda só a origem das conexões e a disponibilidade de webhooks, que não é
 garantida no plano grátis.
+
+O modo `MEU_PLUGGY` (`WALLET_CONNECTION_MODE`) aceita item sem dono de qualquer usuário, o que só
+serve numa máquina de desenvolvimento. Desde 2026-10-21, com `SPRING_PROFILES_ACTIVE=prod` o core
+não sobe nesse modo (achado A6): o deploy tem de dizer `WALLET_CONNECTION_MODE=PLUGGY_CONNECT`.

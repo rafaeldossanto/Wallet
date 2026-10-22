@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, open-finance, fluxo]
-atualizado: 2026-10-18
+atualizado: 2026-10-21
 ---
 
 # Fluxo de Conexão
@@ -97,8 +97,8 @@ sequenceDiagram
   terminar.
 - **Quando vincular:** no `SUCCESS` (dados coletados). Se a pessoa sair antes (voltar ou fechar)
   com o banco já autorizado e os dados chegando, o item também é vinculado; a primeira
-  sincronização pode ainda achar a Pluggy atualizando, e os dados vêm com o "Atualizar" ou na
-  sincronização seguinte. Saindo antes de autorizar, nada é vinculado.
+  sincronização pode ainda achar a Pluggy atualizando, e os dados vêm com o "Atualizar" (15 min
+  depois dessa tentativa, ver [[Sincronização]]) ou na sincronização agendada. Saindo antes de autorizar, nada é vinculado.
 - **Depois:** a tela de Conexões acompanha a primeira sincronização como no vínculo pelo Item ID
   (consulta a cada 3 s).
 - **Pluggy de demonstração:** responde ao `/connect_token` (com a mesma regra do redirect), mas o
@@ -111,7 +111,36 @@ sequenceDiagram
 |---|---|---|
 | Do Meu Pluggy (sem `clientUserId`) | Vincula | Recusa (parece inexistente) |
 | Do widget, deste usuário | Vincula | Vincula |
-| Do widget, de outro usuário | Recusa | Recusa |
+| Do widget, de outro usuário | Recusa (parece inexistente) | Recusa (parece inexistente) |
+| Já vinculado por outro usuário | Recusa (parece inexistente) | Recusa (parece inexistente) |
+| Já vinculado por este usuário | 409 `connection.already_linked` | 409 `connection.already_linked` |
+
+"Parece inexistente" é a mesma resposta de um item que a Pluggy não conhece (404
+`connection.item_not_found`), depois da mesma consulta à Pluggy. Até 2026-10-21 o "já vinculado"
+era conferido antes do dono e respondia 409 para qualquer pessoa, o que dizia que alguém usava o
+Wallet com aquele item (achado A17). Agora só o dono ouve o 409.
+
+O `MEU_PLUGGY` aceita item sem dono de **qualquer** usuário: é como o Item ID do Meu Pluggy é
+vinculado no desenvolvimento. Num servidor, quem descobrisse um itemId do operador leria os dados
+dele (achado A6). Por isso, com `SPRING_PROFILES_ACTIVE=prod` o core **não sobe** se
+`WALLET_CONNECTION_MODE` não for `PLUGGY_CONNECT`, e a mensagem diz a variável. Fora do `prod` o
+padrão continua `MEU_PLUGGY`.
+
+## Limites
+
+Cada vínculo faz o core ler até um ano do banco na Pluggy, e cada token do widget é uma chamada à
+Pluggy, tudo na apiKey de todos os usuários (achados A7, A8 e A9).
+
+| Limite | Onde | Padrão | Resposta |
+|---|---|---|---|
+| Conexões por usuário | Core (`wallet.provider.max-connections-per-user`) | 10 | 422 `connection.limit_reached` |
+| Vínculos (`POST /api/connections`), contando tentativas que falham | BFF (`wallet.rate-limit.link-limit` / `link-window`) | 10 por hora, por usuário | 429 `rate_limit.connections` |
+| Tokens do widget (`POST /api/connections/connect-token`) | BFF (`wallet.rate-limit.connect-token-limit` / `connect-token-window`) | 10 por hora, por usuário | 429 `rate_limit.connections` |
+
+- O teto vale também com pedidos em paralelo: os vínculos de um usuário passam um de cada vez,
+  por um advisory lock do Postgres por usuário (`UserLinkLock`), e só então contam as conexões.
+- Os limites do BFF somam ao geral (300 por minuto) e ficam na memória: reiniciar o BFF zera as
+  contas. A janela é fixa a partir do primeiro pedido; o `Retry-After` diz a janela inteira.
 
 Desvincular revoga o item na Pluggy (e o consentimento do Open Finance com ele) em produção e,
 no modo dev, quando o item foi criado pelo widget para aquele usuário. Item do Meu Pluggy só sai do

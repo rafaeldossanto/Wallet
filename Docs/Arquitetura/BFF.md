@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, backend, bff]
-atualizado: 2026-10-18
+atualizado: 2026-10-21
 porta: 8080
 repo: Work/Wallet/bff
 ---
@@ -21,7 +21,7 @@ do BFF do Trilha. Construído em 2026-10-01 (T10 e T11 do [[Plano de Implementa�
 | **Sessão por plataforma** | Recebe os tokens do core e decide a entrega: no celular, no corpo; no navegador, refresh em cookie `HttpOnly`. Ver [[Autenticação]] |
 | **Rotas por tela** | Monta a resposta de uma tela juntando várias chamadas ao core em paralelo. O celular faz 1 requisição em vez de 5 |
 | **Cache curto** | Caffeine por usuário, 60 s nas telas agregadas. Limpa na hora quando o usuário pede sincronização, mexe em conexões ou quando uma sincronização termina no fundo (ver abaixo) |
-| **Proteção** | CORS só para a origem do app web, limite de requisições por IP (auth) e por usuário (resto) |
+| **Proteção** | CORS só para a origem do app web, limite de requisições por IP (auth), por usuário (resto) e limites baixos próprios para vincular banco e pedir token do widget |
 | **Resiliência** | Timeout de 5 s para o core e circuit breaker; core fora do ar vira `503 bff.core_unavailable` |
 
 O BFF **não guarda dado** de negócio, **não fala com a Pluggy**, **não tem banco** e
@@ -127,7 +127,7 @@ dinheiro, então não tem como arredondar errado.
   hífen) e propagado, para seguir uma requisição nos logs dos dois serviços.
 - Erro do core: status e `{ code, message }` passam intactos. O app só conhece os
   códigos. Os do próprio BFF: `auth.client_required`, `auth.invalid_refresh_token`,
-  `auth.unauthenticated`, `rate_limit.exceeded`, `bff.core_unavailable`,
+  `auth.unauthenticated`, `rate_limit.exceeded`, `rate_limit.connections`, `bff.core_unavailable`,
   `request.invalid_parameter`, `request.malformed`, `request.too_large` (413), `route.not_found`.
 
 ## Configuração
@@ -140,6 +140,8 @@ dinheiro, então não tem como arredondar errado.
 | `wallet.web.cookie-secure` | Flag `Secure` do cookie; ligada também no dev, porque o navegador aceita em `localhost` |
 | `wallet.cache.screen-ttl` | TTL do cache das telas (padrão 60 s) |
 | `wallet.rate-limit.*` | Janela (1 min), 20 por IP em `/api/auth`, 300 por usuário no resto |
+| `wallet.rate-limit.link-limit` / `link-window` | `POST /api/connections` por usuário, além do geral: 10 por hora (cada vínculo faz o core ler até um ano do banco na Pluggy). Passou: 429 `rate_limit.connections` |
+| `wallet.rate-limit.connect-token-limit` / `connect-token-window` | `POST /api/connections/connect-token` por usuário, além do geral: 10 por hora (cada token é uma chamada à Pluggy). Passou: 429 `rate_limit.connections` |
 | `WALLET_MAX_BODY_SIZE` | `wallet.http.max-body-size`, padrão `256KB`, o mesmo filtro do core: `Content-Length` maior recebe 413 `request.too_large` antes da segurança; corpo chunked é cortado durante a leitura |
 | `WALLET_TRUSTED_PROXIES` | `wallet.rate-limit.trusted-proxies`: proxies reversos (IPs ou CIDR) cujo `X-Forwarded-For` vale para o rate limit. Vazio = IP da conexão |
 
@@ -196,7 +198,9 @@ entrava no cache e ficava vazia por um minuto. Desde 2026-10-02:
   plano, plano sem os nomes ou montado durante uma sincronização fora do cache, códigos do core
   repassados, sugestões de gasto fixo (lista sempre do core, dispensa sem descartar o plano, id
   codificado) e todas as rotas exigindo sessão.
-- `RateLimitTest`: orçamento por usuário e login por IP.
+- `RateLimitTest`: orçamento por usuário, login por IP e os limites próprios de vincular e do
+  token do widget (caminho com `%63` não escapa: o filtro compara o caminho decodificado, como o
+  Spring MVC roteia).
 - `CoreKeyRotationTest`: chave nova no core é aceita sem reiniciar o BFF.
 
 Ver [[Visão Geral]] e [[App Flutter]].

@@ -70,5 +70,6 @@ agregador na raiz).
 | Quem usa | Só o Rafael | Qualquer usuário |
 
 O modo é escolhido por configuração no core (`wallet.provider.connection-mode`:
-`MEU_PLUGGY` ou `PLUGGY_CONNECT`). Ver [[Meu Pluggy no Desenvolvimento]] e
+`MEU_PLUGGY` ou `PLUGGY_CONNECT`; com `SPRING_PROFILES_ACTIVE=prod`, só `PLUGGY_CONNECT` sobe).
+Ver [[Meu Pluggy no Desenvolvimento]] e
 [[Fluxo de Conexão]].

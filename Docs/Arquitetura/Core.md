@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, backend, core]
-atualizado: 2026-10-18
+atualizado: 2026-10-21
 porta: 8081
 repo: Work/Wallet/core
 ---
@@ -120,6 +120,11 @@ linha de log `[PROVIDER_CALL]`, para monitorar o uso e investigar problemas.
 [PROVIDER_CALL] provider=PLUGGY operation=LIST_ACCOUNTS outcome=SUCCESS status=200 durationMs=84 reason=MANUAL_SYNC userId=… connectionId=… itemId=…
 ```
 
+- **Falha no log do adaptador** (desde 2026-10-21, achado A20): o `PluggyClient` registra só o
+  status e o código (`[PLUGGY] Request failed: status=500 code=provider.unavailable`; sem
+  resposta, `no response, code=provider.timeout`), nunca a mensagem da exceção, que traz o corpo
+  da resposta da Pluggy e pode ecoar o que foi enviado ou descrever a conta da pessoa.
+
 - **Retenção:** 180 dias (`wallet.provider.audit.retention`), apagados toda noite às 04:30
   de São Paulo (`wallet.provider.audit.cleanup-cron`), em todas as instâncias.
 - **Sem chave estrangeira** de propósito: o registro de um desvínculo, ou das chamadas de um
@@ -153,10 +158,10 @@ sem uma `WALLET_GATEWAY_KEY` real.
 | GET | `/internal/me` | Usuário logado |
 | DELETE | `/internal/me` | Exclui a conta e tudo dela (204, também se já não existia), com `{"password"}` no corpo: senha errada é 403 `auth.wrong_password` e conta para o bloqueio. Revoga as conexões na Pluggy antes; ver [[Modelo de Dados#Exclusão]] |
 | GET | `/internal/connections` | Conexões do usuário e o estado de cada uma |
-| POST | `/internal/connections` | Vincula um item (`{ "providerItemId": "..." }`) |
+| POST | `/internal/connections` | Vincula um item (`{ "providerItemId": "..." }`). Item de outra pessoa, vinculado ou não, responde como inexistente (404 `connection.item_not_found`); só o dono ouve 409 `connection.already_linked`. Até 10 conexões por usuário (422 `connection.limit_reached`). Ver [[Fluxo de Conexão#Limites]] |
 | POST | `/internal/connections/connect-token` | Token do widget Pluggy Connect para o usuário (`{ "connectToken": "..." }`, 30 min, uma conexão) |
 | DELETE | `/internal/connections/{id}` | Desvincula (em produção, revoga na Pluggy) |
-| POST | `/internal/connections/{id}/sync` | Pede sincronização agora (máx. 1 a cada 15 min) |
+| POST | `/internal/connections/{id}/sync` | Pede sincronização agora: 15 min depois do fim da última tentativa da conexão, qualquer gatilho e resultado (429 `sync.too_soon`) |
 | GET | `/internal/overview` | Patrimônio, saldo, dívida do cartão, investimentos, entradas e saídas do mês, última sincronização |
 | GET | `/internal/accounts` | Contas com saldo, lista plana com `connectionId` (o BFF agrupa por instituição) |
 | GET | `/internal/transactions` | Extrato com filtros `from`, `to` (padrão: mês corrente, máx. 366 dias), `accountId`, `direction`, `q`, paginado |
@@ -220,10 +225,12 @@ Erros de leitura: `period.invalid`, `period.too_long` e `page.invalid` (422),
 | `WALLET_GATEWAY_KEY` | Segredo compartilhado com o BFF (`X-Gateway-Key`), o **mesmo** valor nos dois. Vazio = chave de desenvolvimento conhecida; com `SPRING_PROFILES_ACTIVE=prod`, vazia, curta (< 32) ou a de desenvolvimento impedem a subida |
 | `WALLET_CORE_ADDRESS` | Interface onde o core escuta (`server.address`). Padrão `127.0.0.1`, com o BFF na mesma máquina; com o BFF em outro host, `0.0.0.0` e uma `WALLET_GATEWAY_KEY` real (a chave de desenvolvimento só vale no loopback) |
 | `WALLET_MAX_BODY_SIZE` | `wallet.http.max-body-size`, padrão `256KB`. `Content-Length` maior recebe 413 `request.too_large` sem o corpo ser lido; corpo chunked é cortado nesse tamanho durante a leitura (`RequestBodyLimitFilter`). O Tomcat usa o mesmo teto em `max-swallow-size` e `max-http-form-post-size` |
-| `wallet.provider.connection-mode` | `MEU_PLUGGY` (dev) ou `PLUGGY_CONNECT` |
+| `WALLET_CONNECTION_MODE` | `wallet.provider.connection-mode`: `MEU_PLUGGY` (dev, padrão) ou `PLUGGY_CONNECT`. Com `SPRING_PROFILES_ACTIVE=prod`, qualquer coisa que não seja `PLUGGY_CONNECT` impede a subida, com a variável na mensagem (achado A6): o `MEU_PLUGGY` deixa qualquer usuário vincular item sem dono |
+| `wallet.provider.max-connections-per-user` | Teto de conexões por usuário (padrão 10). A seguinte responde 422 `connection.limit_reached` |
 | `wallet.provider.oauth-redirect-uri` | Para onde o banco devolve o usuário depois de autorizar no Pluggy Connect: o deep link do app Android (`com.wallet.wallet://pluggy-connect`) |
 | `wallet.sync.interval` | Intervalo do polling (padrão 6 h) |
 | `wallet.sync.scheduler-enabled` | Liga o agendador nesta instância (padrão `true`) |
+| `wallet.sync.manual-cooldown` | Espera entre o fim da última sincronização de uma conexão (qualquer gatilho e resultado) e o próximo "Atualizar" (padrão 15 min) |
 | `wallet.provider.audit.retention` | Quanto tempo o registro de cada chamada à Pluggy fica (padrão 180 dias) |
 | `wallet.provider.audit.cleanup-cron` | Quando os registros vencidos são apagados (padrão 04:30, horário de São Paulo) |
 
