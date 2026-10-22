@@ -5,7 +5,6 @@ import com.wallet.core.shared.security.GatewayKeyFilter;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -26,7 +25,7 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, JsonSecurityErrorHandler errorHandler,
-                                            GatewayKey gatewayKey) throws Exception {
+                                            GatewayKey gatewayKey, ActiveUserJwtConverter activeUsers) throws Exception {
         return http
                 .addFilterBefore(new GatewayKeyFilter(gatewayKey), BearerTokenAuthenticationFilter.class)
                 .csrf(AbstractHttpConfigurer::disable)
@@ -35,7 +34,7 @@ public class SecurityConfig {
                         .requestMatchers("/internal/auth/**", "/internal/.well-known/jwks.json", "/error").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(resourceServer -> resourceServer
-                        .jwt(Customizer.withDefaults())
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(activeUsers))
                         .authenticationEntryPoint(errorHandler)
                         .accessDeniedHandler(errorHandler))
                 .exceptionHandling(exceptions -> exceptions

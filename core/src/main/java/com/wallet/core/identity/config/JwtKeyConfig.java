@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.JwtAudienceValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
@@ -89,8 +90,10 @@ public class JwtKeyConfig {
         // Same clock that issues the tokens, so expiry can be tested by moving time.
         JwtTimestampValidator timestampValidator = new JwtTimestampValidator(Duration.ofSeconds(30));
         timestampValidator.setClock(clock);
-        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
-                timestampValidator, new JwtIssuerValidator(properties.issuer())));
+        // A token without the audience (one issued before it existed) is refused: the app renews
+        // it with its refresh token, which is opaque and unaffected.
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(timestampValidator,
+                new JwtIssuerValidator(properties.issuer()), new JwtAudienceValidator(properties.audience())));
         return decoder;
     }
 

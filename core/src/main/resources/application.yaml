@@ -73,6 +73,9 @@ wallet:
     key: ${WALLET_GATEWAY_KEY:}
   jwt:
     issuer: wallet-core
+    # The aud of every access token, required here and in the BFF: a user's session on the Wallet
+    # API. Anything else the key might ever sign carries another audience and is not a session.
+    audience: wallet-api
     # PEM text or a path to a .pem file. Both empty = ephemeral key for local development only;
     # with SPRING_PROFILES_ACTIVE=prod an empty pair stops the boot.
     private-key: ${WALLET_JWT_PRIVATE_KEY:}
@@ -80,10 +83,34 @@ wallet:
     access-token-ttl: 15m
     refresh-token-ttl: 30d
   auth:
-    max-failed-logins: 5
-    lockout-duration: 15m
     # A device that lost the refresh response may retry the old token within this window.
     refresh-reuse-tolerance: 1m
+    # Progressive lockout (LoginThrottle): one e-mail from one client address locks after 5
+    # failures, one e-mail from every address after 20; each lockout lasts twice the previous one
+    # (15 min up to 24 h), and a day without failures starts the counters over.
+    lockout:
+      source-max-failures: 5
+      account-max-failures: 20
+      first-duration: 15m
+      max-duration: 24h
+      forget-after: 24h
+    # BCrypt is slow on purpose: at most this many password checks at once (0 = half the
+    # processors); one that waits longer than max-wait answers 429 auth.busy.
+    password-checks:
+      concurrency: ${WALLET_PASSWORD_CHECK_CONCURRENCY:0}
+      max-wait: 2s
+    email-links:
+      # The BFF's public address: the e-mailed links open its confirmation page. Empty =
+      # http://localhost:8080 (development); with SPRING_PROFILES_ACTIVE=prod it is required, https.
+      base-url: ${WALLET_PUBLIC_URL:}
+      ttl: 24h
+      # Confirmation links per account per hour, the sign-up's included.
+      max-per-hour: 3
+    # Accounts whose e-mail is never confirmed are deleted after this.
+    unconfirmed-account-ttl: 7d
+    # At most one notice of each kind (sign-up attempt, lockout) per account in this interval.
+    notice-interval: 1h
+    cleanup-cron: "0 15 4 * * *"
   mail:
     # The sender the provider accepts (on Amazon SES, a verified address or domain).
     from: ${WALLET_MAIL_FROM:}

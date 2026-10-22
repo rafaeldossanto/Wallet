@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -25,6 +26,7 @@ public class AccessTokenService {
         Instant now = clock.instant();
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(properties.issuer())
+                .audience(List.of(properties.audience()))
                 .subject(user.getId().toString())
                 .issuedAt(now)
                 .expiresAt(now.plus(properties.accessTokenTtl()))

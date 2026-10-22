@@ -77,7 +77,8 @@ class RequestBodyLimitIT {
                         .build(),
                 HttpResponse.BodyHandlers.ofString());
 
-        assertThat(response.statusCode()).isEqualTo(201);
+        // The sign-up's answer for every e-mail: the body was read whole.
+        assertThat(response.statusCode()).isEqualTo(202);
     }
 
     private HttpRequest.Builder register() {

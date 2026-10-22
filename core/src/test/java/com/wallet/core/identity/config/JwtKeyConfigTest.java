@@ -27,7 +27,7 @@ class JwtKeyConfigTest {
 
     @Test
     void everyEphemeralKeyHasItsOwnId() {
-        JwtProperties noKeys = new JwtProperties("wallet-core", null, null, Duration.ofMinutes(15), Duration.ofDays(30));
+        JwtProperties noKeys = new JwtProperties("wallet-core", "wallet-api", null, null, Duration.ofMinutes(15), Duration.ofDays(30));
 
         RSAKey beforeRestart = JwtKeyConfig.resolve(noKeys, false);
         RSAKey afterRestart = JwtKeyConfig.resolve(noKeys, false);
@@ -38,7 +38,7 @@ class JwtKeyConfigTest {
     /** A server that made up its key would log everyone out on every restart. */
     @Test
     void withTheProdProfileMissingKeysStopTheBoot() {
-        JwtProperties noKeys = new JwtProperties("wallet-core", "", "", Duration.ofMinutes(15), Duration.ofDays(30));
+        JwtProperties noKeys = new JwtProperties("wallet-core", "wallet-api", "", "", Duration.ofMinutes(15), Duration.ofDays(30));
 
         assertThatThrownBy(() -> JwtKeyConfig.resolve(noKeys, true))
                 .isInstanceOf(IllegalStateException.class)
