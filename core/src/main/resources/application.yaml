@@ -84,6 +84,19 @@ wallet:
     lockout-duration: 15m
     # A device that lost the refresh response may retry the old token within this window.
     refresh-reuse-tolerance: 1m
+  mail:
+    # The sender the provider accepts (on Amazon SES, a verified address or domain).
+    from: ${WALLET_MAIL_FROM:}
+    smtp:
+      # Empty = no SMTP: outside production the e-mails (links included) go to the log; with
+      # SPRING_PROFILES_ACTIVE=prod the core does not start without it.
+      host: ${WALLET_SMTP_HOST:}
+      port: ${WALLET_SMTP_PORT:587}
+      username: ${WALLET_SMTP_USERNAME:}
+      password: ${WALLET_SMTP_PASSWORD:}
+      # STARTTLS (587), SSL (465) or NONE (a local test server only; refused with prod).
+      security: ${WALLET_SMTP_SECURITY:STARTTLS}
+      timeout: 10s
   crypto:
     # base64 of 32 random bytes (openssl rand -base64 32). Empty = ephemeral, development only;
     # with SPRING_PROFILES_ACTIVE=prod an empty key stops the boot.
