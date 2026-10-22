@@ -30,6 +30,13 @@ Cada sincronização é uma rodada de chamadas à Pluggy, na mesma apiKey de tod
   e um teto de 10 conexões por usuário no core. Ver [[Fluxo de Conexão#Limites]].
 - **Efeito colateral:** se a 1ª sincronização acha a Pluggy ainda coletando (`SKIPPED
   provider.updating`), o "Atualizar" só volta 15 min depois; antes disso, só a agendada.
+- **Quantas ao mesmo tempo** (desde 2026-10-22, achado A11): o "Atualizar" passa pelo bulkhead
+  `manual-sync` do core (`wallet.bulkhead.manual-sync`, 4 no total e 2 por usuário). A vaga é da
+  rodada em segundo plano, não da requisição: fica presa até a leitura na Pluggy e a gravação
+  acabarem. Sem vaga, nada começa (nenhuma rodada fica `RUNNING`): `429 rate_limit.exceeded`
+  quando o usuário já tem as dele rodando, `503 service.busy` quando todas estão ocupadas, os dois
+  com `Retry-After`. O executor em segundo plano usa virtual threads, então sem isso nada limitava
+  quantas leituras rodavam juntas. Ver [[Core#Disponibilidade]].
 
 ## Passo a passo de uma sincronização
 

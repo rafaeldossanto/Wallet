@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, backend, core]
-atualizado: 2026-10-21
+atualizado: 2026-10-22
 porta: 8081
 repo: Work/Wallet/core
 ---
@@ -140,8 +140,8 @@ login, cadastro e refresh, exige o JWT do usuário, que o BFF repassa.
 **Chave de gateway (desde 2026-10-19):** toda requisição, inclusive login, cadastro, refresh e
 o JWKS, também precisa do header `X-Gateway-Key` com o segredo compartilhado com o BFF
 (`WALLET_GATEWAY_KEY`). Sem ele, ou com o valor errado, o `GatewayKeyFilter` responde **403**
-`gateway.forbidden` antes de qualquer outra coisa (sem ler token, sem BCrypt, sem banco). Só
-`/actuator/health` fica aberto. 403 e não 401 de propósito: o BFF trata o 401 do core como
+`gateway.forbidden` antes de qualquer outra coisa (sem ler token, sem BCrypt, sem banco). Só a
+liveness, `/livez`, fica aberta (desde 2026-10-22; ver [[#Saúde]]). 403 e não 401 de propósito: o BFF trata o 401 do core como
 sessão vencida e o app deslogaria o usuário por um erro de configuração do servidor. A
 comparação é em tempo constante (SHA-256 dos dois lados + `MessageDigest.isEqual`). Assim o
 core não depende de estar numa rede interna: quem alcança a porta sem a chave não consegue nada.
@@ -161,20 +161,20 @@ sem uma `WALLET_GATEWAY_KEY` real.
 | POST | `/internal/connections` | Vincula um item (`{ "providerItemId": "..." }`). Item de outra pessoa, vinculado ou não, responde como inexistente (404 `connection.item_not_found`); só o dono ouve 409 `connection.already_linked`. Até 10 conexões por usuário (422 `connection.limit_reached`). Ver [[Fluxo de Conexão#Limites]] |
 | POST | `/internal/connections/connect-token` | Token do widget Pluggy Connect para o usuário (`{ "connectToken": "..." }`, 30 min, uma conexão) |
 | DELETE | `/internal/connections/{id}` | Desvincula (em produção, revoga na Pluggy) |
-| POST | `/internal/connections/{id}/sync` | Pede sincronização agora: 15 min depois do fim da última tentativa da conexão, qualquer gatilho e resultado (429 `sync.too_soon`) |
-| GET | `/internal/overview` | Patrimônio, saldo, dívida do cartão, investimentos, entradas e saídas do mês, última sincronização |
+| POST | `/internal/connections/{id}/sync` | Pede sincronização agora: 15 min depois do fim da última tentativa da conexão, qualquer gatilho e resultado (429 `sync.too_soon`). Bulkhead `manual-sync` |
+| GET | `/internal/overview` | Patrimônio, saldo, dívida do cartão, investimentos, entradas e saídas do mês, última sincronização. Bulkhead `screens` |
 | GET | `/internal/accounts` | Contas com saldo, lista plana com `connectionId` (o BFF agrupa por instituição) |
-| GET | `/internal/transactions` | Extrato com filtros `from`, `to` (padrão: mês corrente, máx. 366 dias), `accountId`, `direction`, `q`, paginado |
+| GET | `/internal/transactions` | Extrato com filtros `from`, `to` (padrão: mês corrente, máx. 366 dias), `accountId`, `direction`, `q`, paginado. Com `q`: máx. 93 dias, até 5000 transações lidas e bulkhead `search` ([[#Busca por texto]]) |
 | GET | `/internal/credit-cards` | Cartões com limite, disponível e a próxima fatura a pagar |
 | GET | `/internal/credit-cards/{accountId}/bills` | Faturas do cartão, da mais recente para a mais antiga |
 | GET | `/internal/investments` | Posições abertas e total por tipo |
 | GET | `/internal/insights/spending-by-category?month=2026-09` | Gasto por categoria no mês (padrão: mês corrente) |
-| GET | `/internal/insights/net-worth?from=&to=` | Patrimônio dia a dia (padrão: últimos 30 dias, máx. 731) |
-| GET | `/internal/planning/month?month=2026-10` | O planejamento do mês (padrão: mês corrente): salário, faturas com as compras, gastos fixos e o que sobra |
+| GET | `/internal/insights/net-worth?from=&to=` | Patrimônio dia a dia (padrão: últimos 30 dias, máx. 731). Lê só os snapshots do período e um anterior por conta e posição. Bulkhead `screens` |
+| GET | `/internal/planning/month?month=2026-10` | O planejamento do mês (padrão: mês corrente): salário, faturas com as compras, gastos fixos e o que sobra. Bulkhead `screens` |
 | GET, POST | `/internal/planning/fixed-expenses` | Lista e cria gastos fixos (`{ name, amount, dayOfMonth, category }`) |
 | PUT, DELETE | `/internal/planning/fixed-expenses/{id}` | Altera e exclui um gasto fixo |
 | PUT, DELETE | `/internal/planning/expected-salary` | Define o salário esperado (`{ amount }`) ou volta à previsão automática |
-| GET | `/internal/planning/fixed-expense-suggestions` | Débitos que se repetem todo mês nas contas e ainda não são gastos fixos |
+| GET | `/internal/planning/fixed-expense-suggestions` | Débitos que se repetem todo mês nas contas e ainda não são gastos fixos. Bulkhead `screens` |
 | DELETE | `/internal/planning/fixed-expense-suggestions/{id}` | Dispensa uma sugestão para sempre (204, também se já estava dispensada) |
 
 O core **não sabe** se o usuário está no celular ou no navegador: sempre devolve os
@@ -188,12 +188,93 @@ tokens no corpo. Cookie e CORS são assunto do [[BFF]].
 - **Gasto por categoria** soma as saídas de todas as contas, menos o pagamento de fatura
   vindo da conta (categoria `Credit card payment` da Pluggy, a confirmar na T02).
 - **Histórico:** dia sem snapshot repete o último valor conhecido. Antes da primeira
-  sincronização o valor é zero.
-- **Busca por texto:** ignora maiúsculas e acentos e roda em memória, porque a
-  descrição fica cifrada. O limite de 366 dias do período é o que mantém isso barato.
+  sincronização o valor é zero. Desde 2026-10-22 (achado A13) a consulta lê **só o período e,
+  por conta e por posição, o último snapshot antes dele** (é ele que dá o valor do primeiro dia),
+  com `JOIN LATERAL ... LIMIT 1` sobre a chave primária `(id, snapshot_date)`. Antes lia todo o
+  histórico até o fim do período: com anos de snapshots, cada gráfico de 30 dias trazia milhares
+  de linhas. O resultado é o mesmo; `ReadApiIT` confere com três anos de snapshots diários.
+- **Busca por texto:** ignora maiúsculas e acentos e roda em memória, porque a descrição fica
+  cifrada (AES-256-GCM): o banco não consegue filtrar. Ver [[#Busca por texto]].
 
 Erros de leitura: `period.invalid`, `period.too_long` e `page.invalid` (422),
-`request.invalid_parameter` (400) e `account.not_found` (404).
+`request.invalid_parameter` (400) e `account.not_found` (404). Das rotas com bulkhead e do pool
+cheio: `rate_limit.exceeded` (429) e `service.busy` (503), os dois com `Retry-After: 1`
+([[#Disponibilidade]]).
+
+### Busca por texto
+
+Achado A10: a busca carregava **todas** as transações do período (até 366 dias) como entidades,
+decifrava cada descrição e só então paginava, e refazia tudo a cada página. Desde 2026-10-22:
+
+| Limite | Valor | Por quê |
+|---|---|---|
+| Janela | **93 dias** com `q` (sem `q` continua 366) | O app busca um mês por vez (o filtro do extrato é mensal); um trimestre dá folga a quem chama a API sem reler um ano |
+| Linhas lidas | **5000** por busca (`BankingReadService.MAX_SEARCHED_ROWS`) | Um mês cheio tem centenas; 5000 é uma pessoa com várias contas no trimestre inteiro e custa milissegundos de decifração. Passou disso: 422 `period.too_long` ("diminua o período"), **nunca** um resultado pela metade: uma busca que pula linhas diria "nada encontrado" sobre o que não leu |
+| O que lê | Só `id` e `description` (`TransactionDescriptions`, Criteria com projeção; o conversor decifra) | Duas colunas em vez da entidade inteira; a entidade só é carregada para os ids **da página** pedida, na ordem do extrato. O `total` continua exato, então a paginação do app não muda |
+| Ao mesmo tempo | Bulkhead `search`: 3 no total, 2 por usuário | Cada busca segura uma conexão do banco enquanto decifra |
+| Frequência | BFF: 30 buscas por minuto por usuário (`wallet.rate-limit.search-limit`), além das 300 gerais | O app espera 400 ms depois da última tecla; 30 por minuto é muito mais do que alguém digita |
+
+Por que não um índice de busca: guardar a descrição de outro jeito (texto puro, trigramas ou
+tokens com hash) abriria mão de parte da cifra ou exigiria uma migration e uma reescrita do
+sincronizador, para um problema que os limites acima já deixam pequeno. Fica como opção se um
+dia a busca precisar cobrir anos.
+
+## Disponibilidade
+
+Achados A11, A13 e A18, de 2026-10-22: "um usuário pesado derruba todos".
+
+### Pool do banco e bulkheads (A11)
+
+Com virtual threads nada limita quantas requisições rodam juntas, então o pool do Hikari era o
+único teto, e estava no padrão (10) sem ninguém ter escolhido. Uma rajada de leituras caras
+esvaziava o pool para todo mundo, e cada requisição esperava até 30 s por uma conexão.
+
+- **Pool explícito:** `spring.datasource.hikari.maximum-pool-size` = `WALLET_DB_POOL_SIZE`
+  (padrão 10, contra os 100 `max_connections` do Postgres por instância) e
+  `connection-timeout` de **3 s**, abaixo dos 5 s que o BFF espera o core. Sem conexão livre
+  nesse tempo, o core responde **503 `service.busy`** com `Retry-After: 1`
+  (`GlobalExceptionHandler`, pela `SQLTransientConnectionException` do Hikari) em vez de deixar
+  o BFF estourar o tempo e contar isso como "core fora do ar" no circuito.
+- **Bulkheads** (`Bulkhead`, `Bulkheads`, `wallet.bulkhead.*`): um teto de quantas requisições
+  de cada tipo caro rodam ao mesmo tempo, **no total e por usuário**. O teto por usuário é o que
+  impede um usuário de ocupar todas as vagas; o total é o que deixa conexões para o resto.
+  Cheio responde na hora, sem fila (esperar só empurraria a requisição para o timeout do BFF):
+
+| Bulkhead | Rotas | Total | Por usuário |
+|---|---|---|---|
+| `search` | `/internal/transactions` com `q` | 3 | 2 |
+| `screens` | `/internal/overview`, `/internal/insights/net-worth`, `/internal/planning/month`, `/internal/planning/fixed-expense-suggestions` (leem vários módulos ou períodos longos) | 5 | 3 |
+| `manual-sync` | `POST /internal/connections/{id}/sync`, segurando a vaga até a rodada em segundo plano acabar | 4 | 2 |
+
+  `search` + `screens` (8) ficam abaixo do pool (10): login, leituras simples e as gravações da
+  sincronização sempre acham conexão. Usuário com a parte dele ocupada: **429
+  `rate_limit.exceeded`** (o código que o app já traduz como "muitas requisições seguidas");
+  todas as vagas ocupadas: **503 `service.busy`**. Os dois com `Retry-After: 1`. Gasto por
+  categoria e por dia ficam de fora: são um `GROUP BY` de um mês no índice `(user_id, booked_on)`.
+- O BFF tem os seus bulkheads, por grupo de rotas e só no total (ver [[BFF#Grupos de rotas]]): o
+  core decide por usuário.
+
+### Saúde
+
+Achado A18: `/actuator/health` era público, ficava fora da chave de gateway e consultava o banco
+a cada chamada. Desde 2026-10-22:
+
+| Onde | O quê | Quem alcança |
+|---|---|---|
+| `GET /livez` na porta do core (8081) | Liveness: só `{"status":"UP"}`, da memória, sem banco | Qualquer um que alcance a porta, sem chave (é barata de propósito) |
+| `GET /actuator/health` na porta de gestão | Tudo, com detalhes: banco, disco, liveness, readiness | Só a própria máquina |
+| `GET /actuator/health/readiness` na porta de gestão | Pronto para receber requisições: `readinessState` + banco | Só a própria máquina |
+
+- **Porta de gestão:** `management.server.port` = `WALLET_CORE_MANAGEMENT_PORT` (padrão
+  **9081**), escutando **só em `127.0.0.1`**. Quem precisa da readiness (systemd, um script, o
+  `HEALTHCHECK` de um container) roda na máquina; para o resto há `/livez`.
+- As duas têm uma cadeia de segurança própria (`ManagementSecurityConfig`, antes da principal): o
+  `GatewayKeyFilter` não tem mais exceção para a saúde, e na porta do core `/actuator/**` não
+  existe (sem a chave, 403 como qualquer rota).
+- **A subida falha** se a porta de gestão for a mesma do core: aí os detalhes e a consulta ao
+  banco voltariam a ser públicos.
+- Nenhum workflow do CI nem script do repositório usava o health; os testes passaram a usar
+  `/livez`.
 
 ## Convenções (herdadas do Trilha)
 
@@ -219,6 +300,9 @@ Erros de leitura: `period.invalid`, `period.too_long` e `page.invalid` (422),
 |---|---|
 | `WALLET_DB_URL`, `WALLET_DB_USERNAME` | Banco. Padrão: `jdbc:postgresql://localhost:5432/wallet_dev` e `wallet` |
 | `WALLET_DB_PASSWORD` | Senha do banco. Só em variável de ambiente |
+| `WALLET_DB_POOL_SIZE` | `spring.datasource.hikari.maximum-pool-size`, padrão 10. Os bulkheads `search` + `screens` precisam ficar abaixo dele; a espera por conexão é 3 s (`connection-timeout`, em ms) e depois 503 `service.busy` |
+| `WALLET_CORE_MANAGEMENT_PORT` | `management.server.port`, padrão 9081, sempre em `127.0.0.1`: `/actuator/health` com detalhes e a readiness. Igual à porta do core impede a subida |
+| `wallet.bulkhead.search`, `.screens`, `.manual-sync` | `max-concurrent` e `max-per-user` de cada bulkhead (padrões 3/2, 5/3 e 4/2). Ver [[#Disponibilidade]] |
 | `PLUGGY_CLIENT_ID`, `PLUGGY_CLIENT_SECRET` | Credenciais do Meu Pluggy. **Só em variável de ambiente**, nunca no git |
 | `WALLET_JWT_PRIVATE_KEY` | Chave privada RS256 que assina os access tokens. Só o core tem |
 | `WALLET_DATA_KEY` | Chave AES da criptografia de coluna |
@@ -351,5 +435,13 @@ criar o gasto fixo normalmente (o app abre o formulário preenchido); `DELETE ..
   se o Docker fechar no meio (AutoRemove). São os únicos containers que o core cria.
 - Teste de modularidade do Spring Modulith.
 - Contrato HTTP das rotas (quem acessa o quê, códigos de erro).
+- Disponibilidade (desde 2026-10-22): `BulkheadTest` (parte do usuário, total, vaga devolvida uma
+  vez, 20 requisições simultâneas de um usuário nunca passam de 2), `ReadApiIT` (busca paginada
+  com total exato, janela de 93 dias, bulkheads `search` e `screens` nas rotas, histórico de
+  patrimônio com três anos de snapshots lendo só o período e um anterior), `SyncFlowIT` (o
+  "Atualizar" sem vaga não abre rodada; a vaga fica presa até a rodada acabar), `DatabasePoolIT`
+  (pool de 2 cheio: 503 `service.busy` e `/livez` continua respondendo), `HealthEndpointsIT`
+  (servidor de verdade, as duas portas) e `ManagementSecurityConfigTest` (porta de gestão igual
+  à do core impede a subida).
 
 Modelo das tabelas em [[Modelo de Dados]].
