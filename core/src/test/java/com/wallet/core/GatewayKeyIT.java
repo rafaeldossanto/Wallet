@@ -18,7 +18,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** Whoever reaches the core's port without the gateway key gets nothing but the health check. */
+/** Whoever reaches the core's port without the gateway key gets nothing but the liveness probe. */
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
 class GatewayKeyIT {
@@ -78,9 +78,12 @@ class GatewayKeyIT {
     }
 
     @Test
-    void theHealthCheckStaysOpen() throws Exception {
-        withoutKey.perform(get("/actuator/health"))
+    void onlyTheLivenessProbeStaysOpen() throws Exception {
+        withoutKey.perform(get("/livez"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"));
+        withoutKey.perform(get("/actuator/health"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("gateway.forbidden"));
     }
 }

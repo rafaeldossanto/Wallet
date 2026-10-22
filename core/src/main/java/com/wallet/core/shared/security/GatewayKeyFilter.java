@@ -13,8 +13,9 @@ import java.io.IOException;
 
 /**
  * Refuses every request without the gateway key before anything else looks at it: no token
- * parsing, no BCrypt, no database. Only the health check stays open, for whoever watches the
- * process (it says nothing beyond UP or DOWN).
+ * parsing, no BCrypt, no database. The health checks never get here: they have a chain of their
+ * own ({@link ManagementSecurityConfig}), and the only one open on this port, {@code /livez},
+ * reads nothing.
  *
  * <p>Answers 403, not 401: the BFF relays the core's 401 as "session expired" and the app would
  * log the user out over what is a server misconfiguration.
@@ -25,18 +26,10 @@ import java.io.IOException;
 @Slf4j
 public class GatewayKeyFilter extends OncePerRequestFilter {
 
-    private static final String HEALTH = "/actuator/health";
-
     private final GatewayKey gatewayKey;
 
     public GatewayKeyFilter(GatewayKey gatewayKey) {
         this.gatewayKey = gatewayKey;
-    }
-
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getRequestURI();
-        return HEALTH.equals(path) || path.startsWith(HEALTH + "/");
     }
 
     @Override

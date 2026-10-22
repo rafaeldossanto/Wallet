@@ -21,6 +21,7 @@ import com.wallet.core.banking.repository.AccountRepository;
 import com.wallet.core.banking.repository.AccountTransactionRepository;
 import com.wallet.core.banking.repository.BankingAggregates;
 import com.wallet.core.banking.repository.CreditCardBillRepository;
+import com.wallet.core.banking.repository.TransactionDescriptions;
 import com.wallet.core.banking.repository.TransactionFilter;
 import com.wallet.core.shared.error.DomainException;
 import com.wallet.core.shared.error.ErrorType;
@@ -49,10 +50,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static java.util.Objects.nonNull;
-import static org.springframework.util.StringUtils.hasText;
 
 @Service
 @RequiredArgsConstructor
@@ -61,8 +62,16 @@ public class BankingReadService implements BankingQueries {
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Order.desc("bookedOn"), Sort.Order.desc("createdAt"),
             Sort.Order.asc("id"));
 
+    /**
+     * Rows one text search may decrypt. A busy month has a few hundred transactions; this is a
+     * person with several accounts over the longest search period (93 days), and costs a few
+     * milliseconds of decryption.
+     */
+    static final int MAX_SEARCHED_ROWS = 5_000;
+
     private final AccountRepository accounts;
     private final AccountTransactionRepository transactions;
+    private final TransactionDescriptions descriptions;
     private final CreditCardBillRepository bills;
     private final BankingAggregates aggregates;
     private final Clock clock;
@@ -72,23 +81,40 @@ public class BankingReadService implements BankingQueries {
         return accounts.findByUserIdOrderByCreatedAtAsc(userId).stream().map(BankingReadMapper::toResponse).toList();
     }
 
+    /** The database filters and pages. */
+    @Transactional(readOnly = true)
+    public PageResponse<TransactionResponse> listTransactions(TransactionFilter filter, PageQuery page) {
+        Page<AccountTransaction> result = transactions.findAll(filter.toSpecification(), page.toPageable(NEWEST_FIRST));
+        return PageResponse.of(result.map(BankingReadMapper::toResponse).getContent(), page, result.getTotalElements());
+    }
+
     /**
-     * Without {@code q} the database pages. With {@code q} every row of the period is decrypted
-     * and matched in memory, accents and case ignored; the period limit keeps that small.
+     * The description is encrypted, so the database cannot match it: the period's ids and
+     * descriptions are read and matched in memory, accents and case ignored, and only the page
+     * found is loaded in full. The total is exact, so the app's paging stays right.
+     *
+     * <p>A period with more than {@link #MAX_SEARCHED_ROWS} transactions is refused as
+     * {@code period.too_long} instead of searched in part: a search that silently skips rows would
+     * say "nothing found" about rows it never read.
      */
     @Transactional(readOnly = true)
     public PageResponse<TransactionResponse> searchTransactions(TransactionFilter filter, String q, PageQuery page) {
-        if (!hasText(q)) {
-            Page<AccountTransaction> result = transactions.findAll(filter.toSpecification(), page.toPageable(NEWEST_FIRST));
-            return PageResponse.of(result.map(BankingReadMapper::toResponse).getContent(), page, result.getTotalElements());
+        List<TransactionDescriptions.Row> rows = descriptions.of(filter, MAX_SEARCHED_ROWS + 1);
+        if (rows.size() > MAX_SEARCHED_ROWS) {
+            throw new DomainException(ErrorType.UNPROCESSABLE, "period.too_long",
+                    "A text search reads at most " + MAX_SEARCHED_ROWS + " transactions: narrow the period or the filters");
         }
         String needle = TextKeys.fold(q);
-        List<AccountTransaction> matching = transactions.findAll(filter.toSpecification(), NEWEST_FIRST).stream()
-                .filter(transaction -> nonNull(transaction.getDescription()) && TextKeys.fold(transaction.getDescription()).contains(needle))
+        List<UUID> matching = rows.stream()
+                .filter(row -> nonNull(row.description()) && TextKeys.fold(row.description()).contains(needle))
+                .map(TransactionDescriptions.Row::id)
                 .toList();
         int start = Math.min((page.page() - 1) * page.pageSize(), matching.size());
         int end = Math.min(start + page.pageSize(), matching.size());
-        return PageResponse.of(matching.subList(start, end).stream().map(BankingReadMapper::toResponse).toList(),
+        List<UUID> pageIds = matching.subList(start, end);
+        Map<UUID, AccountTransaction> found = transactions.findAllById(pageIds).stream()
+                .collect(Collectors.toMap(AccountTransaction::getId, Function.identity()));
+        return PageResponse.of(pageIds.stream().map(found::get).map(BankingReadMapper::toResponse).toList(),
                 page, matching.size());
     }
 
@@ -133,7 +159,7 @@ public class BankingReadService implements BankingQueries {
 
     @Override
     public List<BalancePoint> balanceHistory(UUID userId, DateRange period) {
-        List<BankingAggregates.SnapshotRow> rows = aggregates.snapshotsUpTo(userId, period.to());
+        List<BankingAggregates.SnapshotRow> rows = aggregates.snapshotsIn(userId, period);
         Map<UUID, BankingAggregates.SnapshotRow> latestPerAccount = new HashMap<>();
         List<BalancePoint> points = new ArrayList<>();
         int next = 0;

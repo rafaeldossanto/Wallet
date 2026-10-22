@@ -30,6 +30,8 @@ import com.wallet.core.shared.finance.Direction;
 import com.wallet.core.shared.finance.InvestmentKind;
 import com.wallet.core.shared.finance.TransactionStatus;
 import com.wallet.core.shared.money.Money;
+import com.wallet.core.shared.web.Bulkhead;
+import com.wallet.core.shared.web.Bulkheads;
 import com.wallet.core.sync.entity.SyncRun;
 import com.wallet.core.sync.repository.SyncRunRepository;
 import com.wallet.core.sync.service.SyncService;
@@ -41,6 +43,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -52,6 +55,7 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -68,6 +72,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -94,6 +99,7 @@ class SyncFlowIT {
     @Autowired private SyncRunRepository runs;
     @Autowired private JdbcTemplate jdbc;
     @Autowired private TransactionTemplate transactionTemplate;
+    @Autowired private Bulkheads bulkheads;
 
     @MockitoBean
     private FinancialDataProvider provider;
@@ -317,6 +323,65 @@ class SyncFlowIT {
                 .andExpect(jsonPath("$.code").value("sync.in_progress"));
     }
 
+    /** Refused before anything starts: no run is left behind as RUNNING, and the provider is never called. */
+    @Test
+    void aUserWithTheirManualSyncsRunningCannotStartAnother() throws Exception {
+        Bulkhead.Permit first = bulkheads.manualSync().enter(userId);
+        Bulkhead.Permit second = bulkheads.manualSync().enter(userId);
+        try {
+            mockMvc.perform(post("/internal/connections/" + connectionId + "/sync").with(as(userId)))
+                    .andExpect(status().isTooManyRequests())
+                    .andExpect(header().string(HttpHeaders.RETRY_AFTER, "1"))
+                    .andExpect(jsonPath("$.code").value("rate_limit.exceeded"));
+        } finally {
+            first.close();
+            second.close();
+        }
+        assertThat(runs.findByConnectionIdOrderByStartedAtDesc(connectionId)).isEmpty();
+        verify(provider, never()).listAccounts(any());
+    }
+
+    @Test
+    void everyManualSyncSlotTakenIsBusyForEveryone() throws Exception {
+        List<Bulkhead.Permit> running = new ArrayList<>();
+        for (int user = 0; user < 2; user++) {
+            UUID someoneElse = UUID.randomUUID();
+            running.add(bulkheads.manualSync().enter(someoneElse));
+            running.add(bulkheads.manualSync().enter(someoneElse));
+        }
+        try {
+            mockMvc.perform(post("/internal/connections/" + connectionId + "/sync").with(as(userId)))
+                    .andExpect(status().isServiceUnavailable())
+                    .andExpect(jsonPath("$.code").value("service.busy"));
+        } finally {
+            running.forEach(Bulkhead.Permit::close);
+        }
+        assertThat(runs.findByConnectionIdOrderByStartedAtDesc(connectionId)).isEmpty();
+    }
+
+    /** The slot is taken by the background run, not only by the request that answered 202. */
+    @Test
+    void aManualSyncHoldsItsSlotUntilTheRunEnds() throws Exception {
+        stubStandardData();
+        CountDownLatch reading = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        when(provider.listAccounts(itemId)).thenAnswer(invocation -> {
+            reading.countDown();
+            assertThat(release.await(10, TimeUnit.SECONDS)).isTrue();
+            return List.of(checking(), card());
+        });
+        int free = bulkheads.manualSync().availableSlots();
+
+        mockMvc.perform(post("/internal/connections/" + connectionId + "/sync").with(as(userId)))
+                .andExpect(status().isAccepted());
+        assertThat(reading.await(10, TimeUnit.SECONDS)).isTrue();
+        assertThat(bulkheads.manualSync().availableSlots()).isEqualTo(free - 1);
+
+        release.countDown();
+        assertThat(awaitFinished().getStatus()).isEqualTo(SyncRunStatus.SUCCEEDED);
+        awaitFreeSlots(free);
+    }
+
     @Test
     void nobodyCanSyncSomeoneElsesConnection() throws Exception {
         mockMvc.perform(post("/internal/connections/" + connectionId + "/sync").with(as(TestUsers.register(mockMvc))))
@@ -496,6 +561,17 @@ class SyncFlowIT {
             Thread.sleep(50);
         }
         throw new AssertionError("Sync of connection " + connectionId + " did not finish");
+    }
+
+    /** The run's status is written a moment before its slot is given back. */
+    private void awaitFreeSlots(int expected) throws InterruptedException {
+        for (int attempt = 0; attempt < 200; attempt++) {
+            if (bulkheads.manualSync().availableSlots() == expected) {
+                return;
+            }
+            Thread.sleep(50);
+        }
+        throw new AssertionError("The manual sync's slot was never given back");
     }
 
     private static void awaitLogged(CapturedOutput output, String text) throws InterruptedException {

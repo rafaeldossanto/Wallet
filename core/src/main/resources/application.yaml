@@ -10,6 +10,16 @@ spring:
     url: ${WALLET_DB_URL:jdbc:postgresql://localhost:5432/wallet_dev}
     username: ${WALLET_DB_USERNAME:wallet}
     password: ${WALLET_DB_PASSWORD:}
+    hikari:
+      # Virtual threads put no ceiling on concurrent requests, so the pool is the ceiling on the
+      # database. Sized on purpose, not left to the default: the expensive requests are capped
+      # below it (wallet.bulkhead.*), so logins, cheap reads and sync writes always find a
+      # connection. Each instance holds this many against Postgres' max_connections (100).
+      maximum-pool-size: ${WALLET_DB_POOL_SIZE:10}
+      # Milliseconds. Waiting longer for a connection than the BFF waits for the core (5s) only
+      # turns a busy pool into a "core down" for the BFF's circuit breaker: after 3s the request
+      # gets 503 service.busy instead.
+      connection-timeout: 3000
   jpa:
     open-in-view: false
     hibernate:
@@ -36,13 +46,28 @@ server:
     max-swallow-size: ${wallet.http.max-body-size}
 
 wallet:
+  bulkhead:
+    # The expensive kinds of request, and how many run at once: in all (max-concurrent) and per
+    # user (max-per-user). Past either the core answers at once, 429 rate_limit.exceeded for the
+    # user's share and 503 service.busy for all of it, with Retry-After. search + screens stay
+    # below the pool above (10), so the rest of the core is never left without a connection.
+    search:
+      max-concurrent: 3
+      max-per-user: 2
+    screens:
+      max-concurrent: 5
+      max-per-user: 3
+    # Held until the background run ends (Pluggy calls and writes), not only for the request.
+    manual-sync:
+      max-concurrent: 4
+      max-per-user: 2
   http:
     # Largest request body: a larger Content-Length is refused with 413 before anything reads it,
     # and a chunked body is cut at this size while it is read (RequestBodyLimitFilter).
     max-body-size: ${WALLET_MAX_BODY_SIZE:256KB}
   gateway:
     # Shared secret the BFF sends in X-Gateway-Key; every request without it is refused with 403
-    # (only /actuator/health stays open). Same value in both services. Empty = development key
+    # (only the liveness probe, /livez, stays open). Same value in both services. Empty = development key
     # (local only); with SPRING_PROFILES_ACTIVE=prod an empty, short (< 32 chars) or development
     # key stops the boot.
     key: ${WALLET_GATEWAY_KEY:}
@@ -94,7 +119,30 @@ wallet:
     api-key-ttl: 2h
 
 management:
+  server:
+    # The actuator lives on a port of its own, on loopback only: the full health (database,
+    # disk) and the readiness probe answer whoever is on this machine (a script, systemd, a
+    # Docker HEALTHCHECK), never the network. The core's own port only has /livez. It must differ
+    # from server.port: the boot fails otherwise (ManagementSecurityConfig).
+    port: ${WALLET_CORE_MANAGEMENT_PORT:9081}
+    address: 127.0.0.1
   endpoints:
     web:
       exposure:
         include: health
+  endpoint:
+    health:
+      # Only reachable from the machine itself (above), so it can say what is down.
+      show-details: always
+      probes:
+        enabled: true
+      group:
+        # Is the process alive? Answered from memory, no database: also served on the core's own
+        # port at /livez, open to whoever reaches it (no gateway key), so it must stay cheap.
+        liveness:
+          include: livenessState
+          show-details: never
+          additional-path: "server:/livez"
+        # Can it take requests? Includes the database; management port only.
+        readiness:
+          include: readinessState, db

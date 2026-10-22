@@ -208,8 +208,8 @@ class AuthFlowIT {
     }
 
     @Test
-    void healthStaysPublic() throws Exception {
-        mockMvc.perform(get("/actuator/health")).andExpect(status().isOk());
+    void livenessStaysPublic() throws Exception {
+        mockMvc.perform(get("/livez")).andExpect(status().isOk());
     }
 
     @Test
