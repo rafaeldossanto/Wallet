@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/l10n/l10n.dart';
+import '../../../core/widgets/wallet_logo.dart';
 
 /// The centered column the login and sign-up forms share.
 class AuthLayout extends StatelessWidget {
@@ -22,7 +23,7 @@ class AuthLayout extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Icon(Icons.account_balance_wallet_outlined, size: 48, color: theme.colorScheme.primary),
+                  const Center(child: WalletLogo(size: 64)),
                   const SizedBox(height: 12),
                   Text(context.l10n.appTitle, textAlign: TextAlign.center, style: theme.textTheme.headlineMedium),
                   const SizedBox(height: 4),

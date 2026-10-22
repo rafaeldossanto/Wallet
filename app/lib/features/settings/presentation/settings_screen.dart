@@ -12,6 +12,8 @@ import '../../../core/updates/update_views.dart';
 import '../../../core/updates/updater.dart';
 import '../../../core/widgets/common.dart';
 import 'delete_account_dialog.dart';
+import 'profile_dialogs.dart';
+import 'two_factor_dialogs.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -39,10 +41,26 @@ class SettingsScreen extends StatelessWidget {
                 SectionCard(
                   title: l10n.settingsAccount,
                   flush: true,
-                  child: ListTile(
-                    leading: const Icon(Icons.person_outline),
-                    title: Text(user?.displayName ?? '—'),
-                    subtitle: Text(user?.email ?? ''),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.person_outline),
+                        title: Text(user?.displayName ?? '—'),
+                        subtitle: Text(l10n.settingsEditName),
+                        trailing: const Icon(Icons.edit_outlined),
+                        onTap: user == null ? null : () => showRenameDialog(context, user.displayName),
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.alternate_email),
+                        title: Text(user?.email ?? ''),
+                        subtitle: Text(switch (user?.pendingEmail) {
+                          final pending? => l10n.settingsPendingEmail(pending),
+                          null => l10n.settingsChangeEmail,
+                        }),
+                        trailing: const Icon(Icons.edit_outlined),
+                        onTap: user == null ? null : () => showChangeEmailDialog(context),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -88,6 +106,15 @@ class SettingsScreen extends StatelessWidget {
                           title: Text(l10n.settingsWebSession),
                           subtitle: Text(l10n.settingsWebSessionHelp),
                         ),
+                      SwitchListTile(
+                        secondary: const Icon(Icons.verified_user_outlined),
+                        title: Text(l10n.settingsTwoFactor),
+                        subtitle: Text(user?.twoFactorEnabled == true ? l10n.settingsTwoFactorOn : l10n.settingsTwoFactorOff),
+                        value: user?.twoFactorEnabled == true,
+                        onChanged: user == null
+                            ? null
+                            : (on) => on ? showEnableTwoFactorDialog(context) : showDisableTwoFactorDialog(context),
+                      ),
                       ListTile(
                         leading: const Icon(Icons.logout),
                         title: Text(l10n.settingsSignOut),

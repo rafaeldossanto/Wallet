@@ -65,13 +65,40 @@ class SessionController extends ChangeNotifier {
     }
   }
 
-  Future<void> signIn(String email, String password) async {
-    await _start(await _api.login(email.trim(), password));
+  /// [code] once the core answered `auth.two_factor_required`: the authenticator's, or a recovery code.
+  Future<void> signIn(String email, String password, {String? code}) async {
+    await _start(await _api.login(email.trim(), password, code: code));
   }
 
-  Future<void> register({required String displayName, required String email, required String password}) async {
-    await _api.register(displayName: displayName.trim(), email: email.trim(), password: password);
-    await signIn(email, password);
+  /// Does not sign in: the account waits for the link sent to [email], and the answer is the same
+  /// whether or not the e-mail already had an account.
+  Future<void> register({required String displayName, required String email, required String password}) =>
+      _api.register(displayName: displayName.trim(), email: email.trim(), password: password);
+
+  Future<void> resendConfirmation(String email) => _api.resendConfirmation(email.trim());
+
+  Future<void> rename(String displayName) async {
+    _setUser(await _api.rename(displayName.trim()));
+  }
+
+  /// The account moves once the link sent to [newEmail] is opened; until then [UserProfile.pendingEmail].
+  Future<void> changeEmail(String newEmail, String password) async {
+    await _api.changeEmail(newEmail.trim(), password);
+    await _reloadUser();
+  }
+
+  Future<TwoFactorSetup> setUpTwoFactor(String password) => _api.setUpTwoFactor(password);
+
+  /// Returns the recovery codes, which only this answer carries.
+  Future<List<String>> enableTwoFactor(String code) async {
+    final recoveryCodes = await _api.enableTwoFactor(code.trim());
+    await _reloadUser();
+    return recoveryCodes;
+  }
+
+  Future<void> disableTwoFactor(String password, String code) async {
+    await _api.disableTwoFactor(password, code.trim());
+    await _reloadUser();
   }
 
   /// After a 401: renews the session unless another call already did it since [sentAuthorization]
@@ -144,6 +171,19 @@ class SessionController extends ChangeNotifier {
     _lastSignOutReason = null;
     _deletionUnconfirmed = false;
     _setStatus(SessionStatus.signedIn);
+  }
+
+  Future<void> _reloadUser() async {
+    try {
+      _setUser(await _api.me());
+    } on ApiException {
+      // The change went through; the profile shows it on the next load.
+    }
+  }
+
+  void _setUser(UserProfile user) {
+    _user = user;
+    notifyListeners();
   }
 
   Future<void> _end(SignOutReason reason) async {

@@ -19,13 +19,20 @@ class _LoginScreenState extends State<LoginScreen> {
   final _form = GlobalKey<FormState>();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _code = TextEditingController();
+  final _codeFocus = FocusNode();
   bool _submitting = false;
   String? _error;
+
+  /// The account has the second factor on: the core asked for the authenticator's code.
+  bool _needsCode = false;
 
   @override
   void dispose() {
     _email.dispose();
     _password.dispose();
+    _code.dispose();
+    _codeFocus.dispose();
     super.dispose();
   }
 
@@ -38,9 +45,21 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
     try {
-      await context.read<SessionController>().signIn(_email.text, _password.text);
+      await context
+          .read<SessionController>()
+          .signIn(_email.text, _password.text, code: _needsCode ? _code.text.trim() : null);
     } on ApiException catch (error) {
-      if (mounted) {
+      if (!mounted) {
+        return;
+      }
+      if (error.code == 'auth.two_factor_required') {
+        // The password was right; the same form takes the code and is sent again.
+        setState(() => _needsCode = true);
+        _codeFocus.requestFocus();
+      } else {
+        if (error.code == 'auth.invalid_two_factor_code') {
+          _code.clear();
+        }
         setState(() => _error = context.l10n.errorMessage(error));
       }
     } finally {
@@ -84,10 +103,23 @@ class _LoginScreenState extends State<LoginScreen> {
                   decoration: InputDecoration(labelText: l10n.fieldPassword),
                   obscureText: true,
                   autofillHints: const [AutofillHints.password],
-                  textInputAction: TextInputAction.done,
-                  onFieldSubmitted: (_) => _submit(),
+                  textInputAction: _needsCode ? TextInputAction.next : TextInputAction.done,
+                  onFieldSubmitted: (_) => _needsCode ? _codeFocus.requestFocus() : _submit(),
                   validator: (value) => (value ?? '').isEmpty ? l10n.validationRequired : null,
                 ),
+                if (_needsCode) ...[
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _code,
+                    focusNode: _codeFocus,
+                    decoration: InputDecoration(labelText: l10n.fieldTwoFactorCode, helperText: l10n.loginTwoFactorHelp,
+                        helperMaxLines: 3),
+                    autofillHints: const [AutofillHints.oneTimeCode],
+                    textInputAction: TextInputAction.done,
+                    onFieldSubmitted: (_) => _submit(),
+                    validator: (value) => (value ?? '').trim().isEmpty ? l10n.validationRequired : null,
+                  ),
+                ],
               ],
             ),
           ),
@@ -102,11 +134,93 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         const SizedBox(height: 12),
         TextButton(onPressed: () => context.go('/register'), child: Text(l10n.loginGoToRegister)),
+        TextButton(
+          onPressed: () => showDialog<void>(context: context, builder: (_) => const _ResendConfirmationDialog()),
+          child: Text(l10n.loginNoConfirmation),
+        ),
         if (context.watch<ServerAddress?>() case final server?) ...[
           const SizedBox(height: 8),
           _ServerLine(server: server),
         ],
       ],
+    );
+  }
+}
+
+/// Another confirmation link, for whoever lost the first. The same notice for every e-mail, as
+/// the server's answer is the same.
+class _ResendConfirmationDialog extends StatefulWidget {
+  const _ResendConfirmationDialog();
+
+  @override
+  State<_ResendConfirmationDialog> createState() => _ResendConfirmationDialogState();
+}
+
+class _ResendConfirmationDialogState extends State<_ResendConfirmationDialog> {
+  final _email = TextEditingController();
+  bool _sending = false;
+  String? _notice;
+  String? _error;
+
+  @override
+  void dispose() {
+    _email.dispose();
+    super.dispose();
+  }
+
+  Future<void> _send() async {
+    if (!_email.text.contains('@')) {
+      setState(() => _error = context.l10n.validationEmail);
+      return;
+    }
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    try {
+      await context.read<SessionController>().resendConfirmation(_email.text);
+      if (mounted) {
+        setState(() => _notice = context.l10n.confirmationResent);
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() => _error = context.l10n.errorMessage(error));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _sending = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return AlertDialog(
+      title: Text(l10n.resendDialogTitle),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(_notice ?? l10n.resendDialogHelp),
+          if (_notice == null) ...[
+            const SizedBox(height: 16),
+            TextField(
+              controller: _email,
+              autofocus: true,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(labelText: l10n.fieldEmail, errorText: _error),
+              onSubmitted: (_) => _send(),
+            ),
+          ],
+        ],
+      ),
+      actions: _notice != null
+          ? [FilledButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.twoFactorDone))]
+          : [
+              TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.actionCancel)),
+              FilledButton(onPressed: _sending ? null : _send, child: Text(l10n.resendAction)),
+            ],
     );
   }
 }

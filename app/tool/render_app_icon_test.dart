@@ -13,11 +13,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
-
-const _ink = ui.Color(0xFF0B0B0C);
-const _lime = ui.Color(0xFFD4F34A);
-const _blue = ui.Color(0xFF3D5AFE);
-const _white = ui.Color(0xFFFFFFFF);
+import 'package:wallet/core/widgets/wallet_logo.dart';
 
 /// How a place shows the icon: how large the cards are drawn, and whether the icon brings its own
 /// rounded tile (transparent outside it) or fills the square for the system to mask.
@@ -91,38 +87,8 @@ int _pixelSize(File png) {
   return width;
 }
 
-/// The chosen drawing, on a 100×100 grid: three cards fanned out (lime at the back, blue, then
-/// white with a chip in front) over the near-black of the app.
-void _paintIcon(ui.Canvas canvas, _Look look) {
-  if (look.rounded) {
-    canvas.drawRRect(
-      ui.RRect.fromRectAndRadius(const ui.Rect.fromLTWH(0, 0, 100, 100), const ui.Radius.circular(22)),
-      ui.Paint()..color = _ink,
-    );
-  } else {
-    canvas.drawRect(const ui.Rect.fromLTWH(0, 0, 100, 100), ui.Paint()..color = _ink);
-  }
-  canvas
-    ..save()
-    ..translate(50, 50)
-    ..scale(look.scale)
-    ..translate(-50, -50);
-  void card(ui.Rect rect, double radius, double degrees, ui.Offset pivot, ui.Color color) {
-    canvas
-      ..save()
-      ..translate(pivot.dx, pivot.dy)
-      ..rotate(degrees * math.pi / 180)
-      ..translate(-pivot.dx, -pivot.dy)
-      ..drawRRect(ui.RRect.fromRectAndRadius(rect, ui.Radius.circular(radius)), ui.Paint()..color = color)
-      ..restore();
-  }
-
-  card(const ui.Rect.fromLTWH(24, 30, 54, 34), 7, -16, const ui.Offset(51, 47), _lime);
-  card(const ui.Rect.fromLTWH(24, 35, 54, 34), 7, -6, const ui.Offset(51, 52), _blue);
-  card(const ui.Rect.fromLTWH(23, 40, 54, 34), 7, 4, const ui.Offset(50, 57), _white);
-  card(const ui.Rect.fromLTWH(31, 50, 11, 8), 2, 4, const ui.Offset(50, 57), _ink);
-  canvas.restore();
-}
+/// The chosen drawing, the same the app shows ([paintWalletIcon], also used by `WalletLogo`).
+void _paintIcon(ui.Canvas canvas, _Look look) => paintWalletIcon(canvas, scale: look.scale, rounded: look.rounded);
 
 Future<Uint8List> _render(int size, _Look look, {bool withAlpha = false}) async {
   final scale = math.max(2, (_supersampledWidth / size).ceil());
