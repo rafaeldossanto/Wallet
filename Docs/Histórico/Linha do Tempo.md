@@ -250,3 +250,32 @@ atualizado: 2026-10-19
   - o log da Pluggy registra só o status e o código, nunca a mensagem.
 
   Ver [[Fluxo de Conexão]] e [[Sincronização]].
+
+## 2026-10-22
+
+- As outras duas sessões da rodada de pendências técnicas terminaram.
+- **Um usuário pesado não derruba mais os outros** (A10, A11, A12, A13 e A18):
+  - a busca do extrato vale para até 93 dias, decifra no máximo 5000 linhas e tem limite de
+    buscas ao mesmo tempo e por minuto;
+  - o pool do banco é explícito, e pool cheio responde 503 `service.busy` em poucos segundos;
+  - as rotas caras têm vagas próprias (busca, telas compostas e "Atualizar");
+  - o BFF tem um circuito por grupo de rotas, então a Pluggy fora do ar não derruba o resto do
+    app;
+  - o histórico de patrimônio lê só o período pedido;
+  - o `month` inválido para no BFF;
+  - a saúde pública virou `/livez`, que não toca no banco, e os detalhes ficam numa porta de
+    gestão só no `127.0.0.1`.
+
+  Ver [[Core]] e [[BFF]].
+- **Conta e login** (A4, A5, A14, A16, L1-c, L11, segundo fator e logo novo):
+  - **e-mail:** módulo `mail` no core, por SMTP de qualquer provedor, e só no log fora de
+    produção;
+  - **cadastro e entrada:** o cadastro responde igual para qualquer e-mail e só entra quem
+    confirma pelo link. O bloqueio conta por e-mail + IP, dobra a cada vez e avisa o dono, e
+    um limite global protege o BCrypt;
+  - **Ajustes:** nome e e-mail podem ser trocados (o e-mail com confirmação), e há segundo fator
+    TOTP com códigos de recuperação;
+  - **token:** tem `aud`, e o de uma conta excluída responde 401 limpo, não 500;
+  - **logo:** login, cadastro e trilho usam os cartões empilhados.
+
+  Migration V10. Ver [[Autenticação]].

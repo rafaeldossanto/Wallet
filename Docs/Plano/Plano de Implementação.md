@@ -591,10 +591,17 @@ dos boletos, e se a tolerância de 3 dias e do dobro do valor bastam.
   webhooks.)
 - Webhooks no core com header secreto, lista de IPs e fila de eventos idempotente. O
   BFF encaminha a rota pública do webhook para o core.
-- Segundo fator no login web (passkey ou TOTP).
-- Achados da auditoria de segurança de 2026-10-19: ~~A6, A7, A8, A9, A17 e A20~~ feitos em
-  2026-10-21 (limites de conexão, dono conferido antes do "já vinculado", `MEU_PLUGGY` recusado em
-  produção, log da Pluggy só com status e código).
+- ~~Segundo fator no login web (passkey ou TOTP)~~ feito em 2026-10-22: TOTP com códigos de
+  recuperação, em qualquer plataforma, ligado em Ajustes ([[Autenticação]]).
+- Achados da auditoria de segurança de 2026-10-19:
+  - ~~A6, A7, A8, A9, A17 e A20~~ feitos em 2026-10-21: limites de conexão, dono conferido antes
+    do "já vinculado", `MEU_PLUGGY` recusado em produção, log da Pluggy só com status e código;
+  - ~~A10, A11, A12, A13 e A18~~ feitos em 2026-10-22: busca limitada, pool e vagas por rota,
+    circuito por grupo, patrimônio só do período, `/livez`;
+  - ~~A4, A5, A14 e A16~~ e, da LGPD, ~~L1-c e L11~~ feitos em 2026-10-22: limite antes do
+    BCrypt, bloqueio progressivo, `aud`, cadastro neutro com confirmação por e-mail, 401 para
+    conta excluída, editar perfil;
+  - falta o A21, junto com os webhooks.
 - LGPD: excluir conta, exportar dados, política de privacidade, termos, tela de
   consentimento com a finalidade ([[Consentimento]]).
 - Deploy: VPS, HTTPS no BFF, core e Postgres só na rede interna, backups, logs sem
