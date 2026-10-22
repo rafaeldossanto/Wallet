@@ -56,6 +56,13 @@ wallet:
     auth-limit: 20
     # Per user (or per IP when anonymous) on everything else.
     default-limit: 300
+    # Per user, on top of default-limit: each link makes the core read up to a year of the bank at
+    # Pluggy, and each widget token is a call to Pluggy, all on the apiKey every user shares.
+    # Going over answers 429 rate_limit.connections.
+    link-limit: 10
+    link-window: 1h
+    connect-token-limit: 10
+    connect-token-window: 1h
     # Reverse proxies whose X-Forwarded-For is believed, as IPs or CIDR ranges separated by
     # commas (e.g. 127.0.0.1,10.0.0.0/8). Only the hops they appended count: the client is the
     # first address from the right that is not one of them. Empty = the connection's own address,
