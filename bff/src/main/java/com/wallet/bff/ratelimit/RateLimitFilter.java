@@ -18,6 +18,8 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Optional;
 
+import static org.springframework.util.StringUtils.hasText;
+
 /**
  * Runs inside the security chain, right after the token is read, so it can count per user.
  * Login and the other {@code /api/auth} routes count per IP with a lower limit: that is where
@@ -25,6 +27,8 @@ import java.util.Optional;
  *
  * <p>Linking a bank and asking for a Pluggy Connect token also count per user against limits of
  * their own, low and over a longer window ({@link RateLimitProperties}), on top of the general one.
+ * So does the statement's text search, over the general window: the core decrypts the period to
+ * answer each one. The health checks never get here: they have a chain of their own.
  *
  * <p>The address comes from {@link ClientAddress}: the connection's own, unless it is one of the
  * configured trusted proxies. A client cannot pick a fresh address per request by writing
@@ -53,7 +57,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         String path = UrlPathHelper.defaultInstance.getPathWithinApplication(request);
-        if (!properties.enabled() || path.startsWith("/actuator")) {
+        if (!properties.enabled()) {
             chain.doFilter(request, response);
             return;
         }
@@ -64,22 +68,27 @@ public class RateLimitFilter extends OncePerRequestFilter {
             reject(response, GENERAL, properties.window());
             return;
         }
-        Optional<RouteLimit> route = routeLimitOf(request.getMethod(), path);
+        Optional<RouteLimit> route = routeLimitOf(request, path);
         if (route.isPresent() && !acquire(route.get().name() + ":" + caller(request), route.get().limit(), route.get().window())) {
-            reject(response, CONNECTIONS, route.get().window());
+            reject(response, route.get().body(), route.get().window());
             return;
         }
         chain.doFilter(request, response);
     }
 
-    private Optional<RouteLimit> routeLimitOf(String method, String path) {
-        if (!HttpMethod.POST.matches(method)) {
+    private Optional<RouteLimit> routeLimitOf(HttpServletRequest request, String path) {
+        if (HttpMethod.GET.matches(request.getMethod()) && "/api/transactions".equals(path)
+                && hasText(request.getParameter("q"))) {
+            return Optional.of(new RouteLimit("search", properties.searchLimit(), properties.window(), GENERAL));
+        }
+        if (!HttpMethod.POST.matches(request.getMethod())) {
             return Optional.empty();
         }
         return switch (path) {
-            case "/api/connections" -> Optional.of(new RouteLimit("link", properties.linkLimit(), properties.linkWindow()));
-            case "/api/connections/connect-token" ->
-                    Optional.of(new RouteLimit("connect-token", properties.connectTokenLimit(), properties.connectTokenWindow()));
+            case "/api/connections" ->
+                    Optional.of(new RouteLimit("link", properties.linkLimit(), properties.linkWindow(), CONNECTIONS));
+            case "/api/connections/connect-token" -> Optional.of(new RouteLimit("connect-token",
+                    properties.connectTokenLimit(), properties.connectTokenWindow(), CONNECTIONS));
             default -> Optional.empty();
         };
     }
@@ -107,6 +116,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
         response.getWriter().write(body);
     }
 
-    private record RouteLimit(String name, int limit, Duration window) {
+    private record RouteLimit(String name, int limit, Duration window, String body) {
     }
 }

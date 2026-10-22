@@ -1,11 +1,8 @@
 package com.wallet.bff.config;
 
-import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestOperations;
 import org.springframework.web.client.RestTemplate;
@@ -67,22 +64,5 @@ public class RestClientConfig {
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
         requestFactory.setReadTimeout(readTimeout);
         return requestFactory;
-    }
-
-    /**
-     * Opens when the core stops answering (I/O errors and timeouts only). Business errors such as
-     * 401 or 409 are answers, not failures: they never open the circuit.
-     */
-    @Bean
-    CircuitBreaker coreCircuitBreaker() {
-        CircuitBreakerConfig config = CircuitBreakerConfig.custom()
-                .slidingWindowSize(20)
-                .minimumNumberOfCalls(10)
-                .failureRateThreshold(50)
-                .waitDurationInOpenState(Duration.ofSeconds(10))
-                .permittedNumberOfCallsInHalfOpenState(3)
-                .recordExceptions(ResourceAccessException.class)
-                .build();
-        return CircuitBreaker.of("core", config);
     }
 }

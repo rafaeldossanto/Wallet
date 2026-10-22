@@ -9,6 +9,7 @@ import com.wallet.bff.model.dto.response.FixedExpenseSuggestionResponse;
 import com.wallet.bff.model.dto.response.PlanningResponse;
 import com.wallet.bff.service.PlanningService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,9 +33,10 @@ public class PlanningController {
 
     private final PlanningService planningService;
 
-    /** {@code month=2026-10}; the core validates it and defaults to the current month. */
+    /** {@code month=2026-10}; defaults to the current month (in the core). */
     @GetMapping
-    public PlanningResponse month(@CurrentUserId UUID userId, @RequestParam(required = false) String month) {
+    public PlanningResponse month(@CurrentUserId UUID userId,
+                                  @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM") YearMonth month) {
         return planningService.month(userId, month);
     }
 

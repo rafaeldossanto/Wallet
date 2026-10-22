@@ -12,11 +12,13 @@ import com.wallet.bff.model.dto.response.TransactionResponse;
 import com.wallet.bff.service.InvestmentPeriod;
 import com.wallet.bff.service.ScreenService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.YearMonth;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -75,8 +77,10 @@ public class ScreenController {
         return screenService.investmentHistory(userId, InvestmentPeriod.parse(period));
     }
 
+    /** {@code month=2026-09}; defaults to the current month (in the core). */
     @GetMapping("/api/insights")
-    public InsightsResponse insights(@CurrentUserId UUID userId, @RequestParam(required = false) String month) {
+    public InsightsResponse insights(@CurrentUserId UUID userId,
+                                     @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM") YearMonth month) {
         return screenService.insights(userId, month);
     }
 }

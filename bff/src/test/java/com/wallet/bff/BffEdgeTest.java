@@ -36,9 +36,12 @@ class BffEdgeTest extends BffTestSupport {
             "{\"id\":\"%s\",\"email\":\"rafael@example.com\",\"displayName\":\"Rafael\",\"createdAt\":\"2026-10-01T12:00:00Z\"}";
 
     @Test
-    void healthIsPublic() throws Exception {
+    void onlyTheLivenessProbeIsPublic() throws Exception {
+        mockMvc.perform(get("/livez"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("{\"status\":\"UP\"}", true));
         mockMvc.perform(get("/actuator/health"))
-                .andExpect(status().isOk());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -88,7 +91,7 @@ class BffEdgeTest extends BffTestSupport {
 
     @Test
     void replacesATraceIdThatCouldForgeLogLines() throws Exception {
-        mockMvc.perform(get("/actuator/health")
+        mockMvc.perform(get("/livez")
                         .header("X-Trace-Id", "not safe; rm -rf"))
                 .andExpect(header().string("X-Trace-Id", matchesPattern("[0-9a-f]{8}")));
     }

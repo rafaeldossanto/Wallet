@@ -18,6 +18,8 @@ import static java.util.Objects.isNull;
  *
  * @param linkLimit          {@code POST /api/connections} per user and {@code linkWindow}
  * @param connectTokenLimit  {@code POST /api/connections/connect-token} per user and {@code connectTokenWindow}
+ * @param searchLimit        text searches ({@code GET /api/transactions} with {@code q}) per user and
+ *                           {@code window}: each one makes the core decrypt the period's descriptions
  * @param trustedProxies     the reverse proxies whose {@code X-Forwarded-For} is believed, as IPs or
  *                           CIDR ranges ({@link ClientAddress}). Empty = the connection's own address,
  *                           whatever the header says
@@ -32,6 +34,7 @@ public record RateLimitProperties(
         @DefaultValue("1h") Duration linkWindow,
         @DefaultValue("10") int connectTokenLimit,
         @DefaultValue("1h") Duration connectTokenWindow,
+        @DefaultValue("30") int searchLimit,
         @DefaultValue List<String> trustedProxies) {
 
     public RateLimitProperties {

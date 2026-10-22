@@ -13,7 +13,8 @@ import com.nimbusds.jwt.SignedJWT;
 import com.wallet.bff.config.GatewayKey;
 import com.wallet.bff.config.RequestBodyLimitFilter;
 import com.wallet.bff.trace.TraceIdFilter;
-import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import com.wallet.bff.client.CoreCallGuards;
+import com.wallet.bff.client.CoreRouteGroup;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -62,7 +63,7 @@ public abstract class BffTestSupport {
     private WebApplicationContext context;
 
     @Autowired
-    private CircuitBreaker coreCircuitBreaker;
+    private CoreCallGuards coreCallGuards;
 
     @Autowired
     private TraceIdFilter traceIdFilter;
@@ -80,7 +81,9 @@ public abstract class BffTestSupport {
     void resetFakeCore() {
         CORE.resetAll();
         stubJwks(SIGNING_KEY);
-        coreCircuitBreaker.reset();
+        for (CoreRouteGroup group : CoreRouteGroup.values()) {
+            coreCallGuards.circuit(group).reset();
+        }
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(traceIdFilter, requestBodyLimitFilter)
                 .apply(springSecurity())
