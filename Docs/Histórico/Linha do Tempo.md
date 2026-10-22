@@ -236,3 +236,17 @@ atualizado: 2026-10-19
   e eles somem sozinhos. Com `SPRING_PROFILES_ACTIVE=prod`, o core não sobe sem as chaves do JWT
   e de criptografia, em vez de inventar uma chave temporária, como já acontecia com a chave de
   gateway. As tabelas continuam sendo criadas pelo Flyway. Ver [[Core]].
+- O Rafael pediu para fechar todas as pendências técnicas das auditorias antes da landing page de
+  venda. O trabalho foi dividido em sessões paralelas a partir da `dev`, e a primeira a terminar
+  fechou os achados de conexão e de Pluggy (A6, A7, A8, A9, A17 e A20):
+  - em produção, o core não sobe no modo `MEU_PLUGGY`, que desliga a checagem de dono do item;
+  - um item de outra pessoa responde igual a um item que não existe, sem revelar que ele já está
+    vinculado;
+  - cada usuário pode ter até 10 conexões, e vínculos em paralelo do mesmo usuário passam um de
+    cada vez;
+  - o "Atualizar" conta o intervalo a partir da última tentativa, qualquer que tenha sido o
+    resultado, inclusive a primeira sincronização;
+  - o BFF limita vincular banco e pedir o token do Pluggy Connect a 10 por hora por usuário;
+  - o log da Pluggy registra só o status e o código, nunca a mensagem.
+
+  Ver [[Fluxo de Conexão]] e [[Sincronização]].
