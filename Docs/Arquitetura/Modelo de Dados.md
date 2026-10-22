@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, banco]
-atualizado: 2026-10-18
+atualizado: 2026-10-22
 ---
 
 # Modelo de Dados
@@ -11,6 +11,9 @@ PostgreSQL 18, migrations com **Flyway**, nomes em inglês. Dinheiro em
 ```mermaid
 erDiagram
     users ||--o{ refresh_tokens : "tem"
+    users ||--o{ email_tokens : "recebe links"
+    users ||--o{ recovery_codes : "guarda"
+    users ||--o{ email_notices : "recebe avisos"
     users ||--o{ connections : "tem"
     users ||--o{ fixed_expenses : "cadastra"
     users ||--o| planning_settings : "ajusta"
@@ -26,7 +29,30 @@ erDiagram
 ## Tabelas
 
 **users** — `id uuid`, `email` (único, minúsculo), `password_hash`, `display_name`,
-`failed_login_count`, `locked_until`, `created_at`.
+`email_confirmed_at` (vazio = conta esperando o link do cadastro; ninguém entra antes),
+`totp_secret` (segredo do segundo fator em base32, **cifrado** com a `WALLET_DATA_KEY`),
+`totp_enabled_at` (vazio com segredo = configuração esperando o primeiro código), `totp_last_step`
+(último passo de 30 s aceito: cada código vale uma vez), `created_at`. Desde a V10 o bloqueio
+saiu daqui (`failed_login_count` e `locked_until` foram removidos) e foi para `login_throttles`.
+Conta não confirmada é apagada depois de 7 dias.
+
+**email_tokens** (V10) — os links mandados por e-mail: `id`, `user_id` (FK `users`, cascata),
+`purpose` (`CONFIRM_ACCOUNT` ou `CHANGE_EMAIL`), `token_hash` (SHA-256, único; nunca o token),
+`new_email` (só na troca de e-mail), `expires_at` (24 h), `used_at` (aberto, ou trocado por um link
+mais novo da mesma finalidade), `created_at`. Os vencidos há mais de um dia são apagados à noite.
+
+**recovery_codes** (V10) — códigos de recuperação do segundo fator: `id`, `user_id` (FK, cascata),
+`code_hash` (SHA-256 de um código de 80 bits), `used_at`, `created_at`. Dez por vez; ligar de novo
+troca todos, desligar apaga.
+
+**login_throttles** (V10) — as falhas de login, sem FK e sem e-mail ou IP em claro:
+`subject_hash` (chave: SHA-256 de `account:<e-mail>` ou `source:<e-mail>|<endereço>`), `failures`,
+`lockouts` (quantas travas seguidas; cada uma dura o dobro), `locked_until`, `last_failure_at`.
+Tem linha também para e-mail sem conta, para o bloqueio responder igual. Linhas sem falha há um
+dia somem na limpeza noturna. Ver [[Autenticação#Bloqueio progressivo (achado A5, desde 2026-10-22)]].
+
+**email_notices** (V10) — quando cada aviso foi a cada conta (`user_id` + `kind`, chave composta;
+`sent_at`), para limitar a 1 por hora o aviso de tentativa de cadastro e o de conta travada.
 
 **refresh_tokens** — `id`, `user_id`, `token_hash` (SHA-256, nunca o token puro),
 `family_id`, `expires_at`, `rotated_at`, `revoked_at`, `created_at`. Ver
@@ -144,13 +170,16 @@ cobre 3 dias para cada lado), `created_at`. Único por (`user_id`, `description_
      caminho também são revogadas, e o `users` é apagado.
   3. O cascade do schema leva `connections`, `accounts`, `transactions`, `balance_snapshots`,
      `credit_card_bills`, `investments`, `investment_snapshots`, `sync_runs`, `fixed_expenses`,
-     `planning_settings`, `dismissed_fixed_expense_suggestions` e `refresh_tokens`.
+     `planning_settings`, `dismissed_fixed_expense_suggestions`, `refresh_tokens`, `email_tokens`,
+     `recovery_codes` e `email_notices`. (`login_throttles` não tem FK: as linhas somem sozinhas em
+     um dia.)
   4. No BFF, o cookie `wallet_refresh` é apagado e o cache de telas do usuário, descartado. O BFF
      espera o core por até 2 min nessa rota (`wallet.core.slow-read-timeout`), e não os 5 s de
      sempre: cada revogação na Pluggy pode levar até 10 s.
 - Só o próprio usuário exclui a própria conta (o id vem do JWT) e a rota é idempotente: excluir
-  de novo responde 204. Depois disso o access token ainda válido (até 15 min) não acha mais
-  ninguém: `/me` responde 401 e não há dado para ler.
+  de novo responde 204. Desde 2026-10-22 o access token ainda válido (até 15 min) recebe **401
+  `auth.unauthenticated` em qualquer rota**: o core confere a cada requisição que o usuário do
+  token existe (antes, uma escrita nessa janela batia na FK e virava 500).
 - **`provider_calls` fica**, de propósito: sem chave estrangeira, sem dado financeiro, e os 180
   dias de retenção também guardam o registro de que os itens foram revogados. O `user_id` que
   sobra não aponta para ninguém (pseudônimo) e some quando a retenção vence.

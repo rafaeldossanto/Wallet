@@ -20,7 +20,8 @@ módulo usar a parte interna de outro.
 
 | Módulo | Responsabilidade | Depende de |
 |---|---|---|
-| `identity` | Usuários, cadastro, login, emissão e rotação de tokens, bloqueio por tentativas | `shared` |
+| `identity` | Usuários, cadastro com confirmação por e-mail, login, bloqueio progressivo, segundo fator (TOTP), perfil, emissão e rotação de tokens | `mail`, `connection` (só para revogar ao excluir a conta), `shared` |
+| `mail` | Envio de e-mail: a porta `EmailSender` (pública, na raiz do pacote), o SMTP e o envio de desenvolvimento no log. Pronto para e-mail com link de descadastro (o `waitlist` vai usar) | `shared` |
 | `connection` | Conexões com bancos (items da Pluggy), vincular, desvincular | `provider`, `shared` |
 | `banking` | Contas, saldos, transações, cartões e faturas | `shared` |
 | `investment` | Posições de investimento | `shared` |
@@ -151,11 +152,18 @@ sem uma `WALLET_GATEWAY_KEY` real.
 
 | Método | Rota | O que faz |
 |---|---|---|
-| POST | `/internal/auth/register` | Cria conta |
-| POST | `/internal/auth/login` | Devolve `{ accessToken, expiresIn, refreshToken }` |
+| POST | `/internal/auth/register` | **202 sem corpo** para qualquer e-mail: e-mail novo vira conta não confirmada e recebe o link; e-mail com conta recebe um aviso ao dono. Ver [[Autenticação#Cadastro com confirmação por e-mail (achado A16, desde 2026-10-22)]] |
+| POST | `/internal/auth/login` | `{email, password, code?}` → `{ accessToken, expiresIn, refreshToken }`. Lê `X-Wallet-Client-Address` (do BFF) para o bloqueio por endereço. Conta não confirmada responde como senha errada; com 2FA, sem `code` é `401 auth.two_factor_required` |
+| POST | `/internal/auth/email/confirm` | `{token}` do link: `{result: ACCOUNT_CONFIRMED}` ou `{result: EMAIL_CHANGED}`; link desconhecido, vencido, usado ou trocado por outro é `422 auth.link_invalid`; endereço tomado no meio do caminho é `409 auth.email_taken` |
+| POST | `/internal/auth/email/resend` | `{email}`: outro link para conta não confirmada (até 3 por hora); 202 para qualquer e-mail |
 | POST | `/internal/auth/refresh` | Troca o refresh por um par novo |
 | POST | `/internal/auth/logout` | Revoga a família do refresh |
-| GET | `/internal/me` | Usuário logado |
+| GET | `/internal/me` | Usuário logado: `{id, email, displayName, createdAt, pendingEmail, twoFactorEnabled}` |
+| PUT | `/internal/me` | `{displayName}`: troca o nome |
+| POST | `/internal/me/email` | `{newEmail, password}`: 202; manda o link ao novo endereço e a conta só muda quando ele é aberto (o antigo recebe aviso). Senha errada é 403 `auth.wrong_password` |
+| POST | `/internal/me/two-factor/setup` | `{password}`: segredo novo, ainda desligado → `{secret, otpauthUri}` |
+| POST | `/internal/me/two-factor/enable` | `{code}`: o primeiro código liga e devolve `{recoveryCodes}` (10, mostrados uma vez); código errado é 422 `two_factor.invalid_code` |
+| DELETE | `/internal/me/two-factor` | `{password, code}` (código do app ou de recuperação): desliga (204); código errado é 403 `auth.invalid_two_factor_code` e conta para o bloqueio |
 | DELETE | `/internal/me` | Exclui a conta e tudo dela (204, também se já não existia), com `{"password"}` no corpo: senha errada é 403 `auth.wrong_password` e conta para o bloqueio. Revoga as conexões na Pluggy antes; ver [[Modelo de Dados#Exclusão]] |
 | GET | `/internal/connections` | Conexões do usuário e o estado de cada uma |
 | POST | `/internal/connections` | Vincula um item (`{ "providerItemId": "..." }`). Item de outra pessoa, vinculado ou não, responde como inexistente (404 `connection.item_not_found`); só o dono ouve 409 `connection.already_linked`. Até 10 conexões por usuário (422 `connection.limit_reached`). Ver [[Fluxo de Conexão#Limites]] |
@@ -305,7 +313,15 @@ a cada chamada. Desde 2026-10-22:
 | `wallet.bulkhead.search`, `.screens`, `.manual-sync` | `max-concurrent` e `max-per-user` de cada bulkhead (padrões 3/2, 5/3 e 4/2). Ver [[#Disponibilidade]] |
 | `PLUGGY_CLIENT_ID`, `PLUGGY_CLIENT_SECRET` | Credenciais do Meu Pluggy. **Só em variável de ambiente**, nunca no git |
 | `WALLET_JWT_PRIVATE_KEY` | Chave privada RS256 que assina os access tokens. Só o core tem |
-| `WALLET_DATA_KEY` | Chave AES da criptografia de coluna |
+| `WALLET_DATA_KEY` | Chave AES da criptografia de coluna (e do segredo do segundo fator) |
+| `WALLET_PUBLIC_URL` | `wallet.auth.email-links.base-url`: endereço público do BFF, para onde os links dos e-mails apontam (`<url>/email/confirm#token=...`). Vazio = `http://localhost:8080` (dev); com `prod`, obrigatória e https |
+| `WALLET_SMTP_HOST`, `WALLET_SMTP_PORT`, `WALLET_SMTP_USERNAME`, `WALLET_SMTP_PASSWORD`, `WALLET_SMTP_SECURITY` | Servidor SMTP de qualquer provedor (Amazon SES: `email-smtp.<região>.amazonaws.com`, 587, credenciais SMTP de um usuário IAM). `SECURITY`: `STARTTLS` (padrão, exigido, não só oferecido), `SSL` (465) ou `NONE` (só servidor local de teste; recusado com `prod`). Sem host: fora de `prod` o e-mail vai para o log; com `prod`, o core não sobe |
+| `WALLET_MAIL_FROM` | Remetente (`Wallet <no-reply@dominio>`), obrigatório com SMTP |
+| `WALLET_PASSWORD_CHECK_CONCURRENCY` | `wallet.auth.password-checks.concurrency`: BCrypts ao mesmo tempo (0 = metade dos processadores). Quem espera mais de 2 s recebe 429 `auth.busy` |
+| `wallet.auth.lockout.*` | Bloqueio progressivo: 5 falhas por e-mail + endereço, 20 por e-mail de qualquer endereço, 15 min dobrando até 24 h, zera depois de um dia sem falhas |
+| `wallet.auth.email-links.*` | Links dos e-mails: 24 h, até 3 por hora por conta |
+| `wallet.auth.unconfirmed-account-ttl` / `notice-interval` / `cleanup-cron` | Conta não confirmada apagada em 7 dias; no máximo 1 aviso de cada tipo por hora; limpeza às 04:15 |
+| `wallet.jwt.audience` | `aud` de todo access token, `wallet-api`, exigida aqui e no BFF |
 | `WALLET_GATEWAY_KEY` | Segredo compartilhado com o BFF (`X-Gateway-Key`), o **mesmo** valor nos dois. Vazio = chave de desenvolvimento conhecida; com `SPRING_PROFILES_ACTIVE=prod`, vazia, curta (< 32) ou a de desenvolvimento impedem a subida |
 | `WALLET_CORE_ADDRESS` | Interface onde o core escuta (`server.address`). Padrão `127.0.0.1`, com o BFF na mesma máquina; com o BFF em outro host, `0.0.0.0` e uma `WALLET_GATEWAY_KEY` real (a chave de desenvolvimento só vale no loopback) |
 | `WALLET_MAX_BODY_SIZE` | `wallet.http.max-body-size`, padrão `256KB`. `Content-Length` maior recebe 413 `request.too_large` sem o corpo ser lido; corpo chunked é cortado nesse tamanho durante a leitura (`RequestBodyLimitFilter`). O Tomcat usa o mesmo teto em `max-swallow-size` e `max-http-form-post-size` |
@@ -323,8 +339,24 @@ versionado só tem placeholders com padrões de desenvolvimento. O `./mvnw sprin
 sobe o core no mesmo Postgres local do `spring-boot:run`, sem criar container (desde 2026-10-21;
 antes ele criava um Postgres descartável no Docker). Fora dos testes de integração, nada no core
 cria container. Com `SPRING_PROFILES_ACTIVE=prod` o core também não inventa segredo: sem
-`WALLET_GATEWAY_KEY`, sem as chaves do JWT ou sem `WALLET_DATA_KEY`, ele não sobe
-(`ProductionProfile`).
+`WALLET_GATEWAY_KEY`, sem as chaves do JWT, sem `WALLET_DATA_KEY`, sem SMTP (`WALLET_SMTP_HOST` e
+`WALLET_MAIL_FROM`) ou sem `WALLET_PUBLIC_URL` em https, ele não sobe (`ProductionProfile`).
+
+## E-mail (módulo `mail`, desde 2026-10-22)
+
+- **API:** `EmailSender.send(OutgoingEmail)`. Enfileira: dentro de uma transação, o e-mail só sai
+  **depois do commit** (um link nunca chega para um token desfeito); depois, numa virtual thread
+  (`applicationTaskExecutor`), então o tempo do SMTP nunca aparece no tempo da resposta. Falha de
+  envio fica no log (`[MAIL]`, só o tipo do e-mail, nunca endereço nem texto) e não volta a quem chamou.
+- **Transporte:** `SmtpMailTransport` (`JavaMailSender` do `spring-boot-starter-mail`), genérico;
+  `DevelopmentMailTransport` escreve no log fora de produção, com aviso de que é só dev (a única
+  exceção à regra de não logar token). `MailConfig` escolhe na subida.
+- **Descadastro:** `OutgoingEmail.withUnsubscribeUrl(url)` põe o link no rodapé e os headers
+  `List-Unsubscribe` + `List-Unsubscribe-Post: List-Unsubscribe=One-Click` (RFC 2369 e 8058, que
+  Gmail e Yahoo pedem a quem manda em volume). O endpoint de descadastro fica com quem manda esse
+  tipo de e-mail (o futuro `waitlist`); e-mail de conta não tem descadastro.
+- Textos em texto puro e pt-BR, sem nada digitado por estranhos. Os da conta estão em
+  [[Autenticação#E-mails da conta]].
 
 **Pluggy de demonstração (desde 2026-10-02):** sem `PLUGGY_CLIENT_ID`, o `test-run` também
 sobe um servidor HTTP pequeno (`DemoPluggy`, no código de teste) que responde como a Pluggy:
@@ -434,6 +466,9 @@ criar o gasto fixo normalmente (o app abre o formulário preenchido); `DELETE ..
   No Docker, o banco de cada teste aparece como `wallet-core-test-db-xxxx` e é apagado no fim, mesmo
   se o Docker fechar no meio (AutoRemove). São os únicos containers que o core cria.
 - Teste de modularidade do Spring Modulith.
+- E-mail: `SmtpMailTransportTest` conversa com um servidor SMTP de verdade em memória (GreenMail),
+  com autenticação; nos ITs, `TestMailConfiguration` troca o transporte por um que guarda os
+  e-mails, e o teste lê o link como o dono leria.
 - Contrato HTTP das rotas (quem acessa o quê, códigos de erro).
 - Disponibilidade (desde 2026-10-22): `BulkheadTest` (parte do usuário, total, vaga devolvida uma
   vez, 20 requisições simultâneas de um usuário nunca passam de 2), `ReadApiIT` (busca paginada

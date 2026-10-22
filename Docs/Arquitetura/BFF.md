@@ -51,11 +51,19 @@ bff/src/main/java/com/wallet/bff/
 
 | Método | Rota | Chama no core |
 |---|---|---|
-| POST | `/api/auth/register` | `/internal/auth/register` |
-| POST | `/api/auth/login` | `/internal/auth/login` e entrega por plataforma |
+| POST | `/api/auth/register` | `/internal/auth/register`: **202 sem corpo** para qualquer e-mail (o core manda o link de confirmação ou um aviso ao dono) |
+| POST | `/api/auth/login` | `/internal/auth/login` e entrega por plataforma. Corpo `{email, password, code?}`: `code` só depois de `401 auth.two_factor_required` |
+| POST | `/api/auth/email/confirm` | `/internal/auth/email/confirm` com `{token}`: chamada pela página `/email/confirm`; responde `{result: ACCOUNT_CONFIRMED \| EMAIL_CHANGED}` ou `422 auth.link_invalid` |
+| POST | `/api/auth/email/resend` | `/internal/auth/email/resend` com `{email}`: 202 para qualquer e-mail |
+| GET | `/email/confirm` | Página estática do próprio BFF (`static/email`) que os links dos e-mails abrem: lê o token depois do `#` e confirma ao tocar no botão |
 | POST | `/api/auth/refresh` | `/internal/auth/refresh` (web: lê o cookie) |
 | POST | `/api/auth/logout` | `/internal/auth/logout` e apaga o cookie |
-| GET | `/api/me` | `/internal/me` |
+| GET | `/api/me` | `/internal/me`: `{id, email, displayName, createdAt, pendingEmail, twoFactorEnabled}` |
+| PUT | `/api/me` | `/internal/me` com `{displayName}` |
+| POST | `/api/me/email` | `/internal/me/email` com `{newEmail, password}`: 202; a troca só vale depois do link mandado ao novo endereço |
+| POST | `/api/me/two-factor/setup` | `/internal/me/two-factor/setup` com `{password}`: `{secret, otpauthUri}` |
+| POST | `/api/me/two-factor/enable` | `/internal/me/two-factor/enable` com `{code}`: `{recoveryCodes}` (mostrados uma vez) |
+| DELETE | `/api/me/two-factor` | `/internal/me/two-factor` com `{password, code}` (204) |
 | DELETE | `/api/me` | `/internal/me` com `{"password"}` no corpo, apaga o cookie de refresh e o cache de telas do usuário (204). Exclusão da conta (LGPD); senha errada é 403 `auth.wrong_password`. Espera o core por até 2 min (`wallet.core.slow-read-timeout`): o core revoga cada conexão na Pluggy antes de responder |
 | GET | `/api/home` | `overview` + `accounts` + `credit-cards` + últimas 5 `transactions` (30 dias) + `connections`, em paralelo |
 | GET | `/api/transactions` | `/internal/transactions` (mesmos filtros, repassados sem interpretar). Com `q`: 30 por minuto por usuário (`wallet.rate-limit.search-limit`) e grupo `SEARCH` |
@@ -191,6 +199,16 @@ Achado A18, desde 2026-10-22: `/actuator/health` era público e ficava fora do r
 - As rotas `/api/auth/**` **ignoram o Bearer**: o app pede refresh justamente quando o
   access token venceu, e o Spring recusaria esse header vencido antes de chegar ao
   refresh.
+- **Audience (desde 2026-10-22):** o BFF exige `aud: "wallet-api"` no access token, como o core.
+  Token sem ela (emitido antes) ou com outra é 401 e o app renova.
+- **Endereço do cliente para o core (desde 2026-10-22):** toda chamada feita na thread da
+  requisição leva `X-Wallet-Client-Address` (`ClientAddressPropagationInterceptor`), o mesmo
+  endereço do rate limit. O core usa no bloqueio de login por endereço; como só o BFF chega ao core
+  (chave de gateway), o core confia nesse header.
+- **Página de confirmação (desde 2026-10-22):** `GET /email/confirm` encaminha para
+  `static/email/confirm.html` (com `confirm.js` e `confirm.css`). Toda resposta do BFF leva
+  `Content-Security-Policy` restrita (só script, estilo e chamadas da própria origem, nada em frame)
+  e `Referrer-Policy: no-referrer`.
 - `X-Trace-Id` gerado no BFF (ou aceito do app, se for curto e só com letras, números e
   hífen) e propagado, para seguir uma requisição nos logs dos dois serviços.
 - Erro do core: status e `{ code, message }` passam intactos. O app só conhece os
@@ -210,7 +228,8 @@ Achado A18, desde 2026-10-22: `/actuator/health` era público e ficava fora do r
 | `WALLET_WEB_ALLOWED_ORIGINS` | Origem do Flutter Web (`http://localhost:5000` no dev) |
 | `wallet.web.cookie-secure` | Flag `Secure` do cookie; ligada também no dev, porque o navegador aceita em `localhost` |
 | `wallet.cache.screen-ttl` | TTL do cache das telas (padrão 60 s) |
-| `wallet.rate-limit.*` | Janela (1 min), 20 por IP em `/api/auth`, 300 por usuário no resto |
+| `wallet.rate-limit.*` | Janela (1 min), 20 por IP em `/api/auth/**`, 20 por usuário nas rotas que pedem senha ou código de novo (`/api/me/email`, `/api/me/two-factor/**`, `DELETE /api/me`), 300 por usuário no resto |
+| `wallet.jwt.audience` | `aud` exigida nos tokens, `wallet-api` (a mesma do core) |
 | `wallet.rate-limit.link-limit` / `link-window` | `POST /api/connections` por usuário, além do geral: 10 por hora (cada vínculo faz o core ler até um ano do banco na Pluggy). Passou: 429 `rate_limit.connections` |
 | `wallet.rate-limit.connect-token-limit` / `connect-token-window` | `POST /api/connections/connect-token` por usuário, além do geral: 10 por hora (cada token é uma chamada à Pluggy). Passou: 429 `rate_limit.connections` |
 | `wallet.rate-limit.search-limit` | Busca por texto (`GET /api/transactions` com `q`) por usuário e janela, além do geral: 30 por minuto (cada busca faz o core decifrar o mês). Passou: 429 `rate_limit.exceeded` |
