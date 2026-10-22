@@ -27,7 +27,8 @@ import java.util.UUID;
  * over connections, accounts, transactions, balance snapshots, card bills, investments and their
  * snapshots, sync runs, planning, dismissed suggestions, refresh tokens, e-mailed links, recovery
  * codes and notices. An access token issued before stops working at once: the core refuses tokens
- * of users that no longer exist ({@code ActiveUserJwtConverter}).
+ * of users that no longer exist ({@code ActiveUserInterceptor}), this route included: a second
+ * deletion with the same token is a 401, and the app tells that end as the deletion.
  *
  * <p>{@code provider_calls} is kept on purpose: it has no foreign key, holds no financial data,
  * and its 180-day retention also covers the record that the items were revoked.

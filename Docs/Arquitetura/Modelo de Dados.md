@@ -176,10 +176,11 @@ cobre 3 dias para cada lado), `created_at`. Único por (`user_id`, `description_
   4. No BFF, o cookie `wallet_refresh` é apagado e o cache de telas do usuário, descartado. O BFF
      espera o core por até 2 min nessa rota (`wallet.core.slow-read-timeout`), e não os 5 s de
      sempre: cada revogação na Pluggy pode levar até 10 s.
-- Só o próprio usuário exclui a própria conta (o id vem do JWT) e a rota é idempotente: excluir
-  de novo responde 204. Desde 2026-10-22 o access token ainda válido (até 15 min) recebe **401
-  `auth.unauthenticated` em qualquer rota**: o core confere a cada requisição que o usuário do
-  token existe (antes, uma escrita nessa janela batia na FK e virava 500).
+- Só o próprio usuário exclui a própria conta (o id vem do JWT). Desde 2026-10-22 o access token
+  ainda válido (até 15 min) recebe **401 `auth.unauthenticated` em qualquer rota**, inclusive numa
+  segunda exclusão: o core confere a cada requisição que o usuário do token existe (antes, uma
+  escrita nessa janela batia na FK e virava 500). O serviço continua tolerando duas exclusões
+  simultâneas (a segunda não acha o usuário e termina sem erro).
 - **`provider_calls` fica**, de propósito: sem chave estrangeira, sem dado financeiro, e os 180
   dias de retenção também guardam o registro de que os itens foram revogados. O `user_id` que
   sobra não aponta para ninguém (pseudônimo) e some quando a retenção vence.

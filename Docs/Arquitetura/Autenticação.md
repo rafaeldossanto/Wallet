@@ -76,8 +76,10 @@ de outra pessoa e esperar o dono confirmar uma conta com a senha do estranho den
   deslogado.
 - **Usuário que não existe mais (achado L1-c, desde 2026-10-22):** JWT não se revoga, então depois
   de excluir a conta o access token ainda passaria por até 15 min. O core confere em toda
-  requisição que o `sub` do token ainda existe (`ActiveUserJwtConverter`, uma busca por chave
-  primária) e responde `401 auth.unauthenticated` se não. Antes, uma escrita nessa janela (gasto
+  requisição que o `sub` do token ainda existe (`ActiveUserInterceptor`, uma busca por chave
+  primária) e responde `401 auth.unauthenticated` se não, em qualquer rota, inclusive uma segunda
+  exclusão (o app conta esse fim como "Sua conta foi excluída"). É um interceptor do MVC e não um
+  passo da cadeia de segurança para que pool cheio vire o mesmo `503 service.busy` do resto. Antes, uma escrita nessa janela (gasto
   fixo, salário) batia na FK do usuário apagado e virava 500.
 - As rotas `/api/auth/**` **ignoram o Bearer**: o app pede refresh justamente com o
   access token vencido, e esse header não pode atrapalhar.

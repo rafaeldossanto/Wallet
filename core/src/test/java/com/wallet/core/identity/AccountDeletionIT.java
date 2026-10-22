@@ -140,7 +140,11 @@ class AccountDeletionIT {
         String refreshToken = login(owner.email());
 
         deleteAccount(owner.id(), PASSWORD).andExpect(status().isNoContent());
-        deleteAccount(owner.id(), PASSWORD).andExpect(status().isNoContent());
+        // The token of a user that no longer exists opens nothing, not even a second deletion: the
+        // app renews, finds the refresh token gone and tells it as the account deleted.
+        deleteAccount(owner.id(), PASSWORD)
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("auth.unauthenticated"));
 
         mockMvc.perform(get("/internal/me").with(as(owner.id())))
                 .andExpect(status().isUnauthorized());

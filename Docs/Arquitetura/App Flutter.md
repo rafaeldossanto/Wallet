@@ -430,8 +430,9 @@ senha de novo. O botão **Excluir de vez** só se habilita com a caixa marcada.
   - 5xx (como 503 `bff.core_unavailable`), sem rede ou timeout: a frase do erro mais "Não deu
     para confirmar a exclusão. Tente de novo: se a conta já tiver sido excluída, o Wallet avisa".
     O app não promete que nada foi apagado: o core revoga os bancos antes da transação que apaga,
-    e um core mais lento que os 2 min do BFF termina depois do 503. Excluir duas vezes dá 204,
-    então tentar de novo resolve.
+    e um core mais lento que os 2 min do BFF termina depois do 503. Tentar de novo resolve: se a
+    conta ainda existe, ela é excluída; se já foi, o core responde 401 (desde 2026-10-22), a
+    renovação é recusada e o login diz "Sua conta foi excluída".
   - Se nenhuma resposta confirmou a exclusão e a renovação seguinte da sessão é recusada (o
     refresh token foi junto com a conta), o login diz "Sua conta foi excluída" e não "Sua sessão
     expirou".

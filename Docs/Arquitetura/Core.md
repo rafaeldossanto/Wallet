@@ -164,7 +164,7 @@ sem uma `WALLET_GATEWAY_KEY` real.
 | POST | `/internal/me/two-factor/setup` | `{password}`: segredo novo, ainda desligado → `{secret, otpauthUri}` |
 | POST | `/internal/me/two-factor/enable` | `{code}`: o primeiro código liga e devolve `{recoveryCodes}` (10, mostrados uma vez); código errado é 422 `two_factor.invalid_code` |
 | DELETE | `/internal/me/two-factor` | `{password, code}` (código do app ou de recuperação): desliga (204); código errado é 403 `auth.invalid_two_factor_code` e conta para o bloqueio |
-| DELETE | `/internal/me` | Exclui a conta e tudo dela (204, também se já não existia), com `{"password"}` no corpo: senha errada é 403 `auth.wrong_password` e conta para o bloqueio. Revoga as conexões na Pluggy antes; ver [[Modelo de Dados#Exclusão]] |
+| DELETE | `/internal/me` | Exclui a conta e tudo dela (204; com o token de uma conta já excluída, 401 como qualquer rota), com `{"password"}` no corpo: senha errada é 403 `auth.wrong_password` e conta para o bloqueio. Revoga as conexões na Pluggy antes; ver [[Modelo de Dados#Exclusão]] |
 | GET | `/internal/connections` | Conexões do usuário e o estado de cada uma |
 | POST | `/internal/connections` | Vincula um item (`{ "providerItemId": "..." }`). Item de outra pessoa, vinculado ou não, responde como inexistente (404 `connection.item_not_found`); só o dono ouve 409 `connection.already_linked`. Até 10 conexões por usuário (422 `connection.limit_reached`). Ver [[Fluxo de Conexão#Limites]] |
 | POST | `/internal/connections/connect-token` | Token do widget Pluggy Connect para o usuário (`{ "connectToken": "..." }`, 30 min, uma conexão) |

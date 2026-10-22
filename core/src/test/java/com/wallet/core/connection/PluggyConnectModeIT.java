@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -22,6 +23,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import static com.wallet.core.TestUsers.as;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -37,6 +39,9 @@ class PluggyConnectModeIT {
 
     @Autowired
     private WebApplicationContext context;
+
+    @Autowired
+    private JdbcTemplate jdbc;
 
     @MockitoBean
     private FinancialDataProvider provider;
@@ -106,9 +111,11 @@ class PluggyConnectModeIT {
 
         verify(provider).deleteItem(first);
         verify(provider).deleteItem(second);
+        assertThat(jdbc.queryForObject("select count(*) from connections where user_id = ?", Integer.class, userId)).isZero();
+        // The deleted user's token opens nothing any more (L1-c).
         mockMvc.perform(get("/internal/connections").with(as(userId)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isEmpty());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("auth.unauthenticated"));
     }
 
     private String stubItem(String clientUserId) {
