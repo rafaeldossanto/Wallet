@@ -18,6 +18,7 @@ import java.util.UUID;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.anyRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.anyUrl;
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
@@ -88,9 +89,7 @@ class RequestBodyLimitTest extends BffTestSupport {
 
     @Test
     void aSmallChunkedBodyGoesThrough() throws Exception {
-        CORE.stubFor(WireMock.post(urlEqualTo("/internal/auth/register")).willReturn(okJson(
-                "{\"id\":\"%s\",\"email\":\"a@example.com\",\"displayName\":\"A\",\"createdAt\":\"2026-10-01T12:00:00Z\"}"
-                        .formatted(UUID.randomUUID())).withStatus(201)));
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/auth/register")).willReturn(aResponse().withStatus(202)));
         byte[] body = "{\"email\":\"a@example.com\",\"password\":\"password123\",\"displayName\":\"A\"}"
                 .getBytes(StandardCharsets.UTF_8);
 
@@ -99,7 +98,7 @@ class RequestBodyLimitTest extends BffTestSupport {
                         .build(),
                 HttpResponse.BodyHandlers.ofString());
 
-        assertThat(response.statusCode()).isEqualTo(201);
+        assertThat(response.statusCode()).isEqualTo(202);
         CORE.verify(postRequestedFor(urlEqualTo("/internal/auth/register"))
                 .withHeader(GatewayKey.HEADER, equalTo(GATEWAY_KEY)));
     }

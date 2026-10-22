@@ -28,7 +28,10 @@ import static org.springframework.util.StringUtils.hasText;
  * <p>Linking a bank and asking for a Pluggy Connect token also count per user against limits of
  * their own, low and over a longer window ({@link RateLimitProperties}), on top of the general one.
  * So does the statement's text search, over the general window: the core decrypts the period to
- * answer each one. The health checks never get here: they have a chain of their own.
+ * answer each one. So do the routes that ask for the password or a second-factor code again
+ * (changing the e-mail, the second factor, deleting the account): per user, with the sign-in's
+ * limit, so an open session is no way around it to guess a password. The health checks never get
+ * here: they have a chain of their own.
  *
  * <p>The address comes from {@link ClientAddress}: the connection's own, unless it is one of the
  * configured trusted proxies. A client cannot pick a fresh address per request by writing
@@ -68,6 +71,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
             reject(response, GENERAL, properties.window());
             return;
         }
+        if (isCredentialRoute(request.getMethod(), path)
+                && !acquire("credentials:" + caller(request), properties.authLimit(), properties.window())) {
+            reject(response, GENERAL, properties.window());
+            return;
+        }
         Optional<RouteLimit> route = routeLimitOf(request, path);
         if (route.isPresent() && !acquire(route.get().name() + ":" + caller(request), route.get().limit(), route.get().window())) {
             reject(response, route.get().body(), route.get().window());
@@ -91,6 +99,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
                     properties.connectTokenLimit(), properties.connectTokenWindow(), CONNECTIONS));
             default -> Optional.empty();
         };
+    }
+
+    private static boolean isCredentialRoute(String method, String path) {
+        return path.startsWith("/api/me/two-factor")
+                || "/api/me/email".equals(path) && HttpMethod.POST.matches(method)
+                || "/api/me".equals(path) && HttpMethod.DELETE.matches(method);
     }
 
     private boolean acquire(String key, int limit, Duration window) {

@@ -76,6 +76,17 @@ public class CoreClient {
                 .toBodilessEntity());
     }
 
+    /** A DELETE with a body (the password again, for one). */
+    public void deleteWithBody(CoreRouteGroup group, String path, Object body) {
+        guards.call(group, () -> restClient.method(HttpMethod.DELETE)
+                .uri(path)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .onStatus(HttpStatusCode::isError, RELAY_ERRORS)
+                .toBodilessEntity());
+    }
+
     /** A DELETE with a body, for a route where the core waits on the provider: the longer read timeout. */
     public void deleteWaitingOnProvider(String path, Object body) {
         guards.call(CoreRouteGroup.PROVIDER, () -> slowRestClient.method(HttpMethod.DELETE)

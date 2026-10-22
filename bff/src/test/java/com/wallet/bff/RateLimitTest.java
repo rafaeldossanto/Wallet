@@ -101,6 +101,24 @@ class RateLimitTest extends BffTestSupport {
     }
 
     /** Without trusted proxies, writing X-Forwarded-For does not buy a fresh budget. */
+    /** An open session is no way around the sign-in limit to guess the password. */
+    @Test
+    void routesThatCheckThePasswordAgainHaveTheSignInLimitPerUser() throws Exception {
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/me/two-factor/setup")).willReturn(aResponse().withStatus(403)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"code\":\"auth.wrong_password\",\"message\":\"no\"}")));
+        String guesser = bearer(UUID.randomUUID());
+
+        twoFactorSetUp(guesser).andExpect(status().isForbidden());
+        twoFactorSetUp(guesser).andExpect(status().isForbidden());
+        twoFactorSetUp(guesser)
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("rate_limit.exceeded"));
+
+        twoFactorSetUp(bearer(UUID.randomUUID())).andExpect(status().isForbidden());
+        CORE.verify(3, postRequestedFor(urlEqualTo("/internal/me/two-factor/setup")));
+    }
+
     @Test
     void aForgedForwardedForDoesNotEscapeTheLimit() throws Exception {
         stubLogin();
@@ -139,6 +157,11 @@ class RateLimitTest extends BffTestSupport {
 
     private ResultActions connectToken(String bearer) throws Exception {
         return mockMvc.perform(post("/api/connections/connect-token").header(HttpHeaders.AUTHORIZATION, bearer));
+    }
+
+    private ResultActions twoFactorSetUp(String bearer) throws Exception {
+        return mockMvc.perform(post("/api/me/two-factor/setup").header(HttpHeaders.AUTHORIZATION, bearer)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"password\":\"guess\"}"));
     }
 
     private ResultActions me(String bearer) throws Exception {

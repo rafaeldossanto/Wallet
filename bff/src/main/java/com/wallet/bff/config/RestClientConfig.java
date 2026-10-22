@@ -15,8 +15,9 @@ public class RestClientConfig {
 
     @Bean
     RestClient coreRestClient(RestClient.Builder builder, CoreProperties core, GatewayKeyInterceptor gatewayKey,
-                              BearerPropagationInterceptor bearer, TraceIdPropagationInterceptor trace) {
-        return coreRestClient(builder, core, core.readTimeout(), gatewayKey, bearer, trace);
+                              BearerPropagationInterceptor bearer, TraceIdPropagationInterceptor trace,
+                              ClientAddressPropagationInterceptor clientAddress) {
+        return coreRestClient(builder, core, core.readTimeout(), gatewayKey, bearer, trace, clientAddress);
     }
 
     /**
@@ -26,18 +27,21 @@ public class RestClientConfig {
      */
     @Bean
     RestClient coreSlowRestClient(RestClient.Builder builder, CoreProperties core, GatewayKeyInterceptor gatewayKey,
-                                  BearerPropagationInterceptor bearer, TraceIdPropagationInterceptor trace) {
-        return coreRestClient(builder, core, core.slowReadTimeout(), gatewayKey, bearer, trace);
+                                  BearerPropagationInterceptor bearer, TraceIdPropagationInterceptor trace,
+                                  ClientAddressPropagationInterceptor clientAddress) {
+        return coreRestClient(builder, core, core.slowReadTimeout(), gatewayKey, bearer, trace, clientAddress);
     }
 
     private static RestClient coreRestClient(RestClient.Builder builder, CoreProperties core, Duration readTimeout,
                                              GatewayKeyInterceptor gatewayKey, BearerPropagationInterceptor bearer,
-                                             TraceIdPropagationInterceptor trace) {
+                                             TraceIdPropagationInterceptor trace,
+                                             ClientAddressPropagationInterceptor clientAddress) {
         return builder.baseUrl(core.url())
                 .requestFactory(coreRequestFactory(core, readTimeout))
                 .requestInterceptor(gatewayKey)
                 .requestInterceptor(bearer)
                 .requestInterceptor(trace)
+                .requestInterceptor(clientAddress)
                 .build();
     }
 

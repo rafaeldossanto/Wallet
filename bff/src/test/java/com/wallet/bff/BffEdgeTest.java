@@ -76,13 +76,12 @@ class BffEdgeTest extends BffTestSupport {
     /** The core refuses the login route itself without the key, so the public routes carry it too. */
     @Test
     void publicRoutesAlsoCarryTheGatewayKey() throws Exception {
-        CORE.stubFor(WireMock.post(urlEqualTo("/internal/auth/register"))
-                .willReturn(okJson(USER_JSON.formatted(UUID.randomUUID())).withStatus(201)));
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/auth/register")).willReturn(aResponse().withStatus(202)));
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"new@example.com\",\"password\":\"password123\",\"displayName\":\"New\"}"))
-                .andExpect(status().isCreated());
+                .andExpect(status().isAccepted());
 
         CORE.verify(postRequestedFor(urlEqualTo("/internal/auth/register"))
                 .withHeader(GatewayKey.HEADER, equalTo(GATEWAY_KEY))
@@ -107,6 +106,22 @@ class BffEdgeTest extends BffTestSupport {
             mockMvc.perform(get("/api/me")
                             .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                     .andExpect(status().isUnauthorized());
+        }
+        CORE.verify(0, getRequestedFor(urlEqualTo("/internal/me")));
+    }
+
+    /** Signed by the core, but without the Wallet API's audience (issued before it) or with another one. */
+    @Test
+    void rejectsTokensWithoutTheWalletApiAudience() throws Exception {
+        UUID userId = UUID.randomUUID();
+        Instant later = Instant.now().plusSeconds(600);
+        String withoutAudience = token(userId, later, "wallet-core", SIGNING_KEY, null);
+        String otherAudience = token(userId, later, "wallet-core", SIGNING_KEY, "some-other-service");
+
+        for (String token : new String[]{withoutAudience, otherAudience}) {
+            mockMvc.perform(get("/api/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.code").value("auth.unauthenticated"));
         }
         CORE.verify(0, getRequestedFor(urlEqualTo("/internal/me")));
     }

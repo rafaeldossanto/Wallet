@@ -75,6 +75,10 @@ wallet:
       provider: 16
   jwt:
     issuer: wallet-core
+    # Every access token must carry this aud, as the core issues and checks it: a user's session
+    # on the Wallet API. A token without it (issued before it existed) is refused with 401 and the
+    # app renews it with its refresh token.
+    audience: wallet-api
   web:
     # Flutter web in development: flutter run -d chrome --web-port 5000
     allowed-origins: ${WALLET_WEB_ALLOWED_ORIGINS:http://localhost:5000}

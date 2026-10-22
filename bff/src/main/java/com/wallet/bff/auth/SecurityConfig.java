@@ -14,13 +14,16 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.jwt.JwtAudienceValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
 import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.client.RestOperations;
@@ -43,6 +46,16 @@ public class SecurityConfig {
     public static final String CLIENT_HEADER = "X-Wallet-Client";
     private static final String AUTH_ROUTES = "/api/auth/**";
 
+    /** The page the e-mailed links open ({@code ConfirmationPageConfig}), with its script and style. */
+    private static final String EMAIL_PAGES = "/email/**";
+
+    /**
+     * For the confirmation page, the only HTML the BFF serves, and harmless on the JSON routes:
+     * nothing but its own script, style and calls, never inside a frame.
+     */
+    private static final String CONTENT_SECURITY_POLICY = "default-src 'none'; script-src 'self'; style-src 'self'; "
+            + "connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, JsonSecurityErrorHandler errorHandler,
                                             RateLimiter rateLimiter, RateLimitProperties rateLimits) throws Exception {
@@ -51,7 +64,7 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(AUTH_ROUTES, "/error").permitAll()
+                        .requestMatchers(AUTH_ROUTES, EMAIL_PAGES, "/error").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(resourceServer -> resourceServer
                         .bearerTokenResolver(ignoringAuthRoutes())
@@ -61,6 +74,11 @@ public class SecurityConfig {
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(errorHandler)
                         .accessDeniedHandler(errorHandler))
+                // The token in a confirmation link sits after the #, which browsers never send; no
+                // referrer either, so nothing of the page's address leaves it.
+                .headers(headers -> headers
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(CONTENT_SECURITY_POLICY))
+                        .referrerPolicy(referrer -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER)))
                 .addFilterAfter(new RateLimitFilter(rateLimiter, rateLimits), BearerTokenAuthenticationFilter.class)
                 .build();
     }
@@ -85,7 +103,8 @@ public class SecurityConfig {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(core.jwksUri())
                 .restOperations(coreJwksRestOperations)
                 .build();
-        decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(jwt.issuer()));
+        decoder.setJwtValidator(JwtValidators.createDefaultWithValidators(
+                new JwtIssuerValidator(jwt.issuer()), new JwtAudienceValidator(jwt.audience())));
         return decoder;
     }
 

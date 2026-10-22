@@ -7,7 +7,10 @@ package com.wallet.bff.client;
  */
 public enum CoreRouteGroup {
 
-    /** Register, login, refresh, logout: each login is a BCrypt in the core. */
+    /**
+     * Register, login, refresh, logout, the e-mailed links, and the routes that check the password or
+     * a second-factor code again (changing the e-mail, the second factor): most of them a BCrypt in the core.
+     */
     AUTH,
 
     /** Plain reads and small writes, answered from the core's indexes. */
