@@ -1144,6 +1144,14 @@ class AppLocalizationsPt extends AppLocalizations {
   String get errorAlreadyLinked => 'Essa conexão já está no Wallet.';
 
   @override
+  String get errorConnectionLimit =>
+      'Você chegou ao limite de conexões. Desvincule uma para vincular outra.';
+
+  @override
+  String get errorConnectAttempts =>
+      'Muitas tentativas de conectar banco em pouco tempo. Tente de novo mais tarde.';
+
+  @override
   String get errorConnectionGone => 'Essa conexão não existe mais.';
 
   @override
@@ -1152,7 +1160,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get errorSyncTooSoon =>
-      'Esta conexão acabou de atualizar. Tente de novo em alguns minutos.';
+      'Esta conexão tentou atualizar há poucos minutos. Tente de novo daqui a pouco.';
 
   @override
   String get errorSyncInProgress => 'Esta conexão já está atualizando.';

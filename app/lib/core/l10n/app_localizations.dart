@@ -1984,6 +1984,18 @@ abstract class AppLocalizations {
   /// **'Essa conexão já está no Wallet.'**
   String get errorAlreadyLinked;
 
+  /// No description provided for @errorConnectionLimit.
+  ///
+  /// In pt, this message translates to:
+  /// **'Você chegou ao limite de conexões. Desvincule uma para vincular outra.'**
+  String get errorConnectionLimit;
+
+  /// No description provided for @errorConnectAttempts.
+  ///
+  /// In pt, this message translates to:
+  /// **'Muitas tentativas de conectar banco em pouco tempo. Tente de novo mais tarde.'**
+  String get errorConnectAttempts;
+
   /// No description provided for @errorConnectionGone.
   ///
   /// In pt, this message translates to:
@@ -1999,7 +2011,7 @@ abstract class AppLocalizations {
   /// No description provided for @errorSyncTooSoon.
   ///
   /// In pt, this message translates to:
-  /// **'Esta conexão acabou de atualizar. Tente de novo em alguns minutos.'**
+  /// **'Esta conexão tentou atualizar há poucos minutos. Tente de novo daqui a pouco.'**
   String get errorSyncTooSoon;
 
   /// No description provided for @errorSyncInProgress.
