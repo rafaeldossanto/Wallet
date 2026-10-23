@@ -15,6 +15,8 @@
 app/build/
 app/.dart_tool/
 dist/
+# Gerado pelo Gradle (updateDaemonJvm) a cada build do Android.
+app/android/gradle/gradle-daemon-jvm.properties
 
 # IDE
 .idea/

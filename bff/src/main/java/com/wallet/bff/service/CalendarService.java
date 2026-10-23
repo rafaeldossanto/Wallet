@@ -14,7 +14,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -39,9 +41,11 @@ public class CalendarService {
     private final CoreApi coreApi;
     private final RequestContextExecutor executor;
     private final ScreenCache cache;
+    private final Clock clock;
 
-    public CalendarResponse month(UUID userId, String month) {
-        return cache.get(userId, "calendar", isNull(month) ? "" : month, () -> coreApi.dailySpending(month));
+    public CalendarResponse month(UUID userId, YearMonth month) {
+        String checked = ScreenMonth.check(month, clock);
+        return cache.get(userId, "calendar", isNull(checked) ? "" : checked, () -> coreApi.dailySpending(checked));
     }
 
     /**

@@ -31,6 +31,9 @@ class AppLocalizationsPt extends AppLocalizations {
   String get actionSave => 'Salvar';
 
   @override
+  String get actionContinue => 'Continuar';
+
+  @override
   String get navOverview => 'Início';
 
   @override
@@ -173,6 +176,44 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get registerGoToLogin => 'Já tenho conta';
+
+  @override
+  String get registerCheckEmailTitle => 'Confira seu e-mail';
+
+  @override
+  String registerCheckEmailBody(String email) {
+    return 'Enviamos um link para $email. Abra o link para ativar a conta e depois entre aqui. Se não chegar em alguns minutos, olhe a caixa de spam.';
+  }
+
+  @override
+  String get registerResend => 'Reenviar o link';
+
+  @override
+  String get registerBackToLogin => 'Voltar para entrar';
+
+  @override
+  String get confirmationResent =>
+      'Se este e-mail estiver esperando confirmação, um link novo chega em instantes.';
+
+  @override
+  String get loginNoConfirmation => 'Não recebeu o e-mail de confirmação?';
+
+  @override
+  String get resendDialogTitle => 'Reenviar a confirmação';
+
+  @override
+  String get resendDialogHelp =>
+      'Digite o e-mail da conta. Se ela estiver esperando confirmação, mandamos um link novo.';
+
+  @override
+  String get resendAction => 'Reenviar';
+
+  @override
+  String get loginTwoFactorHelp =>
+      'Digite o código de 6 dígitos do seu app autenticador, ou um código de recuperação.';
+
+  @override
+  String get fieldTwoFactorCode => 'Código';
 
   @override
   String get fieldName => 'Nome';
@@ -842,6 +883,95 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsSecurity => 'Segurança';
 
   @override
+  String get settingsEditName => 'Alterar o nome';
+
+  @override
+  String get settingsChangeEmail => 'Trocar o e-mail';
+
+  @override
+  String settingsPendingEmail(String email) {
+    return 'Aguardando a confirmação de $email';
+  }
+
+  @override
+  String get nameDialogTitle => 'Seu nome';
+
+  @override
+  String get emailDialogTitle => 'Trocar o e-mail';
+
+  @override
+  String get emailDialogHelp =>
+      'Mandamos um link para o novo endereço. A troca só vale depois que você abrir o link, e o e-mail atual recebe um aviso.';
+
+  @override
+  String get fieldNewEmail => 'Novo e-mail';
+
+  @override
+  String get fieldYourPassword => 'Sua senha';
+
+  @override
+  String emailDialogSent(String email) {
+    return 'Link enviado para $email. Abra-o para concluir a troca.';
+  }
+
+  @override
+  String get settingsTwoFactor => 'Verificação em duas etapas';
+
+  @override
+  String get settingsTwoFactorOn =>
+      'Ligada: entrar pede também o código do app autenticador.';
+
+  @override
+  String get settingsTwoFactorOff =>
+      'Desligada. Ligue para pedir também um código do app autenticador ao entrar.';
+
+  @override
+  String get twoFactorSetupTitle => 'Ligar a verificação em duas etapas';
+
+  @override
+  String get twoFactorPasswordHelp => 'Para começar, confirme a sua senha.';
+
+  @override
+  String get twoFactorScanHelp =>
+      'Escaneie o QR code com um app autenticador (Google Authenticator, Microsoft Authenticator, 1Password...). Sem câmera? Digite a chave abaixo no app.';
+
+  @override
+  String get twoFactorSecretLabel => 'Chave';
+
+  @override
+  String get twoFactorCodeHelp =>
+      'Depois, digite o código de 6 dígitos que aparece no app.';
+
+  @override
+  String get twoFactorEnableAction => 'Ligar';
+
+  @override
+  String get twoFactorRecoveryTitle => 'Guarde os códigos de recuperação';
+
+  @override
+  String get twoFactorRecoveryHelp =>
+      'Cada código funciona uma vez, no lugar do app, se você perder o celular. Guarde num lugar seguro: eles não aparecem de novo.';
+
+  @override
+  String get twoFactorCopyCodes => 'Copiar os códigos';
+
+  @override
+  String get twoFactorCopied => 'Códigos copiados.';
+
+  @override
+  String get twoFactorDone => 'Pronto';
+
+  @override
+  String get twoFactorDisableTitle => 'Desligar a verificação em duas etapas';
+
+  @override
+  String get twoFactorDisableHelp =>
+      'Confirme a sua senha e um código do app autenticador (ou um código de recuperação).';
+
+  @override
+  String get twoFactorDisableAction => 'Desligar';
+
+  @override
   String get settingsBiometric => 'Pedir biometria ao voltar';
 
   @override
@@ -1083,7 +1213,42 @@ class AppLocalizationsPt extends AppLocalizations {
       'O servidor demorou para responder. Tente de novo.';
 
   @override
-  String get errorInvalidCredentials => 'E-mail ou senha incorretos.';
+  String get errorInvalidCredentials =>
+      'E-mail ou senha incorretos. Se você acabou de criar a conta, abra antes o link que enviamos para o seu e-mail.';
+
+  @override
+  String get errorTwoFactorRequired =>
+      'Digite o código do seu app autenticador.';
+
+  @override
+  String get errorInvalidTwoFactorCode =>
+      'Código incorreto. Confira o app autenticador; cada erro conta para o bloqueio.';
+
+  @override
+  String get errorAuthBusy =>
+      'Muita gente entrando agora. Tente de novo em instantes.';
+
+  @override
+  String get errorTwoFactorSetupCode =>
+      'O código não confere. Confira o horário do celular e digite o código que estiver aparecendo agora.';
+
+  @override
+  String get errorTwoFactorNotSetUp =>
+      'Comece de novo a configuração da verificação em duas etapas.';
+
+  @override
+  String get errorTwoFactorAlreadyEnabled =>
+      'A verificação em duas etapas já está ligada.';
+
+  @override
+  String get errorTwoFactorNotEnabled =>
+      'A verificação em duas etapas já está desligada.';
+
+  @override
+  String get errorEmailUnchanged => 'Esse já é o e-mail da conta.';
+
+  @override
+  String get errorLinkInvalid => 'Este link venceu ou já foi usado.';
 
   @override
   String get errorAuthLocked =>
@@ -1144,6 +1309,14 @@ class AppLocalizationsPt extends AppLocalizations {
   String get errorAlreadyLinked => 'Essa conexão já está no Wallet.';
 
   @override
+  String get errorConnectionLimit =>
+      'Você chegou ao limite de conexões. Desvincule uma para vincular outra.';
+
+  @override
+  String get errorConnectAttempts =>
+      'Muitas tentativas de conectar banco em pouco tempo. Tente de novo mais tarde.';
+
+  @override
   String get errorConnectionGone => 'Essa conexão não existe mais.';
 
   @override
@@ -1152,7 +1325,7 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get errorSyncTooSoon =>
-      'Esta conexão acabou de atualizar. Tente de novo em alguns minutos.';
+      'Esta conexão tentou atualizar há poucos minutos. Tente de novo daqui a pouco.';
 
   @override
   String get errorSyncInProgress => 'Esta conexão já está atualizando.';

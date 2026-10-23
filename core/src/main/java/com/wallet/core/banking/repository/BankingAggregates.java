@@ -88,20 +88,35 @@ public class BankingAggregates {
                 userId, SALARY_CATEGORY, Date.valueOf(period.from()), Date.valueOf(period.to()));
     }
 
-    /** Every snapshot up to {@code to}, oldest first: the ones before the period seed the first day. */
-    public List<SnapshotRow> snapshotsUpTo(UUID userId, LocalDate to) {
+    /**
+     * The period's snapshots plus, per account, the last one before it, oldest first: that one
+     * seeds the first day (a day without a snapshot repeats the last balance known). Never the
+     * whole history: one row per account from before the period, found through the primary key
+     * ({@code account_id, snapshot_date}), however many years of snapshots there are.
+     */
+    public List<SnapshotRow> snapshotsIn(UUID userId, DateRange period) {
+        Date from = Date.valueOf(period.from());
         return jdbc.query("""
+                SELECT a.id AS account_id, a.kind, seed.snapshot_date, seed.balance
+                  FROM accounts a
+                  JOIN LATERAL (SELECT s.snapshot_date, s.balance
+                                  FROM balance_snapshots s
+                                 WHERE s.account_id = a.id AND s.snapshot_date < ?
+                                 ORDER BY s.snapshot_date DESC
+                                 LIMIT 1) seed ON TRUE
+                 WHERE a.user_id = ?
+                UNION ALL
                 SELECT s.account_id, a.kind, s.snapshot_date, s.balance
                   FROM balance_snapshots s JOIN accounts a ON a.id = s.account_id
-                 WHERE a.user_id = ? AND s.snapshot_date <= ?
-                 ORDER BY s.snapshot_date
+                 WHERE a.user_id = ? AND s.snapshot_date BETWEEN ? AND ?
+                 ORDER BY snapshot_date
                 """,
                 (row, index) -> new SnapshotRow(
                         row.getObject("account_id", UUID.class),
                         AccountKind.valueOf(row.getString("kind")),
                         row.getDate("snapshot_date").toLocalDate(),
                         Money.of(row.getBigDecimal("balance"))),
-                userId, Date.valueOf(to));
+                from, userId, userId, from, Date.valueOf(period.to()));
     }
 
     public record SnapshotRow(UUID accountId, AccountKind kind, LocalDate date, Money balance) {

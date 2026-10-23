@@ -2,7 +2,6 @@ package com.wallet.core;
 
 import com.wallet.core.demo.DemoPluggy;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.SpringApplication;
 
 import java.io.IOException;
 import java.time.Clock;
@@ -12,8 +11,10 @@ import java.util.stream.Stream;
 import static org.springframework.util.StringUtils.hasText;
 
 /**
- * Runs the core against a throwaway Postgres in Docker, without touching the local database:
- * {@code ./mvnw spring-boot:test-run}.
+ * Runs the core from the test classpath against the local Postgres, the same database as
+ * {@code spring-boot:run} (README, "Banco local"): {@code ./mvnw spring-boot:test-run}. It never
+ * creates a container, so nothing is left running in Docker; only the integration tests do
+ * ({@link TestcontainersConfiguration}).
  *
  * <p>Without {@code PLUGGY_CLIENT_ID} it also starts {@link DemoPluggy}, so the app can link
  * the items in {@link DemoPluggy#ITEMS} (demo-nubank, demo-itau, demo-xp...) and show synthetic data.
@@ -23,10 +24,13 @@ import static org.springframework.util.StringUtils.hasText;
 public class TestCoreApplication {
 
     public static void main(String[] args) throws IOException {
+        if (!hasText(System.getenv("WALLET_DB_PASSWORD"))) {
+            throw new IllegalStateException("WALLET_DB_PASSWORD is not set: test-run uses the local Postgres "
+                    + "(wallet_dev). Create it once with core/db/setup-local.sql and set the variable "
+                    + "(README, \"Banco local\").");
+        }
         String[] arguments = args;
-        String purpose = "pluggy";
         if (!hasText(System.getenv("PLUGGY_CLIENT_ID"))) {
-            purpose = "demo";
             DemoPluggy pluggy = DemoPluggy.start(Clock.systemUTC());
             Runtime.getRuntime().addShutdownHook(new Thread(pluggy::close));
             log.warn("PLUGGY_CLIENT_ID not set: demo Pluggy with synthetic data at {}. Link items {} in the app.",
@@ -36,11 +40,6 @@ public class TestCoreApplication {
                     "--wallet.pluggy.client-id=demo",
                     "--wallet.pluggy.client-secret=demo")).toArray(String[]::new);
         }
-        // Docker shows the database as wallet-core-demo-db-... or wallet-core-pluggy-db-...
-        arguments = Stream.concat(Arrays.stream(arguments),
-                Stream.of("--" + TestcontainersConfiguration.PURPOSE_PROPERTY + "=" + purpose)).toArray(String[]::new);
-        SpringApplication.from(CoreApplication::main)
-                .with(TestcontainersConfiguration.class)
-                .run(arguments);
+        CoreApplication.main(arguments);
     }
 }

@@ -54,6 +54,8 @@ dependencies:
   webview_flutter: ^4.14.1
   url_launcher: ^6.3.3
   path_provider: ^2.1.6
+  # Draws the QR code of the second factor (otpauth:// URI) in pure Dart, on every platform.
+  qr: ^4.0.0
 
 dev_dependencies:
   flutter_test:

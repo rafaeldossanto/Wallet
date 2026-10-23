@@ -4,11 +4,7 @@ import com.wallet.core.connection.ConnectionRevocation;
 import com.wallet.core.connection.RevocationReport;
 import com.wallet.core.identity.entity.User;
 import com.wallet.core.identity.repository.UserRepository;
-import com.wallet.core.shared.error.AccountLockedException;
-import com.wallet.core.shared.error.DomainException;
-import com.wallet.core.shared.error.ErrorType;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -20,15 +16,19 @@ import java.util.UUID;
 /**
  * Deleting an account (LGPD, art. 18, VI): the user and everything synced or typed in goes.
  *
- * <p>The password comes first: an access token alone, stolen or left on an unlocked phone, must
- * not be enough to erase an account. A wrong one counts toward the lockout like a failed login.
+ * <p>The password comes first ({@link PasswordConfirmation}): an access token alone, stolen or left
+ * on an unlocked phone, must not be enough to erase an account. A wrong one counts toward the
+ * lockout like a failed sign-in.
  *
  * <p>Order matters. First every connection is revoked at the provider, outside any transaction,
  * while the Wallet still knows the items; a provider failure is logged and does not stop the
  * deletion. Then, in one transaction with the user's row locked, connections linked in the
  * meantime are revoked too and the user row is deleted. The schema cascades from {@code users}
  * over connections, accounts, transactions, balance snapshots, card bills, investments and their
- * snapshots, sync runs, planning, dismissed suggestions and refresh tokens.
+ * snapshots, sync runs, planning, dismissed suggestions, refresh tokens, e-mailed links, recovery
+ * codes and notices. An access token issued before stops working at once: the core refuses tokens
+ * of users that no longer exist ({@code ActiveUserInterceptor}), this route included: a second
+ * deletion with the same token is a 401, and the app tells that end as the deletion.
  *
  * <p>{@code provider_calls} is kept on purpose: it has no foreign key, holds no financial data,
  * and its 180-day retention also covers the record that the items were revoked.
@@ -39,49 +39,33 @@ public class AccountDeletionService {
 
     private final UserRepository userRepository;
     private final ConnectionRevocation connections;
-    private final PasswordEncoder passwordEncoder;
-    private final LoginAttemptService loginAttemptService;
+    private final PasswordConfirmation passwordConfirmation;
     private final TransactionTemplate transactions;
 
     public AccountDeletionService(UserRepository userRepository, ConnectionRevocation connections,
-                                  PasswordEncoder passwordEncoder, LoginAttemptService loginAttemptService,
-                                  PlatformTransactionManager transactionManager) {
+                                  PasswordConfirmation passwordConfirmation, PlatformTransactionManager transactionManager) {
         this.userRepository = userRepository;
         this.connections = connections;
-        this.passwordEncoder = passwordEncoder;
-        this.loginAttemptService = loginAttemptService;
+        this.passwordConfirmation = passwordConfirmation;
         this.transactions = new TransactionTemplate(transactionManager);
     }
 
-    /** Idempotent: an account that is already gone is nothing to do. */
-    public void delete(UUID userId, String password) {
+    /**
+     * Idempotent: an account that is already gone is nothing to do.
+     *
+     * @param clientAddress where the BFF saw the request come from; scopes the lockout
+     */
+    public void delete(UUID userId, String password, String clientAddress) {
         Optional<User> user = userRepository.findById(userId);
         if (user.isEmpty()) {
             return;
         }
-        confirm(user.get(), password);
+        passwordConfirmation.confirm(user.get(), password, clientAddress);
         RevocationReport before = connections.revokeAll(userId, Set.of());
         Optional<RevocationReport> done = transactions.execute(status -> deleteLocked(userId, before));
         done.ifPresent(report -> log.info("[SECURITY] Account of user {} deleted: {} connections revoked at the provider, "
                         + "{} only let go of, {} not revoked (provider failed)",
                 userId, report.revoked(), report.released(), report.failed()));
-    }
-
-    /**
-     * 403 and not 401 for a wrong password: the BFF relays the core's 401 as an expired session and
-     * the app would log the user out. A locked account answers as at login, the attempt that locks
-     * it included, so the user learns it at once and not on the next try.
-     */
-    private void confirm(User user, String password) {
-        if (loginAttemptService.isLocked(user)) {
-            throw new AccountLockedException(user.getLockedUntil());
-        }
-        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
-            throw loginAttemptService.registerFailure(user.getId())
-                    .<DomainException>map(AccountLockedException::new)
-                    .orElseGet(() -> new DomainException(ErrorType.FORBIDDEN, "auth.wrong_password",
-                            "The password does not match"));
-        }
     }
 
     /**

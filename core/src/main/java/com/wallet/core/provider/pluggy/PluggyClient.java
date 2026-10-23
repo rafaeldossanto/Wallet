@@ -7,11 +7,14 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriBuilder;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -228,6 +231,11 @@ class PluggyClient {
         }
     }
 
+    /**
+     * Logs the status and a code, never the exception's message: for an error answer that message
+     * carries Pluggy's response body, which may echo what was sent or describe the user's account.
+     * The codes are the audit trail's ({@link PluggyAuditInterceptor#errorCodeOf}).
+     */
     private static DomainException translate(RestClientException ex) {
         if (ex instanceof HttpClientErrorException.NotFound) {
             return ProviderErrors.notFound("such resource");
@@ -235,7 +243,14 @@ class PluggyClient {
         if (ex instanceof HttpClientErrorException.Unauthorized || ex instanceof HttpClientErrorException.Forbidden) {
             return ProviderErrors.authFailed();
         }
-        log.warn("[PLUGGY] Request failed: {}", ex.getMessage());
+        if (ex instanceof RestClientResponseException response) {
+            int status = response.getStatusCode().value();
+            log.warn("[PLUGGY] Request failed: status={} code={}", status, PluggyAuditInterceptor.errorCodeOf(status));
+        } else if (ex instanceof ResourceAccessException && ex.getCause() instanceof IOException cause) {
+            log.warn("[PLUGGY] Request failed: no response, code={}", PluggyAuditInterceptor.errorCodeOf(cause));
+        } else {
+            log.warn("[PLUGGY] Request failed: code={} ({})", ProviderErrors.UNAVAILABLE, ex.getClass().getSimpleName());
+        }
         return ProviderErrors.unavailable(ex.getClass().getSimpleName());
     }
 

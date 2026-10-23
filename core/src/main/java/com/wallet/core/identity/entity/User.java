@@ -13,6 +13,8 @@ import lombok.Setter;
 import java.time.Instant;
 import java.util.UUID;
 
+import static java.util.Objects.nonNull;
+
 @Entity
 @Table(name = "users")
 @Getter
@@ -34,12 +36,30 @@ public class User {
     @Column(name = "display_name", nullable = false)
     private String displayName;
 
-    @Column(name = "failed_login_count", nullable = false)
-    private int failedLoginCount;
+    /** {@code null} until the link sent at sign-up is opened: nobody signs in before that. */
+    @Column(name = "email_confirmed_at")
+    private Instant emailConfirmedAt;
 
-    @Column(name = "locked_until")
-    private Instant lockedUntil;
+    /** The TOTP secret in base32, encrypted with the data key ({@code DataCipher}). */
+    @Column(name = "totp_secret")
+    private String totpSecret;
+
+    /** {@code null} with a secret = set-up started, waiting for the first code. */
+    @Column(name = "totp_enabled_at")
+    private Instant totpEnabledAt;
+
+    /** The last 30-second step accepted, so a code is good only once. */
+    @Column(name = "totp_last_step")
+    private Long totpLastStep;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
+    public boolean isEmailConfirmed() {
+        return nonNull(emailConfirmedAt);
+    }
+
+    public boolean isTwoFactorEnabled() {
+        return nonNull(totpEnabledAt);
+    }
 }

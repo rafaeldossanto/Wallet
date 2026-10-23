@@ -2,9 +2,12 @@ package com.wallet.core.shared.error;
 
 import com.wallet.core.shared.web.RequestBodyTooLargeException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.transaction.TransactionException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -12,6 +15,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.sql.SQLTransientConnectionException;
 import java.util.List;
 import java.util.Optional;
 
@@ -38,6 +42,29 @@ public class GlobalExceptionHandler {
         log.warn("[EXCEPTION] {}: {}", ex.getCode(), ex.getMessage());
         return ResponseEntity.status(statusOf(ex.getType()))
                 .body(new ErrorResponse(ex.getCode(), ex.getMessage(), List.of(), ex.getLockedUntil()));
+    }
+
+    /** Like any domain error, plus when to try again: the slots free up in milliseconds. */
+    @ExceptionHandler(ServiceBusyException.class)
+    public ResponseEntity<ErrorResponse> handleBusy(ServiceBusyException ex) {
+        log.warn("[EXCEPTION] {}: {}", ex.getCode(), ex.getMessage());
+        return ResponseEntity.status(statusOf(ex.getType()))
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfter().toSeconds()))
+                .body(ErrorResponse.of(ex.getCode(), ex.getMessage()));
+    }
+
+    /**
+     * No database connection came free within {@code spring.datasource.hikari.connection-timeout}
+     * (the pool is full, or the database is down): a 503 to try again, sent before the BFF's read
+     * timeout, which would count the wait as the core being down. Any other database error is
+     * unexpected.
+     */
+    @ExceptionHandler({DataAccessException.class, TransactionException.class})
+    public ResponseEntity<ErrorResponse> handleDataAccess(RuntimeException ex) {
+        if (causeOf(ex, SQLTransientConnectionException.class).isPresent()) {
+            return handleBusy(ServiceBusyException.noDatabaseConnection());
+        }
+        return handleUnexpected(ex);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

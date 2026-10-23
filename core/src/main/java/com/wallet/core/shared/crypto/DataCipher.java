@@ -1,7 +1,9 @@
 package com.wallet.core.shared.crypto;
 
+import com.wallet.core.shared.security.ProductionProfile;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Cipher;
@@ -26,6 +28,9 @@ import static org.springframework.util.StringUtils.hasText;
  * rotation tell old values from new ones.
  *
  * <p>{@link #fingerprint} is for the other need: finding a value again without storing it.
+ *
+ * <p>Without a key a development machine gets an ephemeral one; with the {@code prod} profile the
+ * boot fails instead, since everything encrypted would be unreadable after a restart.
  */
 @Slf4j
 @Component
@@ -44,8 +49,8 @@ public class DataCipher {
     private final SecretKey fingerprintKey;
     private final SecureRandom random = new SecureRandom();
 
-    public DataCipher(CryptoProperties properties) {
-        byte[] keyBytes = resolveKey(properties.dataKey());
+    public DataCipher(CryptoProperties properties, Environment environment) {
+        byte[] keyBytes = resolveKey(properties.dataKey(), ProductionProfile.isActive(environment));
         this.key = new SecretKeySpec(keyBytes, "AES");
         // Its own key, derived from the data key: the AES key is never used for anything else.
         this.fingerprintKey = new SecretKeySpec(hmac(new SecretKeySpec(keyBytes, HMAC), "wallet-fingerprint-v1"), HMAC);
@@ -115,8 +120,12 @@ public class DataCipher {
         }
     }
 
-    private static byte[] resolveKey(String configured) {
+    private static byte[] resolveKey(String configured, boolean production) {
         if (!hasText(configured)) {
+            if (production) {
+                throw new IllegalStateException("WALLET_DATA_KEY is required with the prod profile: an ephemeral key "
+                        + "would leave the encrypted data unreadable after a restart (openssl rand -base64 32)");
+            }
             log.warn("No WALLET_DATA_KEY configured: using an ephemeral key. Encrypted data written now "
                     + "becomes unreadable after a restart. Generate one with: openssl rand -base64 32");
             byte[] ephemeral = new byte[KEY_BYTES];

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.UUID;
 
 @RestController
@@ -19,9 +20,10 @@ public class CalendarController {
 
     private final CalendarService calendarService;
 
-    /** {@code month=2026-10}; the core validates it and defaults to the current month. */
+    /** {@code month=2026-10}; defaults to the current month (in the core). */
     @GetMapping("/api/calendar")
-    public CalendarResponse month(@CurrentUserId UUID userId, @RequestParam(required = false) String month) {
+    public CalendarResponse month(@CurrentUserId UUID userId,
+                                  @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM") YearMonth month) {
         return calendarService.month(userId, month);
     }
 

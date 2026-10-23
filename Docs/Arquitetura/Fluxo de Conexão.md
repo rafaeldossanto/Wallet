@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, open-finance, fluxo]
-atualizado: 2026-10-18
+atualizado: 2026-10-21
 ---
 
 # Fluxo de Conexão
@@ -97,8 +97,8 @@ sequenceDiagram
   terminar.
 - **Quando vincular:** no `SUCCESS` (dados coletados). Se a pessoa sair antes (voltar ou fechar)
   com o banco já autorizado e os dados chegando, o item também é vinculado; a primeira
-  sincronização pode ainda achar a Pluggy atualizando, e os dados vêm com o "Atualizar" ou na
-  sincronização seguinte. Saindo antes de autorizar, nada é vinculado.
+  sincronização pode ainda achar a Pluggy atualizando, e os dados vêm com o "Atualizar" (15 min
+  depois dessa tentativa, ver [[Sincronização]]) ou na sincronização agendada. Saindo antes de autorizar, nada é vinculado.
 - **Depois:** a tela de Conexões acompanha a primeira sincronização como no vínculo pelo Item ID
   (consulta a cada 3 s).
 - **Pluggy de demonstração:** responde ao `/connect_token` (com a mesma regra do redirect), mas o
@@ -111,11 +111,50 @@ sequenceDiagram
 |---|---|---|
 | Do Meu Pluggy (sem `clientUserId`) | Vincula | Recusa (parece inexistente) |
 | Do widget, deste usuário | Vincula | Vincula |
-| Do widget, de outro usuário | Recusa | Recusa |
+| Do widget, de outro usuário | Recusa (parece inexistente) | Recusa (parece inexistente) |
+| Já vinculado por outro usuário | Recusa (parece inexistente) | Recusa (parece inexistente) |
+| Já vinculado por este usuário | 409 `connection.already_linked` | 409 `connection.already_linked` |
+
+"Parece inexistente" é a mesma resposta de um item que a Pluggy não conhece (404
+`connection.item_not_found`), depois da mesma consulta à Pluggy. Até 2026-10-21 o "já vinculado"
+era conferido antes do dono e respondia 409 para qualquer pessoa, o que dizia que alguém usava o
+Wallet com aquele item (achado A17). Agora só o dono ouve o 409.
+
+O `MEU_PLUGGY` aceita item sem dono de **qualquer** usuário: é como o Item ID do Meu Pluggy é
+vinculado no desenvolvimento. Num servidor, quem descobrisse um itemId do operador leria os dados
+dele (achado A6). Por isso, com `SPRING_PROFILES_ACTIVE=prod` o core **não sobe** se
+`WALLET_CONNECTION_MODE` não for `PLUGGY_CONNECT`, e a mensagem diz a variável. Fora do `prod` o
+padrão continua `MEU_PLUGGY`.
+
+## Limites
+
+Cada vínculo faz o core ler até um ano do banco na Pluggy, e cada token do widget é uma chamada à
+Pluggy, tudo na apiKey de todos os usuários (achados A7, A8 e A9).
+
+| Limite | Onde | Padrão | Resposta |
+|---|---|---|---|
+| Conexões por usuário | Core (`wallet.provider.max-connections-per-user`) | 10 | 422 `connection.limit_reached` |
+| Vínculos (`POST /api/connections`), contando tentativas que falham | BFF (`wallet.rate-limit.link-limit` / `link-window`) | 10 por hora, por usuário | 429 `rate_limit.connections` |
+| Tokens do widget (`POST /api/connections/connect-token`) | BFF (`wallet.rate-limit.connect-token-limit` / `connect-token-window`) | 10 por hora, por usuário | 429 `rate_limit.connections` |
+
+- O teto vale também com pedidos em paralelo. As conferências (já vinculado por este usuário,
+  teto) rodam duas vezes: antes da consulta à Pluggy, para que um item repetido ou um usuário no
+  teto não gaste chamada; e de novo numa transação curta que só conta e grava, com um advisory
+  lock do Postgres por usuário (`UserLinkLock`), onde os vínculos de um usuário passam um de cada
+  vez.
+- A consulta à Pluggy fica **fora** de qualquer transação, ao vincular e ao desvincular, como na
+  sincronização (ver [[Sincronização]]): quem espera a Pluggy não segura conexão do banco. Até a
+  revisão do PR #4 (2026-10-22) ela ficava dentro, e dez vínculos (ou desvínculos) em paralelo de
+  um usuário com a Pluggy lenta ocupavam o pool inteiro: os outros usuários recebiam 503
+  `service.busy` (`ConnectionSlowProviderIT`).
+- Os limites do BFF somam ao geral (300 por minuto) e ficam na memória: reiniciar o BFF zera as
+  contas. A janela é fixa a partir do primeiro pedido; o `Retry-After` diz a janela inteira.
 
 Desvincular revoga o item na Pluggy (e o consentimento do Open Finance com ele) em produção e,
 no modo dev, quando o item foi criado pelo widget para aquele usuário. Item do Meu Pluggy só sai do
-Wallet. Se a Pluggy não responder ao conferir o dono, o Wallet desvincula sem revogar.
+Wallet. Se a Pluggy não responder ao conferir o dono, o Wallet desvincula sem revogar. Se a
+revogação falhar, a conexão fica: a linha só é apagada depois que a Pluggy revogou, numa
+transação curta.
 
 ## Pontos de atenção
 

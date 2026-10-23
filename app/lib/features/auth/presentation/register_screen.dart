@@ -25,6 +25,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _submitting = false;
   String? _error;
 
+  /// The e-mail the link went to: the account only exists once it is opened.
+  String? _sentTo;
+
   @override
   void dispose() {
     _name.dispose();
@@ -45,6 +48,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await context
           .read<SessionController>()
           .register(displayName: _name.text, email: _email.text, password: _password.text);
+      if (mounted) {
+        setState(() => _sentTo = _email.text.trim());
+      }
     } on ApiException catch (error) {
       if (mounted) {
         setState(() => _error = context.l10n.errorMessage(error));
@@ -59,6 +65,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
+    if (_sentTo case final email?) {
+      return AuthLayout(subtitle: l10n.registerCheckEmailTitle, children: [CheckEmailPanel(email: email)]);
+    }
     return AuthLayout(
       subtitle: l10n.registerSubtitle,
       children: [
@@ -112,6 +121,64 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         const SizedBox(height: 12),
         TextButton(onPressed: () => context.go('/login'), child: Text(l10n.registerGoToLogin)),
+      ],
+    );
+  }
+}
+
+/// After signing up: the account waits for the link. The same words whether or not the e-mail
+/// already had an account, as the server's answer is the same.
+class CheckEmailPanel extends StatefulWidget {
+  const CheckEmailPanel({super.key, required this.email});
+
+  final String email;
+
+  @override
+  State<CheckEmailPanel> createState() => _CheckEmailPanelState();
+}
+
+class _CheckEmailPanelState extends State<CheckEmailPanel> {
+  bool _sending = false;
+  String? _notice;
+  String? _error;
+
+  Future<void> _resend() async {
+    setState(() {
+      _sending = true;
+      _notice = null;
+      _error = null;
+    });
+    try {
+      await context.read<SessionController>().resendConfirmation(widget.email);
+      if (mounted) {
+        setState(() => _notice = context.l10n.confirmationResent);
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() => _error = context.l10n.errorMessage(error));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _sending = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Icon(Icons.mark_email_unread_outlined, size: 40, color: Theme.of(context).colorScheme.primary),
+        const SizedBox(height: 16),
+        Text(l10n.registerCheckEmailBody(widget.email), textAlign: TextAlign.center),
+        const SizedBox(height: 24),
+        if (_notice != null) FormNoticeText(_notice!),
+        if (_error != null) FormErrorText(_error!),
+        FilledButton(onPressed: () => context.go('/login'), child: Text(l10n.registerBackToLogin)),
+        const SizedBox(height: 12),
+        TextButton(onPressed: _sending ? null : _resend, child: Text(l10n.registerResend)),
       ],
     );
   }

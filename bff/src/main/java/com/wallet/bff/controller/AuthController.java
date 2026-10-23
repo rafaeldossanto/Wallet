@@ -2,11 +2,14 @@ package com.wallet.bff.controller;
 
 import com.wallet.bff.auth.ClientType;
 import com.wallet.bff.auth.SecurityConfig;
+import com.wallet.bff.client.CoreApi;
+import com.wallet.bff.model.dto.request.EmailTokenRequest;
 import com.wallet.bff.model.dto.request.LoginRequest;
 import com.wallet.bff.model.dto.request.RefreshRequest;
 import com.wallet.bff.model.dto.request.RegisterRequest;
+import com.wallet.bff.model.dto.request.ResendConfirmationRequest;
 import com.wallet.bff.model.dto.response.SessionResponse;
-import com.wallet.bff.model.dto.response.UserResponse;
+import com.wallet.bff.model.dto.response.EmailConfirmationResponse;
 import com.wallet.bff.service.AuthService;
 import com.wallet.bff.service.SessionDelivery;
 import jakarta.servlet.http.HttpServletResponse;
@@ -27,11 +30,26 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final CoreApi coreApi;
 
+    /** 202 and no body for every e-mail; whoever owns it learns the rest in the inbox. */
     @PostMapping("/register")
-    @ResponseStatus(HttpStatus.CREATED)
-    public UserResponse register(@RequestBody RegisterRequest request) {
-        return authService.register(request);
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void register(@RequestBody RegisterRequest request) {
+        authService.register(request);
+    }
+
+    /** Called by the confirmation page ({@code /email/confirm}) with the token of the e-mailed link. */
+    @PostMapping("/email/confirm")
+    public EmailConfirmationResponse confirmEmail(@RequestBody EmailTokenRequest request) {
+        return coreApi.confirmEmail(request);
+    }
+
+    /** 202 for every e-mail, like the sign-up. */
+    @PostMapping("/email/resend")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void resendConfirmation(@RequestBody ResendConfirmationRequest request) {
+        coreApi.resendConfirmation(request);
     }
 
     @PostMapping("/login")

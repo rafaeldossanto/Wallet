@@ -10,18 +10,20 @@ import java.util.UUID;
 @UtilityClass
 public class UserMapper {
 
-    public User toEntity(String normalizedEmail, String passwordHash, String displayName, Instant now) {
+    /** A new account, waiting for the link sent to its e-mail. */
+    public User toUnconfirmed(String normalizedEmail, String passwordHash, String displayName, Instant now) {
         return User.builder()
                 .id(UUID.randomUUID())
                 .email(normalizedEmail)
                 .passwordHash(passwordHash)
                 .displayName(displayName.strip())
-                .failedLoginCount(0)
                 .createdAt(now)
                 .build();
     }
 
-    public UserResponse toResponse(User user) {
-        return new UserResponse(user.getId(), user.getEmail(), user.getDisplayName(), user.getCreatedAt());
+    /** @param pendingEmail the address the account is moving to, while its link is open; {@code null} otherwise */
+    public UserResponse toResponse(User user, String pendingEmail) {
+        return new UserResponse(user.getId(), user.getEmail(), user.getDisplayName(), user.getCreatedAt(),
+                pendingEmail, user.isTwoFactorEnabled());
     }
 }

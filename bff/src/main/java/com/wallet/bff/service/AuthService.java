@@ -10,7 +10,6 @@ import com.wallet.bff.model.dto.request.LoginRequest;
 import com.wallet.bff.model.dto.request.RefreshRequest;
 import com.wallet.bff.model.dto.request.RegisterRequest;
 import com.wallet.bff.model.dto.response.SessionResponse;
-import com.wallet.bff.model.dto.response.UserResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -29,8 +28,8 @@ public class AuthService {
     private final SessionDelivery delivery;
     private final ScreenCache cache;
 
-    public UserResponse register(RegisterRequest request) {
-        return coreApi.register(request);
+    public void register(RegisterRequest request) {
+        coreApi.register(request);
     }
 
     /**

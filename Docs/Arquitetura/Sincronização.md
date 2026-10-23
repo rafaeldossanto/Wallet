@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, sync, pluggy]
-atualizado: 2026-10-18
+atualizado: 2026-10-21
 ---
 
 # Sincronização
@@ -13,8 +13,30 @@ Como os dados saem da Pluggy e chegam ao [[Modelo de Dados]].
 |---|---|---|
 | `INITIAL` | Logo depois de vincular a conexão | Evento `ConnectionLinked`, em segundo plano e só depois do commit |
 | `SCHEDULED` | A cada 6 h (`wallet.sync.interval`) | Pula a conexão se a Pluggy não atualizou desde a última leitura |
-| `MANUAL` | Botão "Atualizar" no app | No máximo 1 a cada 15 min por conexão (`429 sync.too_soon`); responde `202` e roda em segundo plano |
+| `MANUAL` | Botão "Atualizar" no app | Só 15 min depois do fim da última tentativa da conexão (`429 sync.too_soon`, ver abaixo); responde `202` e roda em segundo plano |
 | `WEBHOOK` | Produção | Não funciona no dev: a Pluggy não alcança o localhost |
+
+## Limites contra a leitura repetida (desde 2026-10-21, achado A7)
+
+Cada sincronização é uma rodada de chamadas à Pluggy, na mesma apiKey de todos os usuários.
+
+- **Cooldown do "Atualizar":** conta do **fim da última rodada** da conexão em `sync_runs`,
+  qualquer gatilho (a `INITIAL` do vínculo e a agendada inclusive) e qualquer resultado.
+  Antes contava só o sucesso (`last_synced_at`): uma conexão que nunca sincronizou, ou que
+  sempre falha, podia ser lida de novo a cada toque. Rodada ainda em `RUNNING` responde
+  `409 sync.in_progress`, não `429`.
+- **A `INITIAL`:** vincular → desvincular → vincular relia 365 dias a cada volta. Agora o
+  vínculo tem limite por usuário e janela no BFF (10 por hora, `429 rate_limit.connections`)
+  e um teto de 10 conexões por usuário no core. Ver [[Fluxo de Conexão#Limites]].
+- **Efeito colateral:** se a 1ª sincronização acha a Pluggy ainda coletando (`SKIPPED
+  provider.updating`), o "Atualizar" só volta 15 min depois; antes disso, só a agendada.
+- **Quantas ao mesmo tempo** (desde 2026-10-22, achado A11): o "Atualizar" passa pelo bulkhead
+  `manual-sync` do core (`wallet.bulkhead.manual-sync`, 4 no total e 2 por usuário). A vaga é da
+  rodada em segundo plano, não da requisição: fica presa até a leitura na Pluggy e a gravação
+  acabarem. Sem vaga, nada começa (nenhuma rodada fica `RUNNING`): `429 rate_limit.exceeded`
+  quando o usuário já tem as dele rodando, `503 service.busy` quando todas estão ocupadas, os dois
+  com `Retry-After`. O executor em segundo plano usa virtual threads, então sem isso nada limitava
+  quantas leituras rodavam juntas. Ver [[Core#Disponibilidade]].
 
 ## Passo a passo de uma sincronização
 

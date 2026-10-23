@@ -56,7 +56,7 @@ public class InvestmentReadService implements InvestmentQueries {
 
     @Override
     public Map<LocalDate, Money> totalHistory(UUID userId, DateRange period) {
-        List<InvestmentAggregates.SnapshotRow> rows = aggregates.snapshotsUpTo(userId, period.to());
+        List<InvestmentAggregates.SnapshotRow> rows = aggregates.snapshotsIn(userId, period);
         Map<UUID, Money> latestPerPosition = new HashMap<>();
         Map<LocalDate, Money> totals = new LinkedHashMap<>();
         int next = 0;

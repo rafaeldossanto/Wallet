@@ -10,6 +10,7 @@ import com.wallet.core.connection.dto.LinkConnectionRequest;
 import com.wallet.core.connection.entity.Connection;
 import com.wallet.core.connection.mapper.ConnectionMapper;
 import com.wallet.core.connection.repository.ConnectionRepository;
+import com.wallet.core.connection.repository.UserLinkLock;
 import com.wallet.core.provider.FinancialDataProvider;
 import com.wallet.core.provider.ProviderCallContext;
 import com.wallet.core.provider.ProviderCallReason;
@@ -17,16 +18,18 @@ import com.wallet.core.provider.ProviderErrors;
 import com.wallet.core.provider.ProviderItem;
 import com.wallet.core.shared.error.DomainException;
 import com.wallet.core.shared.error.ErrorType;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -34,29 +37,80 @@ import static java.util.Objects.isNull;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ConnectionService implements ConnectionRevocation {
 
     private final ConnectionRepository repository;
+    private final UserLinkLock linkLock;
     private final FinancialDataProvider provider;
     private final ConnectionProperties properties;
     private final ApplicationEventPublisher events;
     private final Clock clock;
+    private final TransactionTemplate transactions;
 
-    @Transactional
+    public ConnectionService(ConnectionRepository repository, UserLinkLock linkLock, FinancialDataProvider provider,
+                             ConnectionProperties properties, ApplicationEventPublisher events, Clock clock,
+                             PlatformTransactionManager transactionManager) {
+        this.repository = repository;
+        this.linkLock = linkLock;
+        this.provider = provider;
+        this.properties = properties;
+        this.events = events;
+        this.clock = clock;
+        this.transactions = new TransactionTemplate(transactionManager);
+    }
+
+    /**
+     * Whether an item is already linked is only told to its owner. An item somebody else linked
+     * answers exactly like one that does not exist, after the same call to the provider, so the
+     * answer cannot be used to probe for other people's items.
+     *
+     * <p>The provider is called outside any transaction, as in the sync: a slow Pluggy must not hold
+     * a database connection, or one user linking several banks at once would take the pool from
+     * everyone. So the checks run twice: before the call, so that an item the user already linked,
+     * or a user at the ceiling, costs no call to the provider; and again in the short transaction
+     * that writes, under the user's link lock ({@link UserLinkLock}), so that parallel requests
+     * cannot all get past the ceiling.
+     */
     public ConnectionResponse link(UUID userId, LinkConnectionRequest request) {
         String itemId = request.providerItemId();
-        if (repository.existsByProviderAndProviderItemId(ConnectionMapper.PROVIDER_PLUGGY, itemId)) {
-            throw alreadyLinked();
-        }
+        boolean linkedByAnother = checkLinkable(userId, itemId);
         ProviderItem item = findItemOwnedBy(userId, itemId);
+        if (linkedByAnother) {
+            log.warn("[SECURITY] User {} tried to link item {} linked by another user", userId, itemId);
+            throw itemNotFound();
+        }
         try {
-            Connection connection = repository.saveAndFlush(ConnectionMapper.toEntity(userId, item, clock.instant()));
-            events.publishEvent(new ConnectionLinked(connection.getId(), userId));
-            return ConnectionMapper.toResponse(connection);
+            return transactions.execute(status -> {
+                linkLock.acquire(userId);
+                if (checkLinkable(userId, itemId)) {
+                    // Another user linked it while the provider was answering.
+                    throw itemNotFound();
+                }
+                Connection connection = repository.saveAndFlush(ConnectionMapper.toEntity(userId, item, clock.instant()));
+                events.publishEvent(new ConnectionLinked(connection.getId(), userId));
+                return ConnectionMapper.toResponse(connection);
+            });
         } catch (DataIntegrityViolationException ex) {
+            // Somebody else linked it after the check (only the user's own links wait on the lock),
+            // or the account is being deleted: either way the item is not this user's to link.
+            throw itemNotFound();
+        }
+    }
+
+    /**
+     * Throws when this user already linked the item, or already holds as many connections as allowed.
+     *
+     * @return whether somebody else linked the item: the caller answers as for an unknown item
+     */
+    private boolean checkLinkable(UUID userId, String itemId) {
+        Optional<Connection> linked = repository.findByProviderAndProviderItemId(ConnectionMapper.PROVIDER_PLUGGY, itemId);
+        if (linked.isPresent() && linked.get().getUserId().equals(userId)) {
             throw alreadyLinked();
         }
+        if (repository.countByUserId(userId) >= properties.maxConnectionsPerUser()) {
+            throw limitReached();
+        }
+        return linked.isPresent();
     }
 
     /**
@@ -78,18 +132,23 @@ public class ConnectionService implements ConnectionRevocation {
      * Unlinking deletes every synced row of the connection (the database cascades). In production
      * the item is also deleted at Pluggy, which revokes the Open Finance consent. With Meu Pluggy the
      * item belongs to the Meu Pluggy account, so the Wallet only lets go of it.
+     *
+     * <p>The provider is called outside any transaction, as when linking: a slow Pluggy must not
+     * hold a database connection. A provider failure still stops the unlink, since the row is only
+     * deleted afterwards, in a short transaction of its own. Gone by then (unlinked twice at once,
+     * or the account deleted meanwhile) is nothing left to do.
      */
-    @Transactional
     public void unlink(UUID userId, UUID connectionId) {
         Connection connection = repository.findByIdAndUserId(connectionId, userId).orElseThrow(ConnectionService::notFound);
         releaseAtProvider(userId, connection, ProviderCallReason.UNLINK);
-        repository.delete(connection);
+        transactions.executeWithoutResult(status ->
+                repository.findByIdAndUserId(connectionId, userId).ifPresent(repository::delete));
     }
 
     /**
-     * Not transactional: the provider is called without holding the database. Unlike unlinking,
-     * a provider failure does not stop anything; the account goes anyway, and the failure is
-     * logged so the item can be revoked by hand at the provider.
+     * Not transactional: the provider is called without holding the database. Like unlinking; but
+     * unlike it, a provider failure does not stop anything: the account goes anyway, and the
+     * failure is logged so the item can be revoked by hand at the provider.
      */
     @Override
     public RevocationReport revokeAll(UUID userId, Set<UUID> skip) {
@@ -190,6 +249,11 @@ public class ConnectionService implements ConnectionRevocation {
 
     private static DomainException alreadyLinked() {
         return new DomainException(ErrorType.CONFLICT, "connection.already_linked", "This item is already linked");
+    }
+
+    private DomainException limitReached() {
+        return new DomainException(ErrorType.UNPROCESSABLE, "connection.limit_reached",
+                "At most " + properties.maxConnectionsPerUser() + " connections per user");
     }
 
     private static DomainException itemNotFound() {

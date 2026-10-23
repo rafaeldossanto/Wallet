@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -76,10 +77,11 @@ public class ScreenService {
     }
 
     /** The month's spending and six months of net worth, fetched side by side. */
-    public InsightsResponse insights(UUID userId, String month) {
-        return cache.get(userId, "insights", isNull(month) ? "" : month, () -> {
+    public InsightsResponse insights(UUID userId, YearMonth month) {
+        String checked = ScreenMonth.check(month, clock);
+        return cache.get(userId, "insights", isNull(checked) ? "" : checked, () -> {
             LocalDate today = ClockConfig.today(clock);
-            CompletableFuture<SpendingResponse> spending = executor.supply(() -> coreApi.spending(month));
+            CompletableFuture<SpendingResponse> spending = executor.supply(() -> coreApi.spending(checked));
             CompletableFuture<NetWorthResponse> netWorth =
                     executor.supply(() -> coreApi.netWorth(today.minusDays(NET_WORTH_DAYS - 1), today));
             return new InsightsResponse(join(spending), join(netWorth));

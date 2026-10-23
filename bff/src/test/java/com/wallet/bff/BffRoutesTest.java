@@ -31,6 +31,7 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -188,29 +189,27 @@ class BffRoutesTest extends BffTestSupport {
                 .withRequestBody(equalToJson("{\"refreshToken\":\"refresh-1\"}")));
     }
 
+    /** The core answers 202 for every e-mail, taken or not; a validation error still comes through. */
     @Test
     void registerIsRelayedWithTheCoresAnswer() throws Exception {
-        UUID userId = UUID.randomUUID();
-        CORE.stubFor(WireMock.post(urlEqualTo("/internal/auth/register"))
-                .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
-                        .withBody(USER_JSON.formatted(userId))));
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/auth/register")).willReturn(aResponse().withStatus(202)));
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"rafael@example.com\",\"password\":\"secret-password\",\"displayName\":\"Rafael\"}"))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(userId.toString()));
+                .andExpect(status().isAccepted())
+                .andExpect(content().string(""));
 
         CORE.stubFor(WireMock.post(urlEqualTo("/internal/auth/register")).willReturn(aResponse()
-                .withStatus(409)
+                .withStatus(400)
                 .withHeader("Content-Type", "application/json")
-                .withBody("{\"code\":\"identity.email_taken\",\"message\":\"Email already registered\"}")));
+                .withBody("{\"code\":\"validation.failed\",\"message\":\"Request has invalid fields\"}")));
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"rafael@example.com\",\"password\":\"secret-password\",\"displayName\":\"Rafael\"}"))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("identity.email_taken"));
+                        .content("{\"email\":\"rafael@example.com\",\"password\":\"short\",\"displayName\":\"Rafael\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("validation.failed"));
     }
 
     // ---- home --------------------------------------------------------------------------------

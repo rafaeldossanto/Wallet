@@ -13,7 +13,8 @@ import com.nimbusds.jwt.SignedJWT;
 import com.wallet.bff.config.GatewayKey;
 import com.wallet.bff.config.RequestBodyLimitFilter;
 import com.wallet.bff.trace.TraceIdFilter;
-import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import com.wallet.bff.client.CoreCallGuards;
+import com.wallet.bff.client.CoreRouteGroup;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -45,6 +46,9 @@ public abstract class BffTestSupport {
     protected static final WireMockServer CORE = new WireMockServer(wireMockConfig().dynamicPort());
     protected static final RSAKey SIGNING_KEY = generateKey("wallet-core-1");
 
+    /** The aud the core puts in every access token. */
+    protected static final String AUDIENCE = "wallet-api";
+
     /** What the fake core asks of the BFF; the JWKS stub refuses to answer without it. */
     protected static final String GATEWAY_KEY = "test-gateway-key-0123456789abcdef0123456789";
 
@@ -62,7 +66,7 @@ public abstract class BffTestSupport {
     private WebApplicationContext context;
 
     @Autowired
-    private CircuitBreaker coreCircuitBreaker;
+    private CoreCallGuards coreCallGuards;
 
     @Autowired
     private TraceIdFilter traceIdFilter;
@@ -80,7 +84,9 @@ public abstract class BffTestSupport {
     void resetFakeCore() {
         CORE.resetAll();
         stubJwks(SIGNING_KEY);
-        coreCircuitBreaker.reset();
+        for (CoreRouteGroup group : CoreRouteGroup.values()) {
+            coreCallGuards.circuit(group).reset();
+        }
         mockMvc = MockMvcBuilders.webAppContextSetup(context)
                 .addFilters(traceIdFilter, requestBodyLimitFilter)
                 .apply(springSecurity())
@@ -99,11 +105,17 @@ public abstract class BffTestSupport {
     }
 
     protected static String token(UUID userId, Instant expiresAt, String issuer, RSAKey key) {
+        return token(userId, expiresAt, issuer, key, AUDIENCE);
+    }
+
+    /** @param audience {@code null} for a token without one, as the core issued them before */
+    protected static String token(UUID userId, Instant expiresAt, String issuer, RSAKey key, String audience) {
         try {
             SignedJWT jwt = new SignedJWT(
                     new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(key.getKeyID()).build(),
                     new JWTClaimsSet.Builder()
                             .issuer(issuer)
+                            .audience(audience)
                             .subject(userId.toString())
                             .issueTime(Date.from(Instant.now().minusSeconds(5)))
                             .expirationTime(Date.from(expiresAt))

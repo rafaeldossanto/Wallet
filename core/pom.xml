@@ -21,6 +21,8 @@
 		<spring-modulith.version>2.1.1</spring-modulith.version>
 		<!-- Latest stable; 4.x is still in beta -->
 		<wiremock.version>3.13.2</wiremock.version>
+		<!-- The 2.1 line is built on Jakarta Mail 2.1 / Angus, the same as Spring Boot 4 -->
+		<greenmail.version>2.1.14</greenmail.version>
 	</properties>
 
 	<dependencyManagement>
@@ -77,6 +79,11 @@
 		<dependency>
 			<groupId>org.springframework.modulith</groupId>
 			<artifactId>spring-modulith-starter-core</artifactId>
+		</dependency>
+		<dependency>
+			<!-- SMTP for the account e-mails (confirmation, notices); any provider, Amazon SES included -->
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
 
 		<dependency>
@@ -135,6 +142,13 @@
 			<groupId>org.wiremock</groupId>
 			<artifactId>wiremock-standalone</artifactId>
 			<version>${wiremock.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<!-- A real SMTP server in memory, for the SMTP sender's own test -->
+			<groupId>com.icegreen</groupId>
+			<artifactId>greenmail-junit5</artifactId>
+			<version>${greenmail.version}</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

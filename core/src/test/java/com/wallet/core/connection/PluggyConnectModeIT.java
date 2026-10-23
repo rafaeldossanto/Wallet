@@ -5,6 +5,7 @@ import com.wallet.core.TestMockMvc;
 import com.wallet.core.TestUsers;
 import com.wallet.core.TestcontainersConfiguration;
 import com.wallet.core.provider.FinancialDataProvider;
+import com.wallet.core.provider.ProviderErrors;
 import com.wallet.core.provider.ProviderItem;
 import com.wallet.core.provider.ProviderItemStatus;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -22,6 +24,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 import static com.wallet.core.TestUsers.as;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -38,6 +42,9 @@ class PluggyConnectModeIT {
     @Autowired
     private WebApplicationContext context;
 
+    @Autowired
+    private JdbcTemplate jdbc;
+
     @MockitoBean
     private FinancialDataProvider provider;
 
@@ -53,6 +60,18 @@ class PluggyConnectModeIT {
     @Test
     void someoneElsesItemLooksLikeAnUnknownOne() throws Exception {
         String itemId = stubItem(UUID.randomUUID().toString());
+
+        link(itemId)
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("connection.item_not_found"));
+    }
+
+    /** Before, the "already linked" check came first and answered 409: proof the item was in use. */
+    @Test
+    void someoneElsesItemLooksUnknownAlsoOnceTheyLinkedIt() throws Exception {
+        UUID owner = TestUsers.register(mockMvc);
+        String itemId = stubItem(owner.toString());
+        link(owner, itemId).andExpect(status().isCreated());
 
         link(itemId)
                 .andExpect(status().isNotFound())
@@ -80,6 +99,24 @@ class PluggyConnectModeIT {
         verify(provider).deleteItem(itemId);
     }
 
+    /**
+     * The row goes only once the consent is revoked: the call to the provider comes first and,
+     * when it fails, the connection stays, to be unlinked again.
+     */
+    @Test
+    void aFailedRevocationKeepsTheConnection() throws Exception {
+        String itemId = stubItem(userId.toString());
+        String body = link(itemId).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        doThrow(ProviderErrors.unavailable("timeout")).when(provider).deleteItem(itemId);
+
+        mockMvc.perform(delete("/internal/connections/" + JsonPath.read(body, "$.id")).with(as(userId)))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("provider.unavailable"));
+
+        assertThat(jdbc.queryForObject("select count(*) from connections where user_id = ?", Integer.class, userId))
+                .isEqualTo(1);
+    }
+
     /** In production every item was created for the user, so deleting the account revokes all of them. */
     @Test
     void deletingTheAccountRevokesEveryItemAtTheProvider() throws Exception {
@@ -94,9 +131,11 @@ class PluggyConnectModeIT {
 
         verify(provider).deleteItem(first);
         verify(provider).deleteItem(second);
+        assertThat(jdbc.queryForObject("select count(*) from connections where user_id = ?", Integer.class, userId)).isZero();
+        // The deleted user's token opens nothing any more (L1-c).
         mockMvc.perform(get("/internal/connections").with(as(userId)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isEmpty());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("auth.unauthenticated"));
     }
 
     private String stubItem(String clientUserId) {
@@ -107,7 +146,11 @@ class PluggyConnectModeIT {
     }
 
     private ResultActions link(String itemId) throws Exception {
-        return mockMvc.perform(post("/internal/connections").with(as(userId)).contentType(MediaType.APPLICATION_JSON)
+        return link(userId, itemId);
+    }
+
+    private ResultActions link(UUID user, String itemId) throws Exception {
+        return mockMvc.perform(post("/internal/connections").with(as(user)).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"providerItemId\":\"%s\"}".formatted(itemId)));
     }
 }

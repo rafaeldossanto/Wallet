@@ -8,6 +8,7 @@ import com.wallet.core.insight.service.InsightService;
 import com.wallet.core.shared.security.CurrentUserId;
 import com.wallet.core.shared.time.DateRange;
 import com.wallet.core.shared.time.WalletTime;
+import com.wallet.core.shared.web.Bulkheads;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,11 +30,13 @@ public class InsightController {
     private static final int NET_WORTH_MAX_DAYS = 731;
 
     private final InsightService insightService;
+    private final Bulkheads bulkheads;
     private final Clock clock;
 
+    /** Reads three modules; behind the screens bulkhead with the other composed reads. */
     @GetMapping("/internal/overview")
     public OverviewResponse overview(@CurrentUserId UUID userId) {
-        return insightService.overview(userId);
+        return bulkheads.screens().run(userId, () -> insightService.overview(userId));
     }
 
     /** {@code month=2026-09}; defaults to the current month. */
@@ -58,6 +61,6 @@ public class InsightController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         LocalDate today = WalletTime.today(clock);
         DateRange period = DateRange.of(from, to, today.minusDays(NET_WORTH_DEFAULT_DAYS - 1), today, NET_WORTH_MAX_DAYS);
-        return insightService.netWorth(userId, period);
+        return bulkheads.screens().run(userId, () -> insightService.netWorth(userId, period));
     }
 }

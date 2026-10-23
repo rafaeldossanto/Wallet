@@ -1,6 +1,7 @@
 package com.wallet.bff.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +36,15 @@ public class GlobalExceptionHandler {
         log.warn("[EXCEPTION] bff.core_unavailable: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(new ErrorResponse("bff.core_unavailable", "The service is temporarily unavailable"));
+    }
+
+    /** Same code and header as the core's own bulkheads: the app treats a busy BFF and a busy core alike. */
+    @ExceptionHandler(CoreBusyException.class)
+    public ResponseEntity<ErrorResponse> handleCoreBusy(CoreBusyException ex) {
+        log.warn("[EXCEPTION] service.busy: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header(HttpHeaders.RETRY_AFTER, "1")
+                .body(new ErrorResponse("service.busy", "Too many requests of this kind right now; try again shortly"));
     }
 
     @ExceptionHandler(BffException.class)

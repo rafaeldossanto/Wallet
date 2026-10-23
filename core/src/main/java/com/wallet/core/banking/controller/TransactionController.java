@@ -8,6 +8,7 @@ import com.wallet.core.shared.security.CurrentUserId;
 import com.wallet.core.shared.time.DateRange;
 import com.wallet.core.shared.time.WalletTime;
 import com.wallet.core.shared.web.PageQuery;
+import com.wallet.core.shared.web.Bulkheads;
 import com.wallet.core.shared.web.PageResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -19,20 +20,29 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.util.UUID;
 
+import static org.springframework.util.StringUtils.hasText;
+
 @RestController
 @RequiredArgsConstructor
 public class TransactionController {
 
-    /** Also bounds the in-memory text search. */
     private static final int MAX_PERIOD_DAYS = 366;
 
+    /**
+     * A text search decrypts every description of the period, so it covers less: a quarter. The
+     * app searches one month at a time.
+     */
+    private static final int MAX_SEARCH_PERIOD_DAYS = 93;
+
     private final BankingReadService bankingReadService;
+    private final Bulkheads bulkheads;
     private final Clock clock;
 
     /**
      * Defaults to the current month so far. {@code spending=true} keeps only what counts as
      * spending, by the same rule as the spending insights, so a day's list adds up to the
-     * calendar's total for that day.
+     * calendar's total for that day. With {@code q} the period is shorter and the search goes
+     * through the search bulkhead.
      */
     @GetMapping("/internal/transactions")
     public PageResponse<TransactionResponse> search(
@@ -46,8 +56,14 @@ public class TransactionController {
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer pageSize) {
         LocalDate today = WalletTime.today(clock);
-        DateRange period = DateRange.of(from, to, today.withDayOfMonth(1), today, MAX_PERIOD_DAYS);
-        return bankingReadService.searchTransactions(new TransactionFilter(userId, period, accountId, direction, spending),
-                q, PageQuery.of(page, pageSize));
+        boolean textSearch = hasText(q);
+        DateRange period = DateRange.of(from, to, today.withDayOfMonth(1), today,
+                textSearch ? MAX_SEARCH_PERIOD_DAYS : MAX_PERIOD_DAYS);
+        TransactionFilter filter = new TransactionFilter(userId, period, accountId, direction, spending);
+        PageQuery pageQuery = PageQuery.of(page, pageSize);
+        if (!textSearch) {
+            return bankingReadService.listTransactions(filter, pageQuery);
+        }
+        return bulkheads.search().run(userId, () -> bankingReadService.searchTransactions(filter, q, pageQuery));
     }
 }

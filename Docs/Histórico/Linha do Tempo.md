@@ -1,6 +1,6 @@
 ---
 tags: [historico]
-atualizado: 2026-10-18
+atualizado: 2026-10-19
 ---
 
 # Linha do Tempo
@@ -187,3 +187,107 @@ atualizado: 2026-10-18
   aparecem no cartão de gastos fixos, com um toque para adicionar (formulário preenchido) e um
   para dispensar de vez. Sem pagamento de fatura, sem o que já é gasto fixo e sem o que parou de
   sair. Ver [[Core#Gastos fixos sugeridos pelo extrato (desde 2026-10-18)]].
+
+## 2026-10-19
+
+- A `dev` foi para a `main` em três PRs do Rafael: #1 (Android, auditoria da Pluggy, planejamento
+  do mês), #2 (segurança e LGPD) e #3 (excluir conta pelo app). Antes do #1, a revisão corrigiu
+  quatro pontos: o duplo toque no planejamento dava 500; falhas por exceção não verificada não
+  eram auditadas; uma atualização pronta se perdia na checagem seguinte; e as respostas da
+  instalação no Android não ficavam presas à sessão certa.
+- Auditoria de segurança e LGPD (achados A1, A2, A3, A19 e L1):
+  - Chave de gateway entre BFF e core (`X-Gateway-Key`, `WALLET_GATEWAY_KEY`). O core recusa com
+    403 tudo o que chega sem ela, menos o health. Com `SPRING_PROFILES_ACTIVE=prod`, a subida
+    falha sem uma chave forte. O core escuta no loopback por padrão.
+  - O rate limit conta o IP real da conexão e só aceita `X-Forwarded-For` vindo de
+    `WALLET_TRUSTED_PROXIES`.
+  - Teto de 256 KB no corpo das requisições (413).
+  - Exclusão da conta (`DELETE /api/me`, LGPD art. 18, VI), pedindo a senha de novo. Revoga cada
+    banco na Pluggy e apaga o usuário e tudo dele em cascata. `provider_calls` fica 180 dias como
+    prova da revogação.
+  - O `.env.example` na raiz lista todas as variáveis. Ver [[Autenticação]] e [[BFF]].
+- Excluir conta pelo app, em Ajustes → Zona de perigo. O usuário confirma, digita a senha de novo
+  e a tela fica travada enquanto o core revoga os bancos (até 2 min). A conta bloqueada por senha
+  errada agora diz até quando (`lockedUntil` no 423). Fica em aberto: o access token ainda vale
+  até 15 min depois da exclusão. Ver [[App Flutter]].
+- **v0.1.4** publicada nos Releases, a pedido do Rafael, com a tag anotada no merge do PR #3
+  (`99b3e3d`). É a primeira versão com tudo de 2026-10-18 e 2026-10-19: o app Android (APK que se
+  atualiza pelo próprio app e "Conectar banco" pelo Pluggy Connect), o planejamento do mês com os
+  gastos fixos sugeridos, a auditoria das chamadas à Pluggy, as correções de segurança e a
+  exclusão de conta. Seis arquivos: o instalador de Windows com o `latest.json`, o APK com o
+  `latest-android.json` e o `.ipa` com o `altstore.json`.
+  - **O APK saiu com a chave de debug**, porque os quatro segredos `ANDROID_*` ainda não existem no
+    repositório. Um APK assinado depois com a chave própria só instala por cima dele depois de
+    desinstalar. Quando o Rafael criar os segredos, o workflow Android da tag roda de novo e
+    troca o APK e o manifesto (o envio usa `--clobber`). Até lá, esse APK não vai para o tablet.
+  - O Windows e o iPhone não têm essa pendência: o instalador não depende dela, e o `.ipa` é
+    assinado pelo AltStore na instalação.
+- Cofre de memória do projeto, fora do repositório, em `E:\WalletMemory`: tudo deste cofre com
+  mais detalhe de código, as auditorias A1 a A21 e L1 a L19 com a situação de cada achado, as
+  decisões numeradas e o histórico de commits. Serve para retomar o contexto entre sessões do
+  Claude.
+
+## 2026-10-21
+
+- Nada é criado sozinho fora do banco de dados, pedido do Rafael antes do deploy no EC2, para
+  nenhum container ficar esquecido nem um erro de criação passar despercebido e gerar custo. O
+  `test-run` deixou de criar um Postgres no Docker e usa o banco local, o mesmo do
+  `spring-boot:run`, onde os dados ficam salvos. Só os testes de integração ainda criam container,
+  e eles somem sozinhos. Com `SPRING_PROFILES_ACTIVE=prod`, o core não sobe sem as chaves do JWT
+  e de criptografia, em vez de inventar uma chave temporária, como já acontecia com a chave de
+  gateway. As tabelas continuam sendo criadas pelo Flyway. Ver [[Core]].
+- O Rafael pediu para fechar todas as pendências técnicas das auditorias antes da landing page de
+  venda. O trabalho foi dividido em sessões paralelas a partir da `dev`, e a primeira a terminar
+  fechou os achados de conexão e de Pluggy (A6, A7, A8, A9, A17 e A20):
+  - em produção, o core não sobe no modo `MEU_PLUGGY`, que desliga a checagem de dono do item;
+  - um item de outra pessoa responde igual a um item que não existe, sem revelar que ele já está
+    vinculado;
+  - cada usuário pode ter até 10 conexões, e vínculos em paralelo do mesmo usuário passam um de
+    cada vez;
+  - o "Atualizar" conta o intervalo a partir da última tentativa, qualquer que tenha sido o
+    resultado, inclusive a primeira sincronização;
+  - o BFF limita vincular banco e pedir o token do Pluggy Connect a 10 por hora por usuário;
+  - o log da Pluggy registra só o status e o código, nunca a mensagem.
+
+  Ver [[Fluxo de Conexão]] e [[Sincronização]].
+
+## 2026-10-22
+
+- As outras duas sessões da rodada de pendências técnicas terminaram.
+- **Um usuário pesado não derruba mais os outros** (A10, A11, A12, A13 e A18):
+  - a busca do extrato vale para até 93 dias, decifra no máximo 5000 linhas e tem limite de
+    buscas ao mesmo tempo e por minuto;
+  - o pool do banco é explícito, e pool cheio responde 503 `service.busy` em poucos segundos;
+  - as rotas caras têm vagas próprias (busca, telas compostas e "Atualizar");
+  - o BFF tem um circuito por grupo de rotas, então a Pluggy fora do ar não derruba o resto do
+    app;
+  - o histórico de patrimônio lê só o período pedido;
+  - o `month` inválido para no BFF;
+  - a saúde pública virou `/livez`, que não toca no banco, e os detalhes ficam numa porta de
+    gestão só no `127.0.0.1`.
+
+  Ver [[Core]] e [[BFF]].
+- **Conta e login** (A4, A5, A14, A16, L1-c, L11, segundo fator e logo novo):
+  - **e-mail:** módulo `mail` no core, por SMTP de qualquer provedor, e só no log fora de
+    produção;
+  - **cadastro e entrada:** o cadastro responde igual para qualquer e-mail e só entra quem
+    confirma pelo link. O bloqueio conta por e-mail + IP, dobra a cada vez e avisa o dono, e
+    um limite global protege o BCrypt;
+  - **Ajustes:** nome e e-mail podem ser trocados (o e-mail com confirmação), e há segundo fator
+    TOTP com códigos de recuperação;
+  - **token:** tem `aud`, e o de uma conta excluída responde 401 limpo, não 500;
+  - **logo:** login, cadastro e trilho usam os cartões empilhados.
+
+  Migration V10. Ver [[Autenticação]].
+- **Code review do PR #4** achou dois defeitos, corrigidos com teste que reproduz:
+  - a limpeza noturna (`AccountHousekeeping`) não rodava pelo agendador: o `@Transactional` era
+    ignorado porque o agendador chama o próprio objeto, não o proxy. Contas não confirmadas, links
+    vencidos e contadores de bloqueio nunca eram apagados. Agora a transação é aberta dentro do
+    método (`AccountHousekeepingIT` roda a tarefa como o agendador roda);
+  - vincular banco chamava a Pluggy dentro da transação, com o lock por usuário: dez vínculos em
+    paralelo com a Pluggy lenta ocupavam o pool inteiro e os outros usuários levavam 503. A Pluggy
+    saiu da transação, e o lock ficou só na transação curta que conta e grava
+    (`ConnectionSlowProviderIT`). Ver [[Fluxo de Conexão]];
+  - desvincular tinha o mesmo defeito (a revogação na Pluggy dentro da transação). A Pluggy saiu
+    da transação, e a linha só é apagada depois que a revogação deu certo, numa transação curta
+    (`ConnectionSlowProviderIT` e, para a revogação que falha, `PluggyConnectModeIT`).

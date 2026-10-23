@@ -74,7 +74,7 @@ class GatewayKeyTest {
 
     private static MockEnvironment production() {
         MockEnvironment environment = new MockEnvironment();
-        environment.setActiveProfiles(GatewayKey.PRODUCTION_PROFILE);
+        environment.setActiveProfiles(ProductionProfile.NAME);
         return environment;
     }
 }

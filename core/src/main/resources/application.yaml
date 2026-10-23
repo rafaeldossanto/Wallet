@@ -10,6 +10,16 @@ spring:
     url: ${WALLET_DB_URL:jdbc:postgresql://localhost:5432/wallet_dev}
     username: ${WALLET_DB_USERNAME:wallet}
     password: ${WALLET_DB_PASSWORD:}
+    hikari:
+      # Virtual threads put no ceiling on concurrent requests, so the pool is the ceiling on the
+      # database. Sized on purpose, not left to the default: the expensive requests are capped
+      # below it (wallet.bulkhead.*), so logins, cheap reads and sync writes always find a
+      # connection. Each instance holds this many against Postgres' max_connections (100).
+      maximum-pool-size: ${WALLET_DB_POOL_SIZE:10}
+      # Milliseconds. Waiting longer for a connection than the BFF waits for the core (5s) only
+      # turns a busy pool into a "core down" for the BFF's circuit breaker: after 3s the request
+      # gets 503 service.busy instead.
+      connection-timeout: 3000
   jpa:
     open-in-view: false
     hibernate:
@@ -36,30 +46,87 @@ server:
     max-swallow-size: ${wallet.http.max-body-size}
 
 wallet:
+  bulkhead:
+    # The expensive kinds of request, and how many run at once: in all (max-concurrent) and per
+    # user (max-per-user). Past either the core answers at once, 429 rate_limit.exceeded for the
+    # user's share and 503 service.busy for all of it, with Retry-After. search + screens stay
+    # below the pool above (10), so the rest of the core is never left without a connection.
+    search:
+      max-concurrent: 3
+      max-per-user: 2
+    screens:
+      max-concurrent: 5
+      max-per-user: 3
+    # Held until the background run ends (Pluggy calls and writes), not only for the request.
+    manual-sync:
+      max-concurrent: 4
+      max-per-user: 2
   http:
     # Largest request body: a larger Content-Length is refused with 413 before anything reads it,
     # and a chunked body is cut at this size while it is read (RequestBodyLimitFilter).
     max-body-size: ${WALLET_MAX_BODY_SIZE:256KB}
   gateway:
     # Shared secret the BFF sends in X-Gateway-Key; every request without it is refused with 403
-    # (only /actuator/health stays open). Same value in both services. Empty = development key
+    # (only the liveness probe, /livez, stays open). Same value in both services. Empty = development key
     # (local only); with SPRING_PROFILES_ACTIVE=prod an empty, short (< 32 chars) or development
     # key stops the boot.
     key: ${WALLET_GATEWAY_KEY:}
   jwt:
     issuer: wallet-core
-    # PEM text or a path to a .pem file. Both empty = ephemeral key for local development only.
+    # The aud of every access token, required here and in the BFF: a user's session on the Wallet
+    # API. Anything else the key might ever sign carries another audience and is not a session.
+    audience: wallet-api
+    # PEM text or a path to a .pem file. Both empty = ephemeral key for local development only;
+    # with SPRING_PROFILES_ACTIVE=prod an empty pair stops the boot.
     private-key: ${WALLET_JWT_PRIVATE_KEY:}
     public-key: ${WALLET_JWT_PUBLIC_KEY:}
     access-token-ttl: 15m
     refresh-token-ttl: 30d
   auth:
-    max-failed-logins: 5
-    lockout-duration: 15m
     # A device that lost the refresh response may retry the old token within this window.
     refresh-reuse-tolerance: 1m
+    # Progressive lockout (LoginThrottle): one e-mail from one client address locks after 5
+    # failures, one e-mail from every address after 20; each lockout lasts twice the previous one
+    # (15 min up to 24 h), and a day without failures starts the counters over.
+    lockout:
+      source-max-failures: 5
+      account-max-failures: 20
+      first-duration: 15m
+      max-duration: 24h
+      forget-after: 24h
+    # BCrypt is slow on purpose: at most this many password checks at once (0 = half the
+    # processors); one that waits longer than max-wait answers 429 auth.busy.
+    password-checks:
+      concurrency: ${WALLET_PASSWORD_CHECK_CONCURRENCY:0}
+      max-wait: 2s
+    email-links:
+      # The BFF's public address: the e-mailed links open its confirmation page. Empty =
+      # http://localhost:8080 (development); with SPRING_PROFILES_ACTIVE=prod it is required, https.
+      base-url: ${WALLET_PUBLIC_URL:}
+      ttl: 24h
+      # Confirmation links per account per hour, the sign-up's included.
+      max-per-hour: 3
+    # Accounts whose e-mail is never confirmed are deleted after this.
+    unconfirmed-account-ttl: 7d
+    # At most one notice of each kind (sign-up attempt, lockout) per account in this interval.
+    notice-interval: 1h
+    cleanup-cron: "0 15 4 * * *"
+  mail:
+    # The sender the provider accepts (on Amazon SES, a verified address or domain).
+    from: ${WALLET_MAIL_FROM:}
+    smtp:
+      # Empty = no SMTP: outside production the e-mails (links included) go to the log; with
+      # SPRING_PROFILES_ACTIVE=prod the core does not start without it.
+      host: ${WALLET_SMTP_HOST:}
+      port: ${WALLET_SMTP_PORT:587}
+      username: ${WALLET_SMTP_USERNAME:}
+      password: ${WALLET_SMTP_PASSWORD:}
+      # STARTTLS (587), SSL (465) or NONE (a local test server only; refused with prod).
+      security: ${WALLET_SMTP_SECURITY:STARTTLS}
+      timeout: 10s
   crypto:
-    # base64 of 32 random bytes (openssl rand -base64 32). Empty = ephemeral, development only.
+    # base64 of 32 random bytes (openssl rand -base64 32). Empty = ephemeral, development only;
+    # with SPRING_PROFILES_ACTIVE=prod an empty key stops the boot.
     data-key: ${WALLET_DATA_KEY:}
   sync:
     interval: 6h
@@ -70,12 +137,15 @@ wallet:
     overlap: 7d
     stale-run-after: 15m
   provider:
-    # MEU_PLUGGY: items are pasted from the Meu Pluggy dashboard (development).
-    # PLUGGY_CONNECT: items come from the widget and must belong to the user (production).
+    # MEU_PLUGGY: items are pasted from the Meu Pluggy dashboard (development); any user may link
+    # an item without an owner. PLUGGY_CONNECT: items come from the widget and must belong to the
+    # user (production). With SPRING_PROFILES_ACTIVE=prod anything but PLUGGY_CONNECT stops the boot.
     connection-mode: ${WALLET_CONNECTION_MODE:MEU_PLUGGY}
     # Where the bank sends the user back after authorizing in the Pluggy Connect widget: the Android
     # app's deep link. Changing it means changing the intent filter in the app's AndroidManifest.xml.
     oauth-redirect-uri: com.wallet.wallet://pluggy-connect
+    # Linking one more answers 422 connection.limit_reached.
+    max-connections-per-user: 10
     audit:
       # Every call to Pluggy is recorded in provider_calls; older records are deleted nightly.
       retention: 180d
@@ -89,7 +159,30 @@ wallet:
     api-key-ttl: 2h
 
 management:
+  server:
+    # The actuator lives on a port of its own, on loopback only: the full health (database,
+    # disk) and the readiness probe answer whoever is on this machine (a script, systemd, a
+    # Docker HEALTHCHECK), never the network. The core's own port only has /livez. It must differ
+    # from server.port: the boot fails otherwise (ManagementSecurityConfig).
+    port: ${WALLET_CORE_MANAGEMENT_PORT:9081}
+    address: 127.0.0.1
   endpoints:
     web:
       exposure:
         include: health
+  endpoint:
+    health:
+      # Only reachable from the machine itself (above), so it can say what is down.
+      show-details: always
+      probes:
+        enabled: true
+      group:
+        # Is the process alive? Answered from memory, no database: also served on the core's own
+        # port at /livez, open to whoever reaches it (no gateway key), so it must stay cheap.
+        liveness:
+          include: livenessState
+          show-details: never
+          additional-path: "server:/livez"
+        # Can it take requests? Includes the database; management port only.
+        readiness:
+          include: readinessState, db

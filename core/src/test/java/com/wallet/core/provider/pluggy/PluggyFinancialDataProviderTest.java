@@ -19,7 +19,10 @@ import com.wallet.core.shared.finance.TransactionStatus;
 import com.wallet.core.shared.money.Money;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
@@ -52,6 +55,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * The adapter against a fake Pluggy. Runs without Docker or Spring, so it stays in the unit suite.
  */
+@ExtendWith(OutputCaptureExtension.class)
 class PluggyFinancialDataProviderTest {
 
     private static final String ITEM_ID = "5b3f1c2e-7c1a-4c55-9d7e-1a2b3c4d5e6f";
@@ -136,6 +140,26 @@ class PluggyFinancialDataProviderTest {
 
         pluggy.stubFor(get(urlEqualTo("/items/" + ITEM_ID)).willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)));
         assertErrorCode(() -> provider.findItem(ITEM_ID), ProviderErrors.UNAVAILABLE);
+    }
+
+    /** The answer's body may echo what was sent or describe the account: the log keeps status and code. */
+    @Test
+    void aFailureIsLoggedWithStatusAndCodeButNotPluggysMessage(CapturedOutput output) {
+        pluggy.stubFor(get(urlEqualTo("/items/" + ITEM_ID)).willReturn(aResponse().withStatus(500)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"code\":500,\"message\":\"Item of maria.silva@example.com failed, CPF 123.456.789-00\"}")));
+        assertErrorCode(() -> provider.findItem(ITEM_ID), ProviderErrors.UNAVAILABLE);
+
+        pluggy.stubFor(get(urlEqualTo("/items/" + ITEM_ID)).willReturn(aResponse().withStatus(429)
+                .withBody("Too many requests for client-id")));
+        assertErrorCode(() -> provider.findItem(ITEM_ID), ProviderErrors.UNAVAILABLE);
+
+        assertThat(output)
+                .contains("[PLUGGY] Request failed: status=500 code=provider.unavailable")
+                .contains("[PLUGGY] Request failed: status=429 code=provider.rate_limited")
+                .doesNotContain("maria.silva")
+                .doesNotContain("123.456.789-00")
+                .doesNotContain("Too many requests for");
     }
 
     @Test

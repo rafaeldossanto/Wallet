@@ -2,6 +2,7 @@ package com.wallet.core.identity;
 
 import com.jayway.jsonpath.JsonPath;
 import com.wallet.core.TestMockMvc;
+import com.wallet.core.TestUsers;
 import com.wallet.core.TestcontainersConfiguration;
 import com.wallet.core.identity.repository.UserRepository;
 import com.wallet.core.provider.FinancialDataProvider;
@@ -14,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataAccessException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -44,6 +46,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -55,7 +58,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import(TestcontainersConfiguration.class)
 class AccountDeletionIT {
 
-    private static final String PASSWORD = "password123";
+    private static final String PASSWORD = TestUsers.PASSWORD;
 
     @Autowired
     private WebApplicationContext context;
@@ -137,7 +140,11 @@ class AccountDeletionIT {
         String refreshToken = login(owner.email());
 
         deleteAccount(owner.id(), PASSWORD).andExpect(status().isNoContent());
-        deleteAccount(owner.id(), PASSWORD).andExpect(status().isNoContent());
+        // The token of a user that no longer exists opens nothing, not even a second deletion: the
+        // app renews, finds the refresh token gone and tells it as the account deleted.
+        deleteAccount(owner.id(), PASSWORD)
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("auth.unauthenticated"));
 
         mockMvc.perform(get("/internal/me").with(as(owner.id())))
                 .andExpect(status().isUnauthorized());
@@ -148,6 +155,28 @@ class AccountDeletionIT {
         mockMvc.perform(post("/internal/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"%s\",\"password\":\"%s\"}".formatted(owner.email(), PASSWORD)))
                 .andExpect(status().isUnauthorized());
+    }
+
+    /**
+     * A JWT cannot be revoked: the deleted user's access token still passes its signature and expiry
+     * for up to 15 minutes. Every request with it must be a clean 401 (the app then finds its
+     * refresh token gone and shows the sign-in), not a 500 from a write that hits the foreign key of
+     * a user who no longer exists (L1-c).
+     */
+    @Test
+    void theAccessTokenOfADeletedAccountGetsACleanUnauthorized() throws Exception {
+        Registered owner = register();
+        String accessToken = accessToken(owner.email());
+
+        deleteAccount(owner.id(), PASSWORD).andExpect(status().isNoContent());
+
+        mockMvc.perform(put("/internal/planning/expected-salary").header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"amount\":\"3500.00\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("auth.unauthenticated"));
+        mockMvc.perform(get("/internal/planning/fixed-expenses").header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("auth.unauthenticated"));
     }
 
     @Test
@@ -173,7 +202,7 @@ class AccountDeletionIT {
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.code").value("auth.wrong_password"));
         }
-        // The fifth says the account is now locked, not "wrong password" again.
+        // The fifth says the address is now locked out of the account, not "wrong password" again.
         deleteAccount(owner.id(), "not-the-password")
                 .andExpect(status().isLocked())
                 .andExpect(jsonPath("$.code").value("auth.locked"))
@@ -237,19 +266,22 @@ class AccountDeletionIT {
 
     private Registered register() throws Exception {
         String email = "delete+" + UUID.randomUUID() + "@example.com";
-        String body = mockMvc.perform(post("/internal/auth/register").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"%s\",\"password\":\"%s\",\"displayName\":\"Test\"}".formatted(email, PASSWORD)))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-        return new Registered(UUID.fromString(JsonPath.read(body, "$.id")), email);
+        return new Registered(TestUsers.register(mockMvc, email), email);
     }
 
     private String login(String email) throws Exception {
-        String body = mockMvc.perform(post("/internal/auth/login").contentType(MediaType.APPLICATION_JSON)
+        return JsonPath.read(loginBody(email), "$.refreshToken");
+    }
+
+    private String accessToken(String email) throws Exception {
+        return JsonPath.read(loginBody(email), "$.accessToken");
+    }
+
+    private String loginBody(String email) throws Exception {
+        return mockMvc.perform(post("/internal/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"%s\",\"password\":\"%s\"}".formatted(email, PASSWORD)))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
-        return JsonPath.read(body, "$.refreshToken");
     }
 
     private void stubItem(String itemId, UUID clientUserId) {

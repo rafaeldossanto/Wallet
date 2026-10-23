@@ -6,6 +6,7 @@ import '../l10n/l10n.dart';
 import '../session/session_controller.dart';
 import '../theme/app_theme.dart';
 import '../widgets/theme_toggle.dart';
+import '../widgets/wallet_logo.dart';
 
 /// The same screens on every device; only the navigation around them changes: a bottom bar on
 /// phones, a floating rail of round buttons from tablets up.
@@ -103,14 +104,7 @@ class WalletRail extends StatelessWidget {
               child: Column(
                 children: [
                   const SizedBox(height: 16),
-                  Container(
-                    width: 44,
-                    height: 44,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(color: scheme.onSurface, borderRadius: BorderRadius.circular(14)),
-                    child: Text('W',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(color: scheme.surface, fontWeight: FontWeight.w800)),
-                  ),
+                  const WalletLogo(size: 44),
                   const SizedBox(height: 24),
                   for (var index = 0; index < destinations.length - 1; index++)
                     Padding(

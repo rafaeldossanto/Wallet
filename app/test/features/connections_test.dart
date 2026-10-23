@@ -1,5 +1,8 @@
 import 'package:fake_async/fake_async.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:wallet/core/api/api_exception.dart';
+import 'package:wallet/core/l10n/l10n.dart';
 import 'package:wallet/core/state/data_changes.dart';
 import 'package:wallet/features/connections/data/connections_api.dart';
 import 'package:wallet/features/connections/presentation/connections_controller.dart';
@@ -71,6 +74,21 @@ void main() {
     final error = await controller.sync(Fixtures.connectionId);
 
     expect(error!.code, 'sync.too_soon');
+    controller.dispose();
+  });
+
+  test('the ceiling on connections and too many attempts to connect have sentences of their own', () async {
+    bff.json('GET', '/api/connections', [Fixtures.connection()]);
+    bff.error('POST', '/api/connections', 422, 'connection.limit_reached');
+    final controller = ConnectionsController(ConnectionsApi(fakeClient(bff)), dataChanges: changes);
+    await controller.load();
+    final l10n = lookupAppLocalizations(const Locale('pt'));
+
+    final error = await controller.link('demo-banco');
+
+    expect(l10n.errorMessage(error!), 'Você chegou ao limite de conexões. Desvincule uma para vincular outra.');
+    expect(l10n.errorMessage(const ApiException('rate_limit.connections', status: 429)),
+        'Muitas tentativas de conectar banco em pouco tempo. Tente de novo mais tarde.');
     controller.dispose();
   });
 }

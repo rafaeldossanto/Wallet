@@ -6,9 +6,11 @@ import com.wallet.core.TestMockMvc;
 import com.wallet.core.TestUsers;
 import com.wallet.core.TestcontainersConfiguration;
 import com.wallet.core.banking.repository.AccountRepository;
+import com.wallet.core.banking.repository.BankingAggregates;
 import com.wallet.core.connection.ConnectionStatus;
 import com.wallet.core.connection.entity.Connection;
 import com.wallet.core.connection.repository.ConnectionRepository;
+import com.wallet.core.investment.repository.InvestmentAggregates;
 import com.wallet.core.provider.FinancialDataProvider;
 import com.wallet.core.provider.ProviderAccount;
 import com.wallet.core.provider.ProviderBill;
@@ -21,6 +23,9 @@ import com.wallet.core.shared.finance.Direction;
 import com.wallet.core.shared.finance.InvestmentKind;
 import com.wallet.core.shared.finance.TransactionStatus;
 import com.wallet.core.shared.money.Money;
+import com.wallet.core.shared.time.DateRange;
+import com.wallet.core.shared.web.Bulkhead;
+import com.wallet.core.shared.web.Bulkheads;
 import com.wallet.core.sync.SyncRunStatus;
 import com.wallet.core.sync.SyncTrigger;
 import com.wallet.core.sync.service.SyncService;
@@ -29,14 +34,19 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.math.BigDecimal;
+import java.sql.Date;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -47,6 +57,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -63,6 +74,10 @@ class ReadApiIT {
     @Autowired private SyncService syncService;
     @Autowired private ConnectionRepository connections;
     @Autowired private AccountRepository accounts;
+    @Autowired private Bulkheads bulkheads;
+    @Autowired private BankingAggregates bankingAggregates;
+    @Autowired private InvestmentAggregates investmentAggregates;
+    @Autowired private JdbcTemplate jdbc;
 
     @MockitoBean
     private FinancialDataProvider provider;
@@ -121,6 +136,90 @@ class ReadApiIT {
 
         read("/internal/transactions?q=farmacia sao")
                 .andExpect(jsonPath("$.total").value(1));
+    }
+
+    /** Only the page is loaded in full, but the order and the total are the whole period's. */
+    @Test
+    void textSearchIsPagedWithAnExactTotal() throws Exception {
+        read("/internal/transactions?from=2026-09-01&to=2026-09-30&q=a&pageSize=2&page=2")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(4))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.items[0].description").value("Pagamento fatura"))
+                .andExpect(jsonPath("$.items[1].description").value("Salário"))
+                .andExpect(jsonPath("$.items[1].amount").value("3200.00"));
+
+        read("/internal/transactions?from=2026-09-01&to=2026-09-30&q=a&pageSize=2&page=3")
+                .andExpect(status().is(422))
+                .andExpect(jsonPath("$.code").value("page.invalid"));
+    }
+
+    /** A text search decrypts the whole period: it covers a quarter, the plain statement a year. */
+    @Test
+    void textSearchCoversAQuarterAtMost() throws Exception {
+        read("/internal/transactions?from=2026-06-01&to=2026-09-30&q=padaria")
+                .andExpect(status().is(422))
+                .andExpect(jsonPath("$.code").value("period.too_long"));
+        read("/internal/transactions?from=2026-07-01&to=2026-09-30&q=padaria")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1));
+        read("/internal/transactions?from=2026-06-01&to=2026-09-30")
+                .andExpect(status().isOk());
+    }
+
+    /** One user with every search they may run at once in flight is told to slow down; the others are not. */
+    @Test
+    void aUserWithTheirSearchesRunningCannotStartAnother() throws Exception {
+        List<Bulkhead.Permit> running = enter(bulkheads.search(), userId, 2);
+        try {
+            read("/internal/transactions?q=padaria")
+                    .andExpect(status().isTooManyRequests())
+                    .andExpect(header().string(HttpHeaders.RETRY_AFTER, "1"))
+                    .andExpect(jsonPath("$.code").value("rate_limit.exceeded"));
+            read("/internal/transactions")
+                    .andExpect(status().isOk());
+            UUID someoneElse = TestUsers.register(mockMvc);
+            mockMvc.perform(get("/internal/transactions?q=padaria").with(as(someoneElse)))
+                    .andExpect(status().isOk());
+        } finally {
+            running.forEach(Bulkhead.Permit::close);
+        }
+        read("/internal/transactions?from=2026-09-01&to=2026-09-30&q=padaria")
+                .andExpect(jsonPath("$.total").value(1));
+    }
+
+    @Test
+    void everySearchSlotTakenIsBusyForEveryone() throws Exception {
+        List<Bulkhead.Permit> running = new ArrayList<>(enter(bulkheads.search(), UUID.randomUUID(), 2));
+        running.addAll(enter(bulkheads.search(), UUID.randomUUID(), 1));
+        try {
+            read("/internal/transactions?q=padaria")
+                    .andExpect(status().isServiceUnavailable())
+                    .andExpect(header().string(HttpHeaders.RETRY_AFTER, "1"))
+                    .andExpect(jsonPath("$.code").value("service.busy"));
+        } finally {
+            running.forEach(Bulkhead.Permit::close);
+        }
+    }
+
+    /** Overview, net worth history, the month's plan and the suggestions share one bulkhead; plain reads do not. */
+    @Test
+    void theComposedReadsShareTheScreensBulkhead() throws Exception {
+        List<Bulkhead.Permit> running = new ArrayList<>(enter(bulkheads.screens(), UUID.randomUUID(), 3));
+        running.addAll(enter(bulkheads.screens(), UUID.randomUUID(), 2));
+        try {
+            for (String path : List.of("/internal/overview", "/internal/insights/net-worth", "/internal/planning/month",
+                    "/internal/planning/fixed-expense-suggestions")) {
+                read(path)
+                        .andExpect(status().isServiceUnavailable())
+                        .andExpect(jsonPath("$.code").value("service.busy"));
+            }
+            read("/internal/accounts").andExpect(status().isOk());
+            read("/internal/insights/spending-by-category").andExpect(status().isOk());
+        } finally {
+            running.forEach(Bulkhead.Permit::close);
+        }
+        read("/internal/overview").andExpect(status().isOk());
     }
 
     @Test
@@ -252,6 +351,39 @@ class ReadApiIT {
                 .andExpect(jsonPath("$.points[2].cash").value("1100.00"));
     }
 
+    /**
+     * Years of daily snapshots before the period: the history reads one per account (the last
+     * before the period, which seeds its first day) plus the period's own, never the rest.
+     */
+    @Test
+    void netWorthHistoryReadsThePeriodAndOneSnapshotBeforeIt() throws Exception {
+        UUID checking = accountIdOf("acc-1");
+        UUID position = jdbc.queryForObject("select id from investments where user_id = ? and provider_investment_id = 'inv-1'",
+                UUID.class, userId);
+        List<Object[]> balances = new ArrayList<>();
+        List<Object[]> invested = new ArrayList<>();
+        for (LocalDate day = LocalDate.parse("2023-01-01"); day.isBefore(LocalDate.parse("2026-09-01")); day = day.plusDays(1)) {
+            balances.add(new Object[]{checking, Date.valueOf(day), new BigDecimal("777.00")});
+            invested.add(new Object[]{position, Date.valueOf(day), new BigDecimal("900.00")});
+        }
+        jdbc.batchUpdate("insert into balance_snapshots (account_id, snapshot_date, balance) values (?, ?, ?)", balances);
+        jdbc.batchUpdate("insert into investment_snapshots (investment_id, snapshot_date, balance) values (?, ?, ?)", invested);
+        DateRange period = new DateRange(LocalDate.parse("2026-09-30"), LocalDate.parse("2026-10-01"));
+
+        List<BankingAggregates.SnapshotRow> bankRows = bankingAggregates.snapshotsIn(userId, period);
+        assertThat(bankRows).extracting(BankingAggregates.SnapshotRow::date).containsExactly(
+                LocalDate.parse("2026-08-31"), LocalDate.parse("2026-10-01"), LocalDate.parse("2026-10-01"));
+        assertThat(investmentAggregates.snapshotsIn(userId, period))
+                .extracting(InvestmentAggregates.SnapshotRow::date)
+                .containsExactly(LocalDate.parse("2026-08-31"), LocalDate.parse("2026-10-01"), LocalDate.parse("2026-10-01"));
+
+        read("/internal/insights/net-worth?from=2026-09-30&to=2026-10-01")
+                .andExpect(jsonPath("$.points[0].cash").value("777.00"))
+                .andExpect(jsonPath("$.points[0].investments").value("900.00"))
+                .andExpect(jsonPath("$.points[1].cash").value("1000.00"))
+                .andExpect(jsonPath("$.points[1].investments").value("1250.00"));
+    }
+
     @Test
     void anotherUserSeesNothing() throws Exception {
         UUID stranger = TestUsers.register(mockMvc);
@@ -310,5 +442,14 @@ class ReadApiIT {
 
     private ResultActions read(String path) throws Exception {
         return mockMvc.perform(get(path).with(as(userId)));
+    }
+
+    /** Requests of {@code user} already running, as far as the bulkhead knows. */
+    private static List<Bulkhead.Permit> enter(Bulkhead bulkhead, UUID user, int times) {
+        List<Bulkhead.Permit> permits = new ArrayList<>();
+        for (int index = 0; index < times; index++) {
+            permits.add(bulkhead.enter(user));
+        }
+        return permits;
     }
 }

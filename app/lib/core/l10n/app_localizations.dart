@@ -136,6 +136,12 @@ abstract class AppLocalizations {
   /// **'Salvar'**
   String get actionSave;
 
+  /// No description provided for @actionContinue.
+  ///
+  /// In pt, this message translates to:
+  /// **'Continuar'**
+  String get actionContinue;
+
   /// No description provided for @navOverview.
   ///
   /// In pt, this message translates to:
@@ -357,6 +363,72 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Já tenho conta'**
   String get registerGoToLogin;
+
+  /// No description provided for @registerCheckEmailTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confira seu e-mail'**
+  String get registerCheckEmailTitle;
+
+  /// No description provided for @registerCheckEmailBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Enviamos um link para {email}. Abra o link para ativar a conta e depois entre aqui. Se não chegar em alguns minutos, olhe a caixa de spam.'**
+  String registerCheckEmailBody(String email);
+
+  /// No description provided for @registerResend.
+  ///
+  /// In pt, this message translates to:
+  /// **'Reenviar o link'**
+  String get registerResend;
+
+  /// No description provided for @registerBackToLogin.
+  ///
+  /// In pt, this message translates to:
+  /// **'Voltar para entrar'**
+  String get registerBackToLogin;
+
+  /// No description provided for @confirmationResent.
+  ///
+  /// In pt, this message translates to:
+  /// **'Se este e-mail estiver esperando confirmação, um link novo chega em instantes.'**
+  String get confirmationResent;
+
+  /// No description provided for @loginNoConfirmation.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não recebeu o e-mail de confirmação?'**
+  String get loginNoConfirmation;
+
+  /// No description provided for @resendDialogTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Reenviar a confirmação'**
+  String get resendDialogTitle;
+
+  /// No description provided for @resendDialogHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Digite o e-mail da conta. Se ela estiver esperando confirmação, mandamos um link novo.'**
+  String get resendDialogHelp;
+
+  /// No description provided for @resendAction.
+  ///
+  /// In pt, this message translates to:
+  /// **'Reenviar'**
+  String get resendAction;
+
+  /// No description provided for @loginTwoFactorHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Digite o código de 6 dígitos do seu app autenticador, ou um código de recuperação.'**
+  String get loginTwoFactorHelp;
+
+  /// No description provided for @fieldTwoFactorCode.
+  ///
+  /// In pt, this message translates to:
+  /// **'Código'**
+  String get fieldTwoFactorCode;
 
   /// No description provided for @fieldName.
   ///
@@ -1486,6 +1558,162 @@ abstract class AppLocalizations {
   /// **'Segurança'**
   String get settingsSecurity;
 
+  /// No description provided for @settingsEditName.
+  ///
+  /// In pt, this message translates to:
+  /// **'Alterar o nome'**
+  String get settingsEditName;
+
+  /// No description provided for @settingsChangeEmail.
+  ///
+  /// In pt, this message translates to:
+  /// **'Trocar o e-mail'**
+  String get settingsChangeEmail;
+
+  /// No description provided for @settingsPendingEmail.
+  ///
+  /// In pt, this message translates to:
+  /// **'Aguardando a confirmação de {email}'**
+  String settingsPendingEmail(String email);
+
+  /// No description provided for @nameDialogTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Seu nome'**
+  String get nameDialogTitle;
+
+  /// No description provided for @emailDialogTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Trocar o e-mail'**
+  String get emailDialogTitle;
+
+  /// No description provided for @emailDialogHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Mandamos um link para o novo endereço. A troca só vale depois que você abrir o link, e o e-mail atual recebe um aviso.'**
+  String get emailDialogHelp;
+
+  /// No description provided for @fieldNewEmail.
+  ///
+  /// In pt, this message translates to:
+  /// **'Novo e-mail'**
+  String get fieldNewEmail;
+
+  /// No description provided for @fieldYourPassword.
+  ///
+  /// In pt, this message translates to:
+  /// **'Sua senha'**
+  String get fieldYourPassword;
+
+  /// No description provided for @emailDialogSent.
+  ///
+  /// In pt, this message translates to:
+  /// **'Link enviado para {email}. Abra-o para concluir a troca.'**
+  String emailDialogSent(String email);
+
+  /// No description provided for @settingsTwoFactor.
+  ///
+  /// In pt, this message translates to:
+  /// **'Verificação em duas etapas'**
+  String get settingsTwoFactor;
+
+  /// No description provided for @settingsTwoFactorOn.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ligada: entrar pede também o código do app autenticador.'**
+  String get settingsTwoFactorOn;
+
+  /// No description provided for @settingsTwoFactorOff.
+  ///
+  /// In pt, this message translates to:
+  /// **'Desligada. Ligue para pedir também um código do app autenticador ao entrar.'**
+  String get settingsTwoFactorOff;
+
+  /// No description provided for @twoFactorSetupTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ligar a verificação em duas etapas'**
+  String get twoFactorSetupTitle;
+
+  /// No description provided for @twoFactorPasswordHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Para começar, confirme a sua senha.'**
+  String get twoFactorPasswordHelp;
+
+  /// No description provided for @twoFactorScanHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Escaneie o QR code com um app autenticador (Google Authenticator, Microsoft Authenticator, 1Password...). Sem câmera? Digite a chave abaixo no app.'**
+  String get twoFactorScanHelp;
+
+  /// No description provided for @twoFactorSecretLabel.
+  ///
+  /// In pt, this message translates to:
+  /// **'Chave'**
+  String get twoFactorSecretLabel;
+
+  /// No description provided for @twoFactorCodeHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Depois, digite o código de 6 dígitos que aparece no app.'**
+  String get twoFactorCodeHelp;
+
+  /// No description provided for @twoFactorEnableAction.
+  ///
+  /// In pt, this message translates to:
+  /// **'Ligar'**
+  String get twoFactorEnableAction;
+
+  /// No description provided for @twoFactorRecoveryTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Guarde os códigos de recuperação'**
+  String get twoFactorRecoveryTitle;
+
+  /// No description provided for @twoFactorRecoveryHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cada código funciona uma vez, no lugar do app, se você perder o celular. Guarde num lugar seguro: eles não aparecem de novo.'**
+  String get twoFactorRecoveryHelp;
+
+  /// No description provided for @twoFactorCopyCodes.
+  ///
+  /// In pt, this message translates to:
+  /// **'Copiar os códigos'**
+  String get twoFactorCopyCodes;
+
+  /// No description provided for @twoFactorCopied.
+  ///
+  /// In pt, this message translates to:
+  /// **'Códigos copiados.'**
+  String get twoFactorCopied;
+
+  /// No description provided for @twoFactorDone.
+  ///
+  /// In pt, this message translates to:
+  /// **'Pronto'**
+  String get twoFactorDone;
+
+  /// No description provided for @twoFactorDisableTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Desligar a verificação em duas etapas'**
+  String get twoFactorDisableTitle;
+
+  /// No description provided for @twoFactorDisableHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Confirme a sua senha e um código do app autenticador (ou um código de recuperação).'**
+  String get twoFactorDisableHelp;
+
+  /// No description provided for @twoFactorDisableAction.
+  ///
+  /// In pt, this message translates to:
+  /// **'Desligar'**
+  String get twoFactorDisableAction;
+
   /// No description provided for @settingsBiometric.
   ///
   /// In pt, this message translates to:
@@ -1891,8 +2119,62 @@ abstract class AppLocalizations {
   /// No description provided for @errorInvalidCredentials.
   ///
   /// In pt, this message translates to:
-  /// **'E-mail ou senha incorretos.'**
+  /// **'E-mail ou senha incorretos. Se você acabou de criar a conta, abra antes o link que enviamos para o seu e-mail.'**
   String get errorInvalidCredentials;
+
+  /// No description provided for @errorTwoFactorRequired.
+  ///
+  /// In pt, this message translates to:
+  /// **'Digite o código do seu app autenticador.'**
+  String get errorTwoFactorRequired;
+
+  /// No description provided for @errorInvalidTwoFactorCode.
+  ///
+  /// In pt, this message translates to:
+  /// **'Código incorreto. Confira o app autenticador; cada erro conta para o bloqueio.'**
+  String get errorInvalidTwoFactorCode;
+
+  /// No description provided for @errorAuthBusy.
+  ///
+  /// In pt, this message translates to:
+  /// **'Muita gente entrando agora. Tente de novo em instantes.'**
+  String get errorAuthBusy;
+
+  /// No description provided for @errorTwoFactorSetupCode.
+  ///
+  /// In pt, this message translates to:
+  /// **'O código não confere. Confira o horário do celular e digite o código que estiver aparecendo agora.'**
+  String get errorTwoFactorSetupCode;
+
+  /// No description provided for @errorTwoFactorNotSetUp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Comece de novo a configuração da verificação em duas etapas.'**
+  String get errorTwoFactorNotSetUp;
+
+  /// No description provided for @errorTwoFactorAlreadyEnabled.
+  ///
+  /// In pt, this message translates to:
+  /// **'A verificação em duas etapas já está ligada.'**
+  String get errorTwoFactorAlreadyEnabled;
+
+  /// No description provided for @errorTwoFactorNotEnabled.
+  ///
+  /// In pt, this message translates to:
+  /// **'A verificação em duas etapas já está desligada.'**
+  String get errorTwoFactorNotEnabled;
+
+  /// No description provided for @errorEmailUnchanged.
+  ///
+  /// In pt, this message translates to:
+  /// **'Esse já é o e-mail da conta.'**
+  String get errorEmailUnchanged;
+
+  /// No description provided for @errorLinkInvalid.
+  ///
+  /// In pt, this message translates to:
+  /// **'Este link venceu ou já foi usado.'**
+  String get errorLinkInvalid;
 
   /// No description provided for @errorAuthLocked.
   ///
@@ -1984,6 +2266,18 @@ abstract class AppLocalizations {
   /// **'Essa conexão já está no Wallet.'**
   String get errorAlreadyLinked;
 
+  /// No description provided for @errorConnectionLimit.
+  ///
+  /// In pt, this message translates to:
+  /// **'Você chegou ao limite de conexões. Desvincule uma para vincular outra.'**
+  String get errorConnectionLimit;
+
+  /// No description provided for @errorConnectAttempts.
+  ///
+  /// In pt, this message translates to:
+  /// **'Muitas tentativas de conectar banco em pouco tempo. Tente de novo mais tarde.'**
+  String get errorConnectAttempts;
+
   /// No description provided for @errorConnectionGone.
   ///
   /// In pt, this message translates to:
@@ -1999,7 +2293,7 @@ abstract class AppLocalizations {
   /// No description provided for @errorSyncTooSoon.
   ///
   /// In pt, this message translates to:
-  /// **'Esta conexão acabou de atualizar. Tente de novo em alguns minutos.'**
+  /// **'Esta conexão tentou atualizar há poucos minutos. Tente de novo daqui a pouco.'**
   String get errorSyncTooSoon;
 
   /// No description provided for @errorSyncInProgress.

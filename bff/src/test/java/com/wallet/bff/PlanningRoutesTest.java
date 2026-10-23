@@ -209,7 +209,7 @@ class PlanningRoutesTest extends BffTestSupport {
                 .withBody("{\"code\":\"planning.fixed_expense_not_found\",\"message\":\"No such fixed expense\"}")));
         String rafael = bearer(UUID.randomUUID());
 
-        mockMvc.perform(get("/api/planning").queryParam("month", "outubro").header(HttpHeaders.AUTHORIZATION, rafael))
+        mockMvc.perform(get("/api/planning").queryParam("month", "2026-10").header(HttpHeaders.AUTHORIZATION, rafael))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("request.invalid_parameter"));
         mockMvc.perform(post("/api/planning/fixed-expenses").header(HttpHeaders.AUTHORIZATION, rafael)

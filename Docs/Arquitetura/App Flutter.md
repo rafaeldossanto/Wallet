@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, flutter, app]
-atualizado: 2026-10-18
+atualizado: 2026-10-22
 ---
 
 # App Flutter
@@ -32,6 +32,7 @@ Construído em 2026-10-02 (T12 a T18 do [[Plano de Implementação]]), em `Work/
 | `shared_preferences` | A escolha de tema (`SharedPreferencesAsync`, a API atual) |
 | `webview_flutter` | O widget Pluggy Connect no Android ("Conectar banco") |
 | `url_launcher` | Abrir a autorização do Open Finance no app do banco (ou no navegador) |
+| `qr` | O QR code do segundo fator, em Dart puro (o app desenha os módulos num `CustomPaint`) |
 
 O `flutter_localizations` fica só porque o `gen-l10n` exige; os delegates usados vêm do
 `material_ui` (`GlobalMaterialLocalizations.delegates`). O `fl_chart` ainda importa o
@@ -70,7 +71,7 @@ controllers).
 | Largura | Navegação |
 |---|---|
 | < 600 px (celular) | Barra inferior: Início, Extrato, Cartões, Investir e **Mais** (Planejamento, Gastos, Conexões, Ajustes) |
-| ≥ 600 px | Trilho flutuante de botões redondos (`WalletRail`): a marca, os destinos com dica ao passar o mouse, a troca de tema e as iniciais do usuário (vão para Ajustes) |
+| ≥ 600 px | Trilho flutuante de botões redondos (`WalletRail`): o logo de cartões empilhados, os destinos com dica ao passar o mouse, a troca de tema e as iniciais do usuário (vão para Ajustes) |
 
 Rotas: `/home`, `/transactions?accountId=`, `/cards`, `/cards/:id?name=` (faturas),
 `/investments`, `/planning`, `/insights`, `/connections`, `/settings`, além de `/splash`, `/login` e
@@ -345,6 +346,11 @@ sobre o preto do app, verde-limão atrás, azul no meio e branco com chip na fre
 bancos e cartões dele juntos num lugar só. Antes era a carteira da tela de login, branca e
 inclinada.
 
+Desde 2026-10-22 a tela de login, o cadastro e o trilho (`WalletRail`) usam o mesmo desenho
+(`WalletLogo`, em `core/widgets/wallet_logo.dart`), no lugar da carteira e do "W" antigos. O desenho
+mora numa função só, `paintWalletIcon`, que o widget e o gerador dos ícones chamam: o logo da tela é
+sempre igual ao ícone (regerar os ícones depois da mudança deu os mesmos arquivos, byte a byte).
+
 Gerado por `tool/render_app_icon_test.dart` (fora de `test/`, para o `flutter test` normal não
 rodar), que desenha em Canvas e reduz com média em luz linear, cor por cor:
 - iOS, Android e ícones web: quadrado cheio, que o sistema arredonda; PNG RGB sem transparência,
@@ -377,6 +383,25 @@ cor normal do texto com `-`, porque vermelho faria toda compra parecer problema.
 
 Detalhes em [[Autenticação]].
 
+## Conta: cadastro, entrada e Ajustes (desde 2026-10-22)
+
+- **Cadastro:** depois de "Criar conta" o app **não entra**: mostra "Confira seu e-mail" ("Enviamos
+  um link para ...") com **Voltar para entrar** e **Reenviar o link**. A mesma tela para qualquer
+  e-mail, porque o servidor responde igual (ver [[Autenticação#Cadastro com confirmação por e-mail (achado A16, desde 2026-10-22)]]).
+  O link abre uma página do BFF, não o app.
+- **Entrar:** senha errada diz também "se você acabou de criar a conta, abra antes o link". Se a
+  conta tem o segundo fator, a resposta `auth.two_factor_required` faz o mesmo formulário ganhar o
+  campo **Código** (código do app ou de recuperação) e o envio repete e-mail e senha com o código.
+  Código errado limpa o campo. "Não recebeu o e-mail de confirmação?" abre um diálogo que pede o
+  e-mail e reenvia o link.
+- **Ajustes → Conta:** o nome (toque para alterar, `PUT /api/me`) e o e-mail (toque para trocar:
+  novo e-mail + senha; depois aparece "Aguardando a confirmação de ...", que vem de `pendingEmail`).
+- **Ajustes → Segurança → Verificação em duas etapas:** ligar é um diálogo de três passos (senha →
+  QR code e a chave em grupos de quatro, e o primeiro código → os 10 códigos de recuperação, com
+  "Copiar os códigos", mostrados só ali); desligar pede senha e um código.
+- O `errorMessage` ganhou `auth.two_factor_required`, `auth.invalid_two_factor_code`, `auth.busy`,
+  `auth.email_unchanged`, `auth.link_invalid` e os `two_factor.*`.
+
 ## Excluir conta (desde 2026-10-19)
 
 Ajustes → **Zona de perigo** (cartão com a borda e o título na cor de erro) → **Excluir conta**
@@ -405,8 +430,9 @@ senha de novo. O botão **Excluir de vez** só se habilita com a caixa marcada.
   - 5xx (como 503 `bff.core_unavailable`), sem rede ou timeout: a frase do erro mais "Não deu
     para confirmar a exclusão. Tente de novo: se a conta já tiver sido excluída, o Wallet avisa".
     O app não promete que nada foi apagado: o core revoga os bancos antes da transação que apaga,
-    e um core mais lento que os 2 min do BFF termina depois do 503. Excluir duas vezes dá 204,
-    então tentar de novo resolve.
+    e um core mais lento que os 2 min do BFF termina depois do 503. Tentar de novo resolve: se a
+    conta ainda existe, ela é excluída; se já foi, o core responde 401 (desde 2026-10-22), a
+    renovação é recusada e o login diz "Sua conta foi excluída".
   - Se nenhuma resposta confirmou a exclusão e a renovação seguinte da sessão é recusada (o
     refresh token foi junto com a conta), o login diz "Sua conta foi excluída" e não "Sua sessão
     expirou".
@@ -445,7 +471,7 @@ Ver [[Fluxo de Conexão]].
 
 ## Testes
 
-157 testes com um BFF em memória (`test/support/fake_bff.dart`):
+198 testes com um BFF em memória (`test/support/fake_bff.dart`):
 
 - Unitários: `Money` (inclusive o valor digitado num formulário, `1.234,56`), sessão (restaurar, recusar, servidor fora), interceptor (duas chamadas
   com 401 geram **um** refresh), bloqueio por biometria, inatividade no navegador,
@@ -474,7 +500,11 @@ Ver [[Fluxo de Conexão]].
   editado, excluído com confirmação e recusado pelo servidor, mês anterior e limite do próximo,
   duas colunas na tela larga, sugestões do extrato: lista, formulário preenchido, valores mudados
   antes de salvar, dispensa e dispensa recusada, "mais N sugestões", nenhuma ou com erro), o
-  cartão "Sobra do mês" da visão geral e o Planejamento no "Mais" e no trilho.
+  cartão "Sobra do mês" da visão geral e o Planejamento no "Mais" e no trilho; a conta
+  (`test/features/account_test.dart`, desde 2026-10-22): cadastro esperando o link e reenvio, o
+  código do segundo fator no login (certo e errado), reenvio pelo login, o logo novo no login e no
+  trilho, trocar nome e e-mail em Ajustes, ligar o 2FA (QR, chave, código, códigos de recuperação),
+  código que não confere e desligar.
 
 Além disso, verificado à mão em 2026-10-02 no Chrome (build release) e no emulador
 `trilha_pixel`, contra o core e o BFF reais com a Pluggy de demonstração.

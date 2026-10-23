@@ -19,10 +19,32 @@ server:
     max-swallow-size: ${wallet.http.max-body-size}
 
 management:
+  server:
+    # The actuator lives on a port of its own, on loopback only: the full health and the readiness
+    # probe answer whoever is on this machine (a script, systemd, a Docker HEALTHCHECK), never the
+    # internet. The public port only has /livez. It must differ from server.port: the boot fails
+    # otherwise (ManagementSecurityConfig).
+    port: ${WALLET_BFF_MANAGEMENT_PORT:9080}
+    address: 127.0.0.1
   endpoints:
     web:
       exposure:
         include: health
+  endpoint:
+    health:
+      # Only reachable from the machine itself (above), so it can say what is down.
+      show-details: always
+      probes:
+        enabled: true
+      group:
+        # Is the process alive? Answered from memory: also served on the public port at /livez,
+        # open to anyone (a load balancer needs no token), so it must stay this cheap.
+        liveness:
+          include: livenessState
+          show-details: never
+          additional-path: "server:/livez"
+        readiness:
+          include: readinessState
 
 wallet:
   http:
@@ -40,8 +62,23 @@ wallet:
     # without it. Same value in both services. Empty = development key (local only); with
     # SPRING_PROFILES_ACTIVE=prod an empty, short (< 32 chars) or development key stops the boot.
     gateway-key: ${WALLET_GATEWAY_KEY:}
+    # Calls to the core in flight at once, per group of routes (CoreRouteGroup). Each group also
+    # has a circuit breaker of its own: a group that times out opens only its circuit, one that
+    # fills up answers 503 service.busy only for its routes. screens and search are larger than
+    # the core's own bulkheads on purpose: the core decides per user, the BFF only caps the total.
+    max-concurrent-calls:
+      auth: 16
+      reads: 64
+      screens: 32
+      search: 16
+      # Each call can hold a Pluggy request in the core for seconds.
+      provider: 16
   jwt:
     issuer: wallet-core
+    # Every access token must carry this aud, as the core issues and checks it: a user's session
+    # on the Wallet API. A token without it (issued before it existed) is refused with 401 and the
+    # app renews it with its refresh token.
+    audience: wallet-api
   web:
     # Flutter web in development: flutter run -d chrome --web-port 5000
     allowed-origins: ${WALLET_WEB_ALLOWED_ORIGINS:http://localhost:5000}
@@ -56,6 +93,18 @@ wallet:
     auth-limit: 20
     # Per user (or per IP when anonymous) on everything else.
     default-limit: 300
+    # Per user, on top of default-limit: each link makes the core read up to a year of the bank at
+    # Pluggy, and each widget token is a call to Pluggy, all on the apiKey every user shares.
+    # Going over answers 429 rate_limit.connections.
+    link-limit: 10
+    link-window: 1h
+    connect-token-limit: 10
+    connect-token-window: 1h
+    # Per user and window, on top of default-limit: a text search in the statement (GET
+    # /api/transactions with q) makes the core decrypt the month's descriptions. The app waits
+    # 400 ms after the last key and searches one month: 30 a minute is far beyond typing.
+    # Going over answers 429 rate_limit.exceeded.
+    search-limit: 30
     # Reverse proxies whose X-Forwarded-For is believed, as IPs or CIDR ranges separated by
     # commas (e.g. 127.0.0.1,10.0.0.0/8). Only the hops they appended count: the client is the
     # first address from the right that is not one of them. Empty = the connection's own address,

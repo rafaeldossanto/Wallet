@@ -31,7 +31,8 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Entrar'));
       await tester.pumpAndSettle();
 
-      expect(find.text('E-mail ou senha incorretos.'), findsOneWidget);
+      expect(find.text('E-mail ou senha incorretos. Se você acabou de criar a conta, abra antes o link que enviamos para o seu e-mail.'),
+          findsOneWidget);
       expect(bff.calls('POST', '/api/auth/login').single.data, {'email': 'rafael@example.com', 'password': 'errada123'});
     });
 
@@ -72,6 +73,8 @@ void main() {
     await tester.tap(find.text('Mais'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Ajustes'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Sair'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sair'));
     await tester.pumpAndSettle();

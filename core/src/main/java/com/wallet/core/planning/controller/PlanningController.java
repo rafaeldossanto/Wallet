@@ -11,6 +11,7 @@ import com.wallet.core.planning.service.FixedExpenseSuggestionService;
 import com.wallet.core.planning.service.PlanningService;
 import com.wallet.core.shared.security.CurrentUserId;
 import com.wallet.core.shared.time.WalletTime;
+import com.wallet.core.shared.web.Bulkheads;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -41,13 +42,18 @@ public class PlanningController {
     private final PlanningService planningService;
     private final FixedExpenseService fixedExpenseService;
     private final FixedExpenseSuggestionService suggestionService;
+    private final Bulkheads bulkheads;
     private final Clock clock;
 
-    /** {@code month=2026-10}; defaults to the current month. */
+    /**
+     * {@code month=2026-10}; defaults to the current month. Reads the bills, their cycles and the
+     * salary: behind the screens bulkhead.
+     */
     @GetMapping("/month")
     public MonthPlanResponse month(@CurrentUserId UUID userId,
                                    @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM") YearMonth month) {
-        return planningService.month(userId, isNull(month) ? WalletTime.currentMonth(clock) : month);
+        YearMonth planned = isNull(month) ? WalletTime.currentMonth(clock) : month;
+        return bulkheads.screens().run(userId, () -> planningService.month(userId, planned));
     }
 
     @GetMapping("/fixed-expenses")
@@ -74,10 +80,13 @@ public class PlanningController {
         fixedExpenseService.delete(userId, id);
     }
 
-    /** Debits that repeat every month in the bank accounts and are not fixed expenses yet. */
+    /**
+     * Debits that repeat every month in the bank accounts and are not fixed expenses yet. Decrypts
+     * four months of descriptions: behind the screens bulkhead.
+     */
     @GetMapping("/fixed-expense-suggestions")
     public List<FixedExpenseSuggestionResponse> fixedExpenseSuggestions(@CurrentUserId UUID userId) {
-        return suggestionService.list(userId);
+        return bulkheads.screens().run(userId, () -> suggestionService.list(userId));
     }
 
     /** Dismisses a suggestion for good. Adding one is creating the fixed expense, which covers it. */
