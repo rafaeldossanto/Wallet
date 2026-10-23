@@ -279,3 +279,12 @@ atualizado: 2026-10-19
   - **logo:** login, cadastro e trilho usam os cartões empilhados.
 
   Migration V10. Ver [[Autenticação]].
+- **Code review do PR #4** achou dois defeitos, corrigidos com teste que reproduz:
+  - a limpeza noturna (`AccountHousekeeping`) não rodava pelo agendador: o `@Transactional` era
+    ignorado porque o agendador chama o próprio objeto, não o proxy. Contas não confirmadas, links
+    vencidos e contadores de bloqueio nunca eram apagados. Agora a transação é aberta dentro do
+    método (`AccountHousekeepingIT` roda a tarefa como o agendador roda);
+  - vincular banco chamava a Pluggy dentro da transação, com o lock por usuário: dez vínculos em
+    paralelo com a Pluggy lenta ocupavam o pool inteiro e os outros usuários levavam 503. A Pluggy
+    saiu da transação, e o lock ficou só na transação curta que conta e grava
+    (`ConnectionLinkPoolIT`). Ver [[Fluxo de Conexão]].
