@@ -6,6 +6,7 @@ import com.wallet.core.TestcontainersConfiguration;
 import com.wallet.core.provider.FinancialDataProvider;
 import com.wallet.core.provider.ProviderItem;
 import com.wallet.core.provider.ProviderItemStatus;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -14,8 +15,10 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.RequestBuilder;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -31,24 +34,25 @@ import static com.wallet.core.TestUsers.as;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Linking waits on the provider without a database connection. With the provider call inside the
- * link's transaction, a user linking ten banks at once (the BFF allows ten an hour) held the whole
- * pool while Pluggy answered: one link at the provider, the others parked on the user's link lock,
- * and everybody else got 503 service.busy. A provider slower than the pool's wait stands in for a
- * slow Pluggy; the pool has its production size.
+ * Linking and unlinking wait on the provider without a database connection. With the provider
+ * call inside the transaction, a user linking or unlinking ten banks at once (the ceiling is ten
+ * connections) held the whole pool while Pluggy answered, and everybody else got 503
+ * service.busy. A provider slower than the pool's wait stands in for a slow Pluggy; the pool has
+ * its production size.
  */
 @SpringBootTest(properties = {
         "spring.datasource.hikari.maximum-pool-size=10",
         "spring.datasource.hikari.connection-timeout=1000"})
 @Import(TestcontainersConfiguration.class)
-class ConnectionLinkPoolIT {
+class ConnectionSlowProviderIT {
 
-    private static final int LINKS = 10;
+    private static final int REQUESTS = 10;
     private static final Duration SLOW_PROVIDER = Duration.ofSeconds(2);
     private static final Duration PARKING_TIME = Duration.ofMillis(300);
 
@@ -61,46 +65,96 @@ class ConnectionLinkPoolIT {
     @MockitoBean
     private FinancialDataProvider provider;
 
-    @Test
-    void linksWaitingOnASlowProviderLeaveThePoolToEveryoneElse() throws Exception {
-        MockMvc mockMvc = TestMockMvc.of(context);
-        UUID linking = TestUsers.register(mockMvc);
-        UUID reading = TestUsers.register(mockMvc);
-        CountDownLatch firstAtTheProvider = new CountDownLatch(1);
+    private MockMvc mockMvc;
+    private UUID heavyUser;
+    private UUID otherUser;
+    private CountDownLatch firstAtTheProvider;
+
+    @BeforeEach
+    void setUp() throws Exception {
+        mockMvc = TestMockMvc.of(context);
+        heavyUser = TestUsers.register(mockMvc);
+        otherUser = TestUsers.register(mockMvc);
+        firstAtTheProvider = new CountDownLatch(1);
         when(provider.findItem(anyString())).thenAnswer(invocation -> {
             firstAtTheProvider.countDown();
             Thread.sleep(SLOW_PROVIDER);
-            return item(invocation.getArgument(0));
+            return item(invocation.getArgument(0), heavyUser);
         });
+    }
 
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            List<Future<Integer>> links = new ArrayList<>();
-            for (int index = 0; index < LINKS; index++) {
-                links.add(executor.submit(() -> mockMvc.perform(post("/internal/connections").with(as(linking))
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"providerItemId\":\"%s\"}".formatted(UUID.randomUUID())))
-                        .andReturn().getResponse().getStatus()));
-            }
+    @Test
+    void linksWaitingOnASlowProviderLeaveThePoolToEveryoneElse() throws Exception {
+        List<RequestBuilder> links = new ArrayList<>();
+        for (int index = 0; index < REQUESTS; index++) {
+            links.add(post("/internal/connections").with(as(heavyUser)).contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"providerItemId\":\"%s\"}".formatted(UUID.randomUUID())));
+        }
 
-            assertThat(firstAtTheProvider.await(10, TimeUnit.SECONDS)).isTrue();
-            // Time for the other nine to get as far as they can: at the provider, or parked on a lock.
-            Thread.sleep(PARKING_TIME);
-            mockMvc.perform(get("/internal/connections").with(as(reading)))
-                    .andExpect(status().isOk());
-
-            List<Integer> statuses = new ArrayList<>();
-            for (Future<Integer> link : links) {
-                statuses.add(link.get(30, TimeUnit.SECONDS));
-            }
-            assertThat(statuses).containsOnly(201).hasSize(LINKS);
+        try {
+            assertThat(sendAllWhileAnotherUserReads(links)).containsOnly(201).hasSize(REQUESTS);
         } finally {
-            awaitFirstSyncs(linking);
+            awaitFirstSyncs(heavyUser);
         }
     }
 
-    private static ProviderItem item(String itemId) {
+    /** In development mode unlinking asks the provider whose item it is, then revokes it there. */
+    @Test
+    void unlinksWaitingOnASlowProviderLeaveThePoolToEveryoneElse() throws Exception {
+        List<RequestBuilder> unlinks = new ArrayList<>();
+        for (int index = 0; index < REQUESTS; index++) {
+            unlinks.add(delete("/internal/connections/" + insertSyncedConnection(heavyUser)).with(as(heavyUser)));
+        }
+
+        assertThat(sendAllWhileAnotherUserReads(unlinks)).containsOnly(204).hasSize(REQUESTS);
+        assertThat(jdbc.queryForObject("select count(*) from connections where user_id = ?", Integer.class, heavyUser))
+                .isZero();
+    }
+
+    /**
+     * Sends the heavy user's requests all at once and, while the provider holds them, has another
+     * user read their connections: that read must not wait for a database connection.
+     */
+    private List<Integer> sendAllWhileAnotherUserReads(List<RequestBuilder> requests) throws Exception {
+        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<Future<Integer>> responses = new ArrayList<>();
+            for (RequestBuilder request : requests) {
+                responses.add(executor.submit(() -> mockMvc.perform(request).andReturn().getResponse().getStatus()));
+            }
+
+            assertThat(firstAtTheProvider.await(10, TimeUnit.SECONDS)).isTrue();
+            // Time for the others to get as far as they can: at the provider, or parked on a lock.
+            Thread.sleep(PARKING_TIME);
+            mockMvc.perform(get("/internal/connections").with(as(otherUser)))
+                    .andExpect(status().isOk());
+
+            List<Integer> statuses = new ArrayList<>();
+            for (Future<Integer> response : responses) {
+                statuses.add(response.get(30, TimeUnit.SECONDS));
+            }
+            return statuses;
+        }
+    }
+
+    /** Created by the widget for this user, so unlinking revokes it at the provider. */
+    private static ProviderItem item(String itemId, UUID owner) {
         return new ProviderItem(itemId, "Nubank", "https://cdn/nubank.svg", ProviderItemStatus.READY,
-                Instant.parse("2026-09-29T09:00:00Z"), null, null);
+                Instant.parse("2026-09-29T09:00:00Z"), null, owner.toString());
+    }
+
+    /** With a finished sync, so nothing runs in the background against the provider mock. */
+    private UUID insertSyncedConnection(UUID owner) {
+        Timestamp now = Timestamp.from(Instant.parse("2026-10-01T09:00:00Z"));
+        UUID connectionId = UUID.randomUUID();
+        jdbc.update("""
+                insert into connections (id, user_id, provider, provider_item_id, status, created_at, updated_at)
+                values (?, ?, 'PLUGGY', ?, 'ACTIVE', ?, ?)
+                """, connectionId, owner, "item-" + UUID.randomUUID(), now, now);
+        jdbc.update("""
+                insert into sync_runs (id, connection_id, trigger, status, started_at, finished_at)
+                values (?, ?, 'INITIAL', 'SUCCEEDED', ?, ?)
+                """, UUID.randomUUID(), connectionId, now, now);
+        return connectionId;
     }
 
     /** Each link starts a first sync in the background; left running, it would outlive the provider mock. */

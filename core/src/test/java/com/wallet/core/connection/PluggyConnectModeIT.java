@@ -5,6 +5,7 @@ import com.wallet.core.TestMockMvc;
 import com.wallet.core.TestUsers;
 import com.wallet.core.TestcontainersConfiguration;
 import com.wallet.core.provider.FinancialDataProvider;
+import com.wallet.core.provider.ProviderErrors;
 import com.wallet.core.provider.ProviderItem;
 import com.wallet.core.provider.ProviderItemStatus;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +25,7 @@ import java.util.UUID;
 
 import static com.wallet.core.TestUsers.as;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -95,6 +97,24 @@ class PluggyConnectModeIT {
                 .andExpect(status().isNoContent());
 
         verify(provider).deleteItem(itemId);
+    }
+
+    /**
+     * The row goes only once the consent is revoked: the call to the provider comes first and,
+     * when it fails, the connection stays, to be unlinked again.
+     */
+    @Test
+    void aFailedRevocationKeepsTheConnection() throws Exception {
+        String itemId = stubItem(userId.toString());
+        String body = link(itemId).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        doThrow(ProviderErrors.unavailable("timeout")).when(provider).deleteItem(itemId);
+
+        mockMvc.perform(delete("/internal/connections/" + JsonPath.read(body, "$.id")).with(as(userId)))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("provider.unavailable"));
+
+        assertThat(jdbc.queryForObject("select count(*) from connections where user_id = ?", Integer.class, userId))
+                .isEqualTo(1);
     }
 
     /** In production every item was created for the user, so deleting the account revokes all of them. */

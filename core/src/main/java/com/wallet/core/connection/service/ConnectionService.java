@@ -132,18 +132,23 @@ public class ConnectionService implements ConnectionRevocation {
      * Unlinking deletes every synced row of the connection (the database cascades). In production
      * the item is also deleted at Pluggy, which revokes the Open Finance consent. With Meu Pluggy the
      * item belongs to the Meu Pluggy account, so the Wallet only lets go of it.
+     *
+     * <p>The provider is called outside any transaction, as when linking: a slow Pluggy must not
+     * hold a database connection. A provider failure still stops the unlink, since the row is only
+     * deleted afterwards, in a short transaction of its own. Gone by then (unlinked twice at once,
+     * or the account deleted meanwhile) is nothing left to do.
      */
-    @Transactional
     public void unlink(UUID userId, UUID connectionId) {
         Connection connection = repository.findByIdAndUserId(connectionId, userId).orElseThrow(ConnectionService::notFound);
         releaseAtProvider(userId, connection, ProviderCallReason.UNLINK);
-        repository.delete(connection);
+        transactions.executeWithoutResult(status ->
+                repository.findByIdAndUserId(connectionId, userId).ifPresent(repository::delete));
     }
 
     /**
-     * Not transactional: the provider is called without holding the database. Unlike unlinking,
-     * a provider failure does not stop anything; the account goes anyway, and the failure is
-     * logged so the item can be revoked by hand at the provider.
+     * Not transactional: the provider is called without holding the database. Like unlinking; but
+     * unlike it, a provider failure does not stop anything: the account goes anyway, and the
+     * failure is logged so the item can be revoked by hand at the provider.
      */
     @Override
     public RevocationReport revokeAll(UUID userId, Set<UUID> skip) {

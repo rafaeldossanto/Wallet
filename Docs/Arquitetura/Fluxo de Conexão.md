@@ -142,16 +142,19 @@ Pluggy, tudo na apiKey de todos os usuários (achados A7, A8 e A9).
   teto não gaste chamada; e de novo numa transação curta que só conta e grava, com um advisory
   lock do Postgres por usuário (`UserLinkLock`), onde os vínculos de um usuário passam um de cada
   vez.
-- A consulta à Pluggy fica **fora** de qualquer transação, como na sincronização (ver
-  [[Sincronização]]): quem espera a Pluggy não segura conexão do banco. Até a revisão do PR #4 (2026-10-22) ela ficava dentro, junto com o
-  lock, e dez vínculos em paralelo de um usuário com a Pluggy lenta ocupavam o pool inteiro: os
-  outros usuários recebiam 503 `service.busy` (`ConnectionLinkPoolIT`).
+- A consulta à Pluggy fica **fora** de qualquer transação, ao vincular e ao desvincular, como na
+  sincronização (ver [[Sincronização]]): quem espera a Pluggy não segura conexão do banco. Até a
+  revisão do PR #4 (2026-10-22) ela ficava dentro, e dez vínculos (ou desvínculos) em paralelo de
+  um usuário com a Pluggy lenta ocupavam o pool inteiro: os outros usuários recebiam 503
+  `service.busy` (`ConnectionSlowProviderIT`).
 - Os limites do BFF somam ao geral (300 por minuto) e ficam na memória: reiniciar o BFF zera as
   contas. A janela é fixa a partir do primeiro pedido; o `Retry-After` diz a janela inteira.
 
 Desvincular revoga o item na Pluggy (e o consentimento do Open Finance com ele) em produção e,
 no modo dev, quando o item foi criado pelo widget para aquele usuário. Item do Meu Pluggy só sai do
-Wallet. Se a Pluggy não responder ao conferir o dono, o Wallet desvincula sem revogar.
+Wallet. Se a Pluggy não responder ao conferir o dono, o Wallet desvincula sem revogar. Se a
+revogação falhar, a conexão fica: a linha só é apagada depois que a Pluggy revogou, numa
+transação curta.
 
 ## Pontos de atenção
 
