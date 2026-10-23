@@ -287,4 +287,7 @@ atualizado: 2026-10-19
   - vincular banco chamava a Pluggy dentro da transação, com o lock por usuário: dez vínculos em
     paralelo com a Pluggy lenta ocupavam o pool inteiro e os outros usuários levavam 503. A Pluggy
     saiu da transação, e o lock ficou só na transação curta que conta e grava
-    (`ConnectionLinkPoolIT`). Ver [[Fluxo de Conexão]].
+    (`ConnectionSlowProviderIT`). Ver [[Fluxo de Conexão]];
+  - desvincular tinha o mesmo defeito (a revogação na Pluggy dentro da transação). A Pluggy saiu
+    da transação, e a linha só é apagada depois que a revogação deu certo, numa transação curta
+    (`ConnectionSlowProviderIT` e, para a revogação que falha, `PluggyConnectModeIT`).
