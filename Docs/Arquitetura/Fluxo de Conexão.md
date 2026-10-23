@@ -137,8 +137,15 @@ Pluggy, tudo na apiKey de todos os usuários (achados A7, A8 e A9).
 | Vínculos (`POST /api/connections`), contando tentativas que falham | BFF (`wallet.rate-limit.link-limit` / `link-window`) | 10 por hora, por usuário | 429 `rate_limit.connections` |
 | Tokens do widget (`POST /api/connections/connect-token`) | BFF (`wallet.rate-limit.connect-token-limit` / `connect-token-window`) | 10 por hora, por usuário | 429 `rate_limit.connections` |
 
-- O teto vale também com pedidos em paralelo: os vínculos de um usuário passam um de cada vez,
-  por um advisory lock do Postgres por usuário (`UserLinkLock`), e só então contam as conexões.
+- O teto vale também com pedidos em paralelo. As conferências (já vinculado por este usuário,
+  teto) rodam duas vezes: antes da consulta à Pluggy, para que um item repetido ou um usuário no
+  teto não gaste chamada; e de novo numa transação curta que só conta e grava, com um advisory
+  lock do Postgres por usuário (`UserLinkLock`), onde os vínculos de um usuário passam um de cada
+  vez.
+- A consulta à Pluggy fica **fora** de qualquer transação, como na sincronização (ver
+  [[Sincronização]]): quem espera a Pluggy não segura conexão do banco. Até a revisão do PR #4 (2026-10-22) ela ficava dentro, junto com o
+  lock, e dez vínculos em paralelo de um usuário com a Pluggy lenta ocupavam o pool inteiro: os
+  outros usuários recebiam 503 `service.busy` (`ConnectionLinkPoolIT`).
 - Os limites do BFF somam ao geral (300 por minuto) e ficam na memória: reiniciar o BFF zera as
   contas. A janela é fixa a partir do primeiro pedido; o `Retry-After` diz a janela inteira.
 

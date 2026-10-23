@@ -18,12 +18,13 @@ import com.wallet.core.provider.ProviderErrors;
 import com.wallet.core.provider.ProviderItem;
 import com.wallet.core.shared.error.DomainException;
 import com.wallet.core.shared.error.ErrorType;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.util.LinkedHashSet;
@@ -36,7 +37,6 @@ import static java.util.Objects.isNull;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ConnectionService implements ConnectionRevocation {
 
     private final ConnectionRepository repository;
@@ -45,19 +45,64 @@ public class ConnectionService implements ConnectionRevocation {
     private final ConnectionProperties properties;
     private final ApplicationEventPublisher events;
     private final Clock clock;
+    private final TransactionTemplate transactions;
+
+    public ConnectionService(ConnectionRepository repository, UserLinkLock linkLock, FinancialDataProvider provider,
+                             ConnectionProperties properties, ApplicationEventPublisher events, Clock clock,
+                             PlatformTransactionManager transactionManager) {
+        this.repository = repository;
+        this.linkLock = linkLock;
+        this.provider = provider;
+        this.properties = properties;
+        this.events = events;
+        this.clock = clock;
+        this.transactions = new TransactionTemplate(transactionManager);
+    }
 
     /**
      * Whether an item is already linked is only told to its owner. An item somebody else linked
      * answers exactly like one that does not exist, after the same call to the provider, so the
      * answer cannot be used to probe for other people's items.
      *
-     * <p>Links of one user run one at a time ({@link UserLinkLock}): the ceiling on connections
-     * holds against parallel requests too.
+     * <p>The provider is called outside any transaction, as in the sync: a slow Pluggy must not hold
+     * a database connection, or one user linking several banks at once would take the pool from
+     * everyone. So the checks run twice: before the call, so that an item the user already linked,
+     * or a user at the ceiling, costs no call to the provider; and again in the short transaction
+     * that writes, under the user's link lock ({@link UserLinkLock}), so that parallel requests
+     * cannot all get past the ceiling.
      */
-    @Transactional
     public ConnectionResponse link(UUID userId, LinkConnectionRequest request) {
         String itemId = request.providerItemId();
-        linkLock.acquire(userId);
+        boolean linkedByAnother = checkLinkable(userId, itemId);
+        ProviderItem item = findItemOwnedBy(userId, itemId);
+        if (linkedByAnother) {
+            log.warn("[SECURITY] User {} tried to link item {} linked by another user", userId, itemId);
+            throw itemNotFound();
+        }
+        try {
+            return transactions.execute(status -> {
+                linkLock.acquire(userId);
+                if (checkLinkable(userId, itemId)) {
+                    // Another user linked it while the provider was answering.
+                    throw itemNotFound();
+                }
+                Connection connection = repository.saveAndFlush(ConnectionMapper.toEntity(userId, item, clock.instant()));
+                events.publishEvent(new ConnectionLinked(connection.getId(), userId));
+                return ConnectionMapper.toResponse(connection);
+            });
+        } catch (DataIntegrityViolationException ex) {
+            // Somebody else linked it after the check (only the user's own links wait on the lock),
+            // or the account is being deleted: either way the item is not this user's to link.
+            throw itemNotFound();
+        }
+    }
+
+    /**
+     * Throws when this user already linked the item, or already holds as many connections as allowed.
+     *
+     * @return whether somebody else linked the item: the caller answers as for an unknown item
+     */
+    private boolean checkLinkable(UUID userId, String itemId) {
         Optional<Connection> linked = repository.findByProviderAndProviderItemId(ConnectionMapper.PROVIDER_PLUGGY, itemId);
         if (linked.isPresent() && linked.get().getUserId().equals(userId)) {
             throw alreadyLinked();
@@ -65,20 +110,7 @@ public class ConnectionService implements ConnectionRevocation {
         if (repository.countByUserId(userId) >= properties.maxConnectionsPerUser()) {
             throw limitReached();
         }
-        ProviderItem item = findItemOwnedBy(userId, itemId);
-        if (linked.isPresent()) {
-            log.warn("[SECURITY] User {} tried to link item {} linked by another user", userId, itemId);
-            throw itemNotFound();
-        }
-        try {
-            Connection connection = repository.saveAndFlush(ConnectionMapper.toEntity(userId, item, clock.instant()));
-            events.publishEvent(new ConnectionLinked(connection.getId(), userId));
-            return ConnectionMapper.toResponse(connection);
-        } catch (DataIntegrityViolationException ex) {
-            // Somebody else linked it meanwhile (the user's own links wait on the lock), or the
-            // account is being deleted: either way the item is not this user's to link.
-            throw itemNotFound();
-        }
+        return linked.isPresent();
     }
 
     /**

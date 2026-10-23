@@ -15,6 +15,9 @@ import java.util.UUID;
  * <p>A transaction-level advisory lock: there is no row to lock before the user's first connection,
  * and the users table belongs to another module. Released at commit or rollback; other users never
  * wait on it. The two-key form keeps it apart from Flyway's single-key lock.
+ *
+ * <p>Whoever waits on it holds a database connection, so it is taken only in the short transaction
+ * that counts and writes, never around a call to the provider.
  */
 @Repository
 @RequiredArgsConstructor
