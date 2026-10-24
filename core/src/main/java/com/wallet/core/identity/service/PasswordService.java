@@ -17,8 +17,9 @@ import java.util.UUID;
 
 /**
  * "Esqueci minha senha" and "Trocar senha". Both end the same way: a new BCrypt hash, every refresh
- * token of the account revoked (all sessions end, the one that asked included; an access token
- * still lives out its 15 minutes) and a notice to the owner, with no link in it.
+ * token of the account revoked (all sessions end, the one that asked included), the moment of the
+ * change recorded ({@code password_changed_at}: the access tokens already out are refused from then
+ * on, see {@code ActiveUserInterceptor}) and a notice to the owner, with no link in it.
  *
  * <p>The reset is what closes the sign-up hole of finding A16: someone who signs up with the
  * victim's e-mail and waits for the victim to confirm it holds an account with their own password,
@@ -116,13 +117,14 @@ public class PasswordService {
 
     private void replacePassword(User user, String passwordHash, Instant now) {
         user.setPasswordHash(passwordHash);
+        user.setPasswordChangedAt(now);
         refreshTokens.revokeAllOf(user.getId());
         mailer.passwordChanged(user.getEmail(), now);
     }
 
-    /** 400 and the code the e-mail confirmation page already speaks. */
+    /** 422 and the code of the e-mail confirmation, which the pages and the app already speak. */
     private static DomainException linkInvalid() {
-        return new DomainException(ErrorType.VALIDATION, "auth.link_invalid",
+        return new DomainException(ErrorType.UNPROCESSABLE, "auth.link_invalid",
                 "The link is unknown, expired, already used or replaced by a newer one");
     }
 

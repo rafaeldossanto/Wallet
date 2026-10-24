@@ -6,6 +6,8 @@ public enum ProviderCallReason {
     CONNECT,
     /** Checking an item before linking it. */
     LINK,
+    /** Reading the item after the user renewed its authorization in the widget. */
+    RENEW,
     /** Revoking the item at the provider when the user unlinks it. */
     UNLINK,
     /** Revoking every item of a user who is deleting their account, before the data goes. */

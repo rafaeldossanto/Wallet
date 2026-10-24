@@ -1,6 +1,8 @@
 package com.wallet.core.sync.service;
 
 import com.wallet.core.connection.ConnectionRegistry;
+import com.wallet.core.connection.ConsentValidity;
+import com.wallet.core.connection.LinkedConnection;
 import com.wallet.core.shared.error.DomainException;
 import com.wallet.core.shared.error.ErrorType;
 import com.wallet.core.shared.web.Bulkhead;
@@ -10,8 +12,10 @@ import com.wallet.core.sync.SyncTrigger;
 import com.wallet.core.sync.config.SyncProperties;
 import com.wallet.core.sync.entity.SyncRun;
 import com.wallet.core.sync.repository.SyncRunRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
@@ -22,6 +26,7 @@ import java.util.UUID;
  * many run at once, in all and per user, is capped by the manual-sync bulkhead: the background
  * executor has virtual threads, so nothing else would.
  */
+@Slf4j
 @Service
 public class ManualSyncService {
 
@@ -52,10 +57,15 @@ public class ManualSyncService {
      * A sync still running answers 409 instead.
      */
     public UUID request(UUID userId, UUID connectionId) {
-        registry.find(connectionId)
+        LinkedConnection connection = registry.find(connectionId)
                 .filter(found -> found.userId().equals(userId))
                 .orElseThrow(() -> new DomainException(ErrorType.NOT_FOUND, "connection.not_found", "No such connection"));
-        boolean tooSoon = runs.findFirstByConnectionIdAndStatusNotOrderByStartedAtDesc(connectionId, SyncRunStatus.RUNNING)
+        if (ConsentValidity.ended(connection, clock.instant())) {
+            registry.recordConsentExpired(connectionId);
+            throw new DomainException(ErrorType.CONFLICT, "connection.consent_expired",
+                    "The authorization of this connection ended; renew it to read the bank again");
+        }
+        boolean tooSoon = runs.findLatestOver(connectionId, PageRequest.of(0, 1)).stream().findFirst()
                 .map(SyncRun::getFinishedAt)
                 .filter(finishedAt -> finishedAt.plus(properties.manualCooldown()).isAfter(clock.instant()))
                 .isPresent();
@@ -72,6 +82,19 @@ public class ManualSyncService {
         } catch (RuntimeException ex) {
             permit.close();
             throw ex;
+        }
+    }
+
+    /**
+     * The update that follows a renewal of the authorization: exactly the button's rules, cooldown
+     * and bulkhead included, so a renewal cannot read the bank more often than "Atualizar" can. What
+     * the rules refuse is not an error here: the connection is ACTIVE again and the next poll reads it.
+     */
+    public void afterRenewal(UUID userId, UUID connectionId) {
+        try {
+            request(userId, connectionId);
+        } catch (DomainException ex) {
+            log.info("[SYNC] No update right after the renewal of connection {}: {}", connectionId, ex.getCode());
         }
     }
 

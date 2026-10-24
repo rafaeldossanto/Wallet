@@ -4,6 +4,7 @@ import com.wallet.core.banking.AccountSyncData;
 import com.wallet.core.banking.BankingSync;
 import com.wallet.core.banking.BankingSyncResult;
 import com.wallet.core.connection.ConnectionRegistry;
+import com.wallet.core.connection.ConsentValidity;
 import com.wallet.core.connection.LinkedConnection;
 import com.wallet.core.provider.FinancialDataProvider;
 import com.wallet.core.provider.ProviderAccount;
@@ -83,6 +84,12 @@ public class SyncService {
 
     private SyncOutcome execute(UUID connectionId, SyncTrigger trigger) {
         Optional<LinkedConnection> found = registry.find(connectionId);
+        if (found.isPresent() && ConsentValidity.ended(found.get(), clock.instant())) {
+            // The authorization is over: nothing is read at the provider until the user renews it.
+            registry.recordConsentExpired(connectionId);
+            log.info("[SYNC] Connection {} ({}) skipped: its authorization ended", connectionId, trigger);
+            return SyncOutcome.skipped("connection.consent_expired");
+        }
         if (found.isEmpty() || !registry.markSyncing(connectionId)) {
             return connectionGone(connectionId, trigger);
         }

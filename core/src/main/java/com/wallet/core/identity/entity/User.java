@@ -52,6 +52,13 @@ public class User {
     @Column(name = "totp_last_step")
     private Long totpLastStep;
 
+    /**
+     * When the password last changed (reset or change), empty if it never did. Access tokens issued
+     * before it are refused ({@code ActiveUserInterceptor}): a JWT cannot be revoked.
+     */
+    @Column(name = "password_changed_at")
+    private Instant passwordChangedAt;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 

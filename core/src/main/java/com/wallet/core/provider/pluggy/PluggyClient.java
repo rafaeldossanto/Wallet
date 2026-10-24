@@ -73,11 +73,11 @@ class PluggyClient {
     }
 
     /** Needs the apiKey, so only the backend can do it; the token itself lasts 30 minutes. */
-    String createConnectToken(String clientUserId, String oauthRedirectUri) {
+    String createConnectToken(String clientUserId, String oauthRedirectUri, String itemId) {
         PluggyDtos.ConnectTokenResponse response = withApiKey(apiKey -> restClient.post()
                 .uri("/connect_token")
                 .header(API_KEY_HEADER, apiKey)
-                .body(new PluggyDtos.ConnectTokenRequest(new PluggyDtos.ConnectTokenOptions(clientUserId, oauthRedirectUri)))
+                .body(new PluggyDtos.ConnectTokenRequest(itemId, new PluggyDtos.ConnectTokenOptions(clientUserId, oauthRedirectUri)))
                 .retrieve()
                 .body(PluggyDtos.ConnectTokenResponse.class));
         if (isNull(response) || isNull(response.accessToken())) {

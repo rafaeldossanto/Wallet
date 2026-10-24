@@ -37,6 +37,7 @@ import java.util.stream.Stream;
 
 import static com.wallet.core.TestUsers.as;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
@@ -54,6 +55,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import(TestcontainersConfiguration.class)
 @RecordApplicationEvents
 class ConnectionFlowIT {
+
+    private static final String CONSENT = "{\"consentVersion\":\"open-finance-v1\"}";
 
     @Autowired
     private WebApplicationContext context;
@@ -252,18 +255,18 @@ class ConnectionFlowIT {
 
     @Test
     void theConnectTokenIsForTheSignedInUserAndBringsThemBackToTheApp() throws Exception {
-        when(provider.createConnectToken(userId.toString(), "com.wallet.wallet://pluggy-connect")).thenReturn("connect-token-1");
+        when(provider.createConnectToken(userId.toString(), "com.wallet.wallet://pluggy-connect", null)).thenReturn("connect-token-1");
 
-        mockMvc.perform(post("/internal/connections/connect-token").with(as(userId)))
+        mockMvc.perform(post("/internal/connections/connect-token").with(as(userId)).contentType(MediaType.APPLICATION_JSON).content(CONSENT))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.connectToken").value("connect-token-1"));
     }
 
     @Test
     void aProviderOutageWhileCreatingTheConnectTokenIsPassedOn() throws Exception {
-        when(provider.createConnectToken(anyString(), anyString())).thenThrow(ProviderErrors.unavailable("timeout"));
+        when(provider.createConnectToken(anyString(), anyString(), any())).thenThrow(ProviderErrors.unavailable("timeout"));
 
-        mockMvc.perform(post("/internal/connections/connect-token").with(as(userId)))
+        mockMvc.perform(post("/internal/connections/connect-token").with(as(userId)).contentType(MediaType.APPLICATION_JSON).content(CONSENT))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("provider.unavailable"));
     }
@@ -310,7 +313,7 @@ class ConnectionFlowIT {
 
     private ResultActions link(UUID user, String itemId) throws Exception {
         return mockMvc.perform(post("/internal/connections").with(as(user)).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"providerItemId\":\"%s\"}".formatted(itemId)));
+                .content("{\"providerItemId\":\"%s\",\"consentVersion\":\"open-finance-v1\"}".formatted(itemId)));
     }
 
     /** Each with a finished sync, so {@link #awaitFirstSyncs} does not wait for them. */

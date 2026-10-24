@@ -93,6 +93,12 @@ class JpaConnectionRegistry implements ConnectionRegistry {
 
     @Override
     @Transactional
+    public void recordConsentExpired(UUID connectionId) {
+        update(connectionId, connection -> connection.setStatus(ConnectionStatus.CONSENT_EXPIRED));
+    }
+
+    @Override
+    @Transactional
     public void recordSyncEnded(UUID connectionId) {
         update(connectionId, connection -> {
             if (ConnectionStatus.SYNCING.equals(connection.getStatus())) {

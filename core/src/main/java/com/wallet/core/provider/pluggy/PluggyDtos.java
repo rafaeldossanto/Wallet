@@ -1,6 +1,7 @@
 package com.wallet.core.provider.pluggy;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -24,7 +25,9 @@ final class PluggyDtos {
     record AuthResponse(String apiKey) {
     }
 
-    record ConnectTokenRequest(ConnectTokenOptions options) {
+    /** {@code itemId} (top level, next to {@code options}) makes the token update that item: the renewal of its authorization. Left out when null. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    record ConnectTokenRequest(String itemId, ConnectTokenOptions options) {
     }
 
     record ConnectTokenOptions(String clientUserId, String oauthRedirectUri) {

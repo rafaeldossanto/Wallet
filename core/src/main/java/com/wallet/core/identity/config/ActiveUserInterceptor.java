@@ -11,7 +11,11 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+
+import static java.util.Objects.isNull;
 
 /**
  * A valid token whose user no longer exists is refused like an expired one: 401
@@ -22,6 +26,11 @@ import java.util.UUID;
  * salary) hit the foreign key of the deleted user and came back as a 500. Now the app gets a clean
  * 401, tries to renew, finds the refresh token gone with the account, and shows the sign-in. That
  * includes deleting the account a second time: the app tells that end as the deletion.
+ *
+ * <p>The same goes for a token issued before the last password change or reset
+ * ({@code users.password_changed_at}): the refresh tokens are revoked at once, and this ends the
+ * access tokens already out, which would otherwise work for up to 15 more minutes for whoever held
+ * them. It is the same lookup, so no extra query.
  *
  * <p>An interceptor and not part of the security chain on purpose: what goes wrong here reaches
  * {@code GlobalExceptionHandler}, so a full connection pool is the same 503 {@code service.busy}
@@ -36,10 +45,17 @@ public class ActiveUserInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         if (SecurityContextHolder.getContext().getAuthentication() instanceof JwtAuthenticationToken token
-                && !users.existsById(userIdOf(token))) {
-            throw new DomainException(ErrorType.UNAUTHORIZED, "auth.unauthenticated", "The user of this token no longer exists");
+                && !users.existsWithPasswordUnchangedSince(userIdOf(token), endOfSecondIssued(token))) {
+            throw new DomainException(ErrorType.UNAUTHORIZED, "auth.unauthenticated",
+                    "The user of this token no longer exists, or changed the password since it was issued");
         }
         return true;
+    }
+
+    /** A token without {@code iat} predates every password change. */
+    private static Instant endOfSecondIssued(JwtAuthenticationToken token) {
+        Instant issuedAt = token.getToken().getIssuedAt();
+        return (isNull(issuedAt) ? Instant.EPOCH : issuedAt.truncatedTo(ChronoUnit.SECONDS)).plusSeconds(1);
     }
 
     private static UUID userIdOf(JwtAuthenticationToken token) {

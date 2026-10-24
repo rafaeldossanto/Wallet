@@ -1,8 +1,10 @@
 package com.wallet.core.connection.controller;
 
+import com.wallet.core.connection.dto.ConnectTokenRequest;
 import com.wallet.core.connection.dto.ConnectTokenResponse;
 import com.wallet.core.connection.dto.ConnectionResponse;
 import com.wallet.core.connection.dto.LinkConnectionRequest;
+import com.wallet.core.connection.dto.RenewConnectionRequest;
 import com.wallet.core.connection.service.ConnectionService;
 import com.wallet.core.shared.security.CurrentUserId;
 import jakarta.validation.Valid;
@@ -38,10 +40,20 @@ public class ConnectionController {
         return connectionService.link(userId, request);
     }
 
-    /** Opens the Pluggy Connect widget in the app; the item it creates is then linked with {@link #link}. */
+    /**
+     * Opens the Pluggy Connect widget in the app; the item it creates is then linked with {@link #link}.
+     * With a {@code connectionId} the widget opens in update mode, to renew that connection's authorization.
+     */
     @PostMapping("/connect-token")
-    public ConnectTokenResponse connectToken(@CurrentUserId UUID userId) {
-        return connectionService.createConnectToken(userId);
+    public ConnectTokenResponse connectToken(@CurrentUserId UUID userId, @Valid @RequestBody ConnectTokenRequest request) {
+        return connectionService.createConnectToken(userId, request);
+    }
+
+    /** After the widget renewed the authorization: records it and brings the connection back. */
+    @PostMapping("/{connectionId}/renew")
+    public ConnectionResponse renew(@CurrentUserId UUID userId, @PathVariable UUID connectionId,
+                                    @Valid @RequestBody RenewConnectionRequest request) {
+        return connectionService.renew(userId, connectionId, request);
     }
 
     @DeleteMapping("/{connectionId}")

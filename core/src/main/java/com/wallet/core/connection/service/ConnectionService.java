@@ -1,14 +1,20 @@
 package com.wallet.core.connection.service;
 
 import com.wallet.core.connection.ConnectionLinked;
+import com.wallet.core.connection.ConnectionRenewed;
+import com.wallet.core.connection.ConnectionStatus;
+import com.wallet.core.connection.ConsentValidity;
 import com.wallet.core.connection.ConnectionRevocation;
 import com.wallet.core.connection.RevocationReport;
 import com.wallet.core.connection.config.ConnectionProperties;
+import com.wallet.core.connection.dto.ConnectTokenRequest;
 import com.wallet.core.connection.dto.ConnectTokenResponse;
 import com.wallet.core.connection.dto.ConnectionResponse;
 import com.wallet.core.connection.dto.LinkConnectionRequest;
+import com.wallet.core.connection.dto.RenewConnectionRequest;
 import com.wallet.core.connection.entity.Connection;
 import com.wallet.core.connection.mapper.ConnectionMapper;
+import com.wallet.core.connection.repository.ConnectionConsentRepository;
 import com.wallet.core.connection.repository.ConnectionRepository;
 import com.wallet.core.connection.repository.UserLinkLock;
 import com.wallet.core.provider.FinancialDataProvider;
@@ -27,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -40,6 +47,7 @@ import static java.util.Objects.isNull;
 public class ConnectionService implements ConnectionRevocation {
 
     private final ConnectionRepository repository;
+    private final ConnectionConsentRepository consents;
     private final UserLinkLock linkLock;
     private final FinancialDataProvider provider;
     private final ConnectionProperties properties;
@@ -47,10 +55,11 @@ public class ConnectionService implements ConnectionRevocation {
     private final Clock clock;
     private final TransactionTemplate transactions;
 
-    public ConnectionService(ConnectionRepository repository, UserLinkLock linkLock, FinancialDataProvider provider,
+    public ConnectionService(ConnectionRepository repository, ConnectionConsentRepository consents, UserLinkLock linkLock, FinancialDataProvider provider,
                              ConnectionProperties properties, ApplicationEventPublisher events, Clock clock,
                              PlatformTransactionManager transactionManager) {
         this.repository = repository;
+        this.consents = consents;
         this.linkLock = linkLock;
         this.provider = provider;
         this.properties = properties;
@@ -86,7 +95,10 @@ public class ConnectionService implements ConnectionRevocation {
                     // Another user linked it while the provider was answering.
                     throw itemNotFound();
                 }
-                Connection connection = repository.saveAndFlush(ConnectionMapper.toEntity(userId, item, clock.instant()));
+                Instant now = clock.instant();
+                Connection connection = repository.saveAndFlush(ConnectionMapper.toEntity(userId, item, now));
+                consents.save(ConnectionMapper.toConsent(userId, connection.getId(), request.consentVersion(), now,
+                        item.consentExpiresAt()));
                 events.publishEvent(new ConnectionLinked(connection.getId(), userId));
                 return ConnectionMapper.toResponse(connection);
             });
@@ -117,10 +129,44 @@ public class ConnectionService implements ConnectionRevocation {
      * The widget creates the item for this user ({@code clientUserId}), so linking it afterwards
      * passes the ownership check in either connection mode.
      */
-    public ConnectTokenResponse createConnectToken(UUID userId) {
-        String connectToken = new ProviderCallContext(userId, null, null, ProviderCallReason.CONNECT)
-                .call(() -> provider.createConnectToken(userId.toString(), properties.oauthRedirectUri()));
+    public ConnectTokenResponse createConnectToken(UUID userId, ConnectTokenRequest request) {
+        // Renewing: the widget opens in update mode, on the item of the connection (which is the user's).
+        Connection renewing = isNull(request.connectionId()) ? null
+                : repository.findByIdAndUserId(request.connectionId(), userId).orElseThrow(ConnectionService::notFound);
+        String itemId = isNull(renewing) ? null : renewing.getProviderItemId();
+        String connectToken = new ProviderCallContext(userId, isNull(renewing) ? null : renewing.getId(), itemId,
+                ProviderCallReason.CONNECT)
+                .call(() -> provider.createConnectToken(userId.toString(), properties.oauthRedirectUri(), itemId));
         return new ConnectTokenResponse(connectToken);
+    }
+
+    /**
+     * The user went through the widget again for a connection whose authorization ended (or is
+     * about to): reads the item at the provider, outside any transaction, and if its date really
+     * moved on, records the new consent, puts the connection back to ACTIVE with the new date and
+     * starts a sync. A date that did not move (the widget was closed) is 409
+     * {@code connection.consent_not_renewed} and changes nothing.
+     */
+    public ConnectionResponse renew(UUID userId, UUID connectionId, RenewConnectionRequest request) {
+        Connection connection = repository.findByIdAndUserId(connectionId, userId).orElseThrow(ConnectionService::notFound);
+        ProviderItem item = new ProviderCallContext(userId, connectionId, connection.getProviderItemId(), ProviderCallReason.RENEW)
+                .call(() -> provider.findItem(connection.getProviderItemId()));
+        return transactions.execute(status -> {
+            Connection locked = repository.findLockedById(connectionId)
+                    .filter(found -> found.getUserId().equals(userId)).orElseThrow(ConnectionService::notFound);
+            Instant now = clock.instant();
+            if (!ConsentValidity.renewed(locked.getConsentExpiresAt(), item.consentExpiresAt(), now)) {
+                throw new DomainException(ErrorType.CONFLICT, "connection.consent_not_renewed",
+                        "The provider still reports the old authorization; finish the renewal in the bank's flow");
+            }
+            locked.setConsentExpiresAt(item.consentExpiresAt());
+            locked.setStatus(ConnectionStatus.ACTIVE);
+            locked.setUpdatedAt(now);
+            consents.save(ConnectionMapper.toConsent(userId, connectionId, request.consentVersion(), now, item.consentExpiresAt()));
+            events.publishEvent(new ConnectionRenewed(connectionId, userId));
+            log.info("[CONNECTION] Connection {} of user {} renewed until {}", connectionId, userId, item.consentExpiresAt());
+            return ConnectionMapper.toResponse(locked);
+        });
     }
 
     @Transactional(readOnly = true)
@@ -141,8 +187,12 @@ public class ConnectionService implements ConnectionRevocation {
     public void unlink(UUID userId, UUID connectionId) {
         Connection connection = repository.findByIdAndUserId(connectionId, userId).orElseThrow(ConnectionService::notFound);
         releaseAtProvider(userId, connection, ProviderCallReason.UNLINK);
-        transactions.executeWithoutResult(status ->
-                repository.findByIdAndUserId(connectionId, userId).ifPresent(repository::delete));
+        transactions.executeWithoutResult(status -> repository.findByIdAndUserId(connectionId, userId).ifPresent(found -> {
+            // The proof that the user took the authorization back, before the connection goes: the
+            // consent rows have no foreign key to it, so they stay (see V13).
+            consents.revokeAllOf(connectionId, clock.instant());
+            repository.delete(found);
+        }));
     }
 
     /**

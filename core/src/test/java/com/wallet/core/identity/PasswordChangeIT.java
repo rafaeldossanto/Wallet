@@ -80,6 +80,21 @@ class PasswordChangeIT {
         assertThat(notice.text()).doesNotContain("http");
     }
 
+
+    /** A JWT cannot be revoked, so the filter refuses the ones issued before the change (finding of the password review). */
+    @Test
+    void anAccessTokenIssuedBeforeTheChangeIs401AndANewOneWorks() throws Exception {
+        clock.advance(Duration.ofSeconds(5));
+
+        identity.changePassword(accessToken, PASSWORD, NEW_PASSWORD, HOME_ADDRESS).andExpect(status().isNoContent());
+
+        identity.me(accessToken).andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("auth.unauthenticated"));
+        // Signing in again in the very second of the change works: iat has second precision.
+        String fresh = JsonPath.read(identity.login(email, NEW_PASSWORD).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString(), "$.accessToken");
+        identity.me(fresh).andExpect(status().isOk());
+    }
     @Test
     void aWrongCurrentPasswordIs403AndCountsTowardTheLockout() throws Exception {
         identity.changePassword(accessToken, "not the password", NEW_PASSWORD, HOME_ADDRESS)

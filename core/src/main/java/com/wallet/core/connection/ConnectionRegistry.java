@@ -37,6 +37,9 @@ public interface ConnectionRegistry {
     /** The provider says the user has to act (log in again, renew consent). */
     void recordNeedsAttention(UUID connectionId);
 
+    /** The authorization ended (its date passed): the connection waits for the user to renew it, and the sync leaves it alone. */
+    void recordConsentExpired(UUID connectionId);
+
     /** A failed or skipped sync puts a connection back to ACTIVE without touching its timestamps. */
     void recordSyncEnded(UUID connectionId);
 }

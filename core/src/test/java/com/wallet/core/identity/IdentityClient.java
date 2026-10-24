@@ -75,6 +75,10 @@ final class IdentityClient {
         return mockMvc.perform(get("/internal/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken));
     }
 
+    String accessTokenOf(String email, String password) throws Exception {
+        return accessTokenOf(login(email, password).andExpect(status().isOk()));
+    }
+
     String accessTokenOf(String email) throws Exception {
         return accessTokenOf(login(email, PASSWORD).andExpect(status().isOk()));
     }

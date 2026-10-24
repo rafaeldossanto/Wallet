@@ -10,5 +10,6 @@ public record LinkedConnection(
         String providerItemId,
         ConnectionStatus status,
         Instant providerUpdatedAt,
-        Instant lastSyncedAt) {
+        Instant lastSyncedAt,
+        Instant consentExpiresAt) {
 }

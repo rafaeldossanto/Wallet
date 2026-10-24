@@ -292,7 +292,20 @@ class PluggyFinancialDataProviderTest {
                         """))
                 .willReturn(okJson("{\"accessToken\":\"connect-token-1\"}")));
 
-        assertThat(provider.createConnectToken("user-1", "com.wallet.wallet://pluggy-connect")).isEqualTo("connect-token-1");
+        assertThat(provider.createConnectToken("user-1", "com.wallet.wallet://pluggy-connect", null)).isEqualTo("connect-token-1");
+    }
+
+    /** Renewing an authorization: the token is made for the item (top-level {@code itemId}), and the widget opens in update mode. */
+    @Test
+    void aConnectTokenForRenewingCarriesTheItemId() {
+        pluggy.stubFor(post("/connect_token")
+                .withHeader("X-API-KEY", equalTo(API_KEY))
+                .withRequestBody(equalToJson("""
+                        {"itemId":"%s","options":{"clientUserId":"user-1","oauthRedirectUri":"com.wallet.wallet://pluggy-connect"}}
+                        """.formatted(ITEM_ID)))
+                .willReturn(okJson("{\"accessToken\":\"update-token-1\"}")));
+
+        assertThat(provider.createConnectToken("user-1", "com.wallet.wallet://pluggy-connect", ITEM_ID)).isEqualTo("update-token-1");
     }
 
     /** Pluggy refuses a redirect it does not accept (plain HTTP, localhost) when the token is created. */
@@ -302,7 +315,7 @@ class PluggyFinancialDataProviderTest {
                 .withHeader("Content-Type", "application/json")
                 .withBody("{\"code\":400,\"message\":\"oauthRedirectUri is invalid\"}")));
 
-        assertErrorCode(() -> provider.createConnectToken("user-1", "http://localhost"), ProviderErrors.UNAVAILABLE);
+        assertErrorCode(() -> provider.createConnectToken("user-1", "http://localhost", null), ProviderErrors.UNAVAILABLE);
     }
 
     private PluggyFinancialDataProvider providerWith(String clientId, String clientSecret) {

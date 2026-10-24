@@ -128,6 +128,21 @@ class PasswordResetFlowIT {
         assertThat(notice.text()).doesNotContain("http").contains("Esqueci minha senha");
     }
 
+
+    @Test
+    void anAccessTokenIssuedBeforeTheResetIs401() throws Exception {
+        String email = identity.confirmedAccount();
+        String stolen = identity.accessTokenOf(email);
+        identity.forgotPassword(email);
+        String token = tokenIn(mail.awaitNth(email, 2));
+        clock.advance(Duration.ofSeconds(5));
+
+        identity.resetPassword(token, NEW_PASSWORD).andExpect(status().isNoContent());
+
+        identity.me(stolen).andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("auth.unauthenticated"));
+        identity.me(identity.accessTokenOf(email, NEW_PASSWORD)).andExpect(status().isOk());
+    }
     /** The owner locked out by guesses can get back in with the new password. */
     @Test
     void theResetClearsTheLockout() throws Exception {
@@ -158,10 +173,10 @@ class PasswordResetFlowIT {
         identity.forgotPassword(email);
         String second = tokenIn(mail.awaitNth(email, 3));
 
-        identity.resetPassword(first, NEW_PASSWORD).andExpect(status().isBadRequest())
+        identity.resetPassword(first, NEW_PASSWORD).andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("auth.link_invalid"));
         identity.resetPassword(second, NEW_PASSWORD).andExpect(status().isNoContent());
-        identity.resetPassword(second, "yet another password").andExpect(status().isBadRequest())
+        identity.resetPassword(second, "yet another password").andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("auth.link_invalid"));
 
         identity.login(email, NEW_PASSWORD).andExpect(status().isOk());
@@ -175,9 +190,9 @@ class PasswordResetFlowIT {
 
         clock.advance(Duration.ofMinutes(61));
 
-        identity.resetPassword(token, NEW_PASSWORD).andExpect(status().isBadRequest())
+        identity.resetPassword(token, NEW_PASSWORD).andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("auth.link_invalid"));
-        identity.resetPassword("never-issued", NEW_PASSWORD).andExpect(status().isBadRequest())
+        identity.resetPassword("never-issued", NEW_PASSWORD).andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("auth.link_invalid"));
         identity.login(email, PASSWORD).andExpect(status().isOk());
     }
@@ -189,7 +204,7 @@ class PasswordResetFlowIT {
         identity.register(email, PASSWORD).andExpect(status().isAccepted());
         String signUpLink = tokenIn(mail.await(email));
 
-        identity.resetPassword(signUpLink, NEW_PASSWORD).andExpect(status().isBadRequest())
+        identity.resetPassword(signUpLink, NEW_PASSWORD).andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("auth.link_invalid"));
 
         // The sign-up link was not spent by that attempt.
