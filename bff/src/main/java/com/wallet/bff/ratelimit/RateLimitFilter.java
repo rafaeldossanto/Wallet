@@ -81,6 +81,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         }
+        if (path.startsWith("/api/webhooks/")) {
+            // The provider's webhooks: public, so counted per address before anything else looks at them.
+            if (!acquire("webhook", address(request), properties.webhookLimit(), properties.window())) {
+                reject(response, GENERAL, properties.window());
+                return;
+            }
+            chain.doFilter(request, response);
+            return;
+        }
         boolean authRoute = path.startsWith("/api/auth/");
         int limit = authRoute ? properties.authLimit() : properties.defaultLimit();
         if (!acquire(authRoute ? "auth" : "api", authRoute ? address(request) : caller(request), limit, properties.window())) {

@@ -57,6 +57,9 @@ public class SecurityConfig {
     /** The page the "Esqueci minha senha" link opens ({@code PasswordResetPageConfig}). */
     private static final String PASSWORD_PAGES = "/password/**";
 
+    /** Pluggy's webhooks: no session, a secret of their own (WebhookController). */
+    private static final String WEBHOOK_ROUTES = "/api/webhooks/**";
+
     /**
      * For the pages of the e-mailed links, the only HTML the BFF serves, and harmless on the JSON routes:
      * nothing but its own script, style and calls, never inside a frame.
@@ -73,7 +76,7 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(AUTH_ROUTES, EMAIL_PAGES, WAITLIST_ROUTES, WAITLIST_PAGES, PASSWORD_PAGES, "/error").permitAll()
+                        .requestMatchers(AUTH_ROUTES, EMAIL_PAGES, WAITLIST_ROUTES, WAITLIST_PAGES, PASSWORD_PAGES, WEBHOOK_ROUTES, "/error").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(resourceServer -> resourceServer
                         .bearerTokenResolver(ignoringAuthRoutes())
@@ -98,8 +101,9 @@ public class SecurityConfig {
      */
     private static BearerTokenResolver ignoringAuthRoutes() {
         RequestMatcher authRoutes = PathPatternRequestMatcher.withDefaults().matcher(AUTH_ROUTES);
+        RequestMatcher webhookRoutes = PathPatternRequestMatcher.withDefaults().matcher(WEBHOOK_ROUTES);
         DefaultBearerTokenResolver resolver = new DefaultBearerTokenResolver();
-        return request -> authRoutes.matches(request) ? null : resolver.resolve(request);
+        return request -> authRoutes.matches(request) || webhookRoutes.matches(request) ? null : resolver.resolve(request);
     }
 
     /**

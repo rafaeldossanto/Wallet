@@ -89,4 +89,20 @@ class ClientAddressTest {
         }
         return request;
     }
+
+    /** The list of addresses a public route lets in (the provider's webhooks): IPs and CIDR ranges, v4 and v6. */
+    @Test
+    void anAllowlistLetsInOnlyItsRangesAndAnEmptyOneEveryone() {
+        ClientAddress.Allowlist list = new ClientAddress.Allowlist(List.of("198.51.100.0/24", "203.0.113.7", " ", "2001:db8::/32"));
+
+        assertThat(list.allows("198.51.100.200")).isTrue();
+        assertThat(list.allows("203.0.113.7")).isTrue();
+        assertThat(list.allows("203.0.113.8")).isFalse();
+        assertThat(list.allows("2001:db8:1::5")).isTrue();
+        assertThat(list.allows("2001:db9::1")).isFalse();
+        assertThat(list.allows("not-an-ip")).isFalse();
+        assertThat(new ClientAddress.Allowlist(List.of()).allows("192.0.2.1")).isTrue();
+        assertThat(new ClientAddress.Allowlist(List.of()).isEmpty()).isTrue();
+        assertThatThrownBy(() -> new ClientAddress.Allowlist(List.of("garbage"))).isInstanceOf(IllegalArgumentException.class);
+    }
 }

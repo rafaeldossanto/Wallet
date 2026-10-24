@@ -160,6 +160,11 @@ public class CoreApi {
         return client.post(CoreRouteGroup.PROVIDER, "/internal/connections", request, new ParameterizedTypeReference<>() {});
     }
 
+    /** Pluggy's webhook, a hint: the body goes as it came, and the core answers 202. */
+    public void pluggyWebhook(byte[] body) {
+        client.post(CoreRouteGroup.READS, "/internal/webhooks/pluggy", body);
+    }
+
     public ConnectTokenResponse connectToken(ConnectTokenRequest request) {
         return client.post(CoreRouteGroup.PROVIDER, "/internal/connections/connect-token", request, new ParameterizedTypeReference<>() {});
     }
