@@ -30,7 +30,7 @@ flowchart LR
   ses["SMTP do SES"]
 
   internet -->|HTTPS| caddy
-  caddy -->|"/api /email /waitlist /livez"| bff
+  caddy -->|"/api /email /waitlist /password /livez"| bff
   bff --> core
   core --> pg
   core -.-> egress
@@ -46,7 +46,7 @@ flowchart LR
 | `wallet-egress` | core | O caminho de saída do core, para a Pluggy e para o SMTP. Nada é publicado nela |
 
 - **Só o Caddy publica portas** (80 e 443). As portas de gestão (9080 do BFF e 9081 do core) escutam em 127.0.0.1 dentro de cada container e não são publicadas.
-- `https://<domínio>` serve a landing (`site/`); `https://app.<domínio>` serve o app web e repassa `/api/*`, `/email/*`, `/waitlist/*` e `/livez` ao BFF. App e API na **mesma origem** mantêm o cookie de renovação `SameSite=Strict`. A landing chama a API de outra origem (por isso `WALLET_WEB_ALLOWED_ORIGINS` lista os dois nomes).
+- `https://<domínio>` serve a landing (`site/`); `https://app.<domínio>` serve o app web e repassa `/api/*`, `/email/*`, `/waitlist/*`, `/password/*` e `/livez` ao BFF: as rotas da API e as páginas que os links dos e-mails abrem, que ficam em `bff/src/main/resources/static`. Página pública nova no BFF precisa entrar no `@bff` do Caddyfile, e o `CaddyRoutesTest` do BFF quebra se ela ficar de fora. App e API na **mesma origem** mantêm o cookie de renovação `SameSite=Strict`. A landing chama a API de outra origem (por isso `WALLET_WEB_ALLOWED_ORIGINS` lista os dois nomes).
 - O domínio entra no **build**: o app web é compilado com `WALLET_BFF_URL=https://app.<domínio>` e o `config.js` da landing é gerado com o mesmo endereço. Trocar de domínio exige `docker compose build` de novo.
 - Os nomes são todos claros e fixos: projeto `wallet`, containers `wallet-postgres`, `wallet-core`, `wallet-bff`, `wallet-caddy`, volumes `wallet-postgres-data`, `wallet-caddy-data`, `wallet-caddy-config`.
 

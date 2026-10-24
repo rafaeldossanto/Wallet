@@ -38,7 +38,7 @@ app.{$WALLET_DOMAIN} {
 	}
 
 	# Everything the BFF answers; the rest is the app.
-	@bff path /api/* /email/* /waitlist/* /livez
+	@bff path /api/* /email/* /waitlist/* /password/* /livez
 	handle @bff {
 		reverse_proxy bff:8080
 	}
