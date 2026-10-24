@@ -105,6 +105,10 @@ wallet:
     # 400 ms after the last key and searches one month: 30 a minute is far beyond typing.
     # Going over answers 429 rate_limit.exceeded.
     search-limit: 30
+    # Per user: the export of the user's data (GET /api/me/export) reads everything they have in the
+    # core. Going over answers 429 rate_limit.exceeded.
+    export-limit: 3
+    export-window: 24h
     # Per IP on /api/waitlist/** (the landing page's sign-up, confirmation and unsubscribe, all
     # together): public routes, and each sign-up sends an e-mail to whatever address was typed.
     # Going over answers 429 rate_limit.exceeded.

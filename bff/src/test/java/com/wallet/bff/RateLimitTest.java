@@ -1,7 +1,12 @@
 package com.wallet.bff;
 
 import com.github.tomakehurst.wiremock.client.WireMock;
+import com.wallet.bff.ratelimit.IpPseudonyms;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -16,6 +21,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.putRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -26,7 +32,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /** Its own context: tiny limits that would trip every other test. */
 @SpringBootTest(properties = {"wallet.rate-limit.default-limit=3", "wallet.rate-limit.auth-limit=2",
         "wallet.rate-limit.link-limit=2", "wallet.rate-limit.connect-token-limit=1"})
+@ExtendWith(OutputCaptureExtension.class)
 class RateLimitTest extends BffTestSupport {
+
+    @Autowired
+    private IpPseudonyms pseudonyms;
 
     private static final String CONNECTION = """
             {"id":"6f1c9a52-3b7e-4d1a-9c2f-8e5d4b3a2f10","institutionName":"Nubank","institutionImageUrl":null,
@@ -61,6 +71,24 @@ class RateLimitTest extends BffTestSupport {
         login("203.0.113.8").andExpect(status().isOk());
 
         CORE.verify(3, postRequestedFor(urlEqualTo("/internal/auth/login")));
+    }
+
+    /**
+     * An address is personal data: the log names the source by a stable pseudonym, so an abuse still
+     * reads as one source across lines, and never by the address itself (L12).
+     */
+    @Test
+    void theLogNamesAnAddressByItsPseudonymNeverByTheAddress(CapturedOutput output) throws Exception {
+        stubLogin();
+
+        login("203.0.113.40").andExpect(status().isOk());
+        login("203.0.113.40").andExpect(status().isOk());
+        login("203.0.113.40").andExpect(status().isTooManyRequests());
+        login("203.0.113.40").andExpect(status().isTooManyRequests());
+
+        String label = "[RATE-LIMIT] auth:ip:" + pseudonyms.of("203.0.113.40") + " went over 2 requests per PT1M";
+        assertThat(output.getAll()).contains(label).doesNotContain("203.0.113.40");
+        assertThat(output.getAll().split(java.util.regex.Pattern.quote(label), -1)).hasSize(3);
     }
 
     /**

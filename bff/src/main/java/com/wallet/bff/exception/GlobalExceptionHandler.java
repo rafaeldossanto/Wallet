@@ -1,5 +1,6 @@
 package com.wallet.bff.exception;
 
+import com.wallet.bff.trace.TraceContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -92,7 +93,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception ex) {
-        log.error("[EXCEPTION] Unexpected error: {}", ex.getMessage(), ex);
+        // Class and stack only: a message can quote the request or what the core answered.
+        log.error("[EXCEPTION] Unexpected error, trace {}: {}", TraceContext.current(), ExceptionLog.describe(ex));
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ErrorResponse("internal.error", "Unexpected error"));
     }

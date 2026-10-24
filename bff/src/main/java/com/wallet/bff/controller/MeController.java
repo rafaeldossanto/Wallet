@@ -2,6 +2,7 @@ package com.wallet.bff.controller;
 
 import com.wallet.bff.auth.CurrentUserId;
 import com.wallet.bff.client.CoreApi;
+import com.wallet.bff.config.ClockConfig;
 import com.wallet.bff.model.dto.request.AccountDeletionRequest;
 import com.wallet.bff.model.dto.request.EmailChangeRequest;
 import com.wallet.bff.model.dto.request.PasswordChangeRequest;
@@ -10,7 +11,10 @@ import com.wallet.bff.model.dto.response.UserResponse;
 import com.wallet.bff.service.AuthService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Clock;
 import java.util.UUID;
 
 @RestController
@@ -27,6 +32,7 @@ public class MeController {
 
     private final CoreApi coreApi;
     private final AuthService authService;
+    private final Clock clock;
 
     @GetMapping("/api/me")
     public UserResponse me() {
@@ -37,6 +43,20 @@ public class MeController {
     @PutMapping("/api/me")
     public UserResponse update(@RequestBody ProfileRequest request) {
         return coreApi.updateMe(request);
+    }
+
+    /**
+     * The user's data as a file to keep (LGPD, art. 18, II and V): the core's JSON, untouched, to be
+     * saved by the browser. At most 3 a day per user ({@code RateLimitFilter}): each one reads
+     * everything the user has.
+     */
+    @GetMapping(value = "/api/me/export", produces = MediaType.APPLICATION_JSON_VALUE)
+    public byte[] export(HttpServletResponse response) {
+        byte[] file = coreApi.exportMe();
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                .filename("wallet-meus-dados-" + ClockConfig.today(clock) + ".json").build().toString());
+        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
+        return file;
     }
 
     /** 202: the core sends a link to the new e-mail and the account moves when it is opened. */

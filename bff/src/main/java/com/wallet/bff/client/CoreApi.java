@@ -121,6 +121,11 @@ public class CoreApi {
         return client.get(CoreRouteGroup.READS, "/internal/me", Map.of(), new ParameterizedTypeReference<>() {});
     }
 
+    /** The user's data as the core wrote it: passed on untouched, never read into objects (it can be large). */
+    public byte[] exportMe() {
+        return client.get(CoreRouteGroup.SCREENS, "/internal/me/export", Map.of(), new ParameterizedTypeReference<>() {});
+    }
+
     public void deleteMe(AccountDeletionRequest request) {
         client.deleteWaitingOnProvider("/internal/me", request);
     }

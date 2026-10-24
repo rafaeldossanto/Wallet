@@ -20,6 +20,8 @@ import static java.util.Objects.isNull;
  * @param connectTokenLimit  {@code POST /api/connections/connect-token} per user and {@code connectTokenWindow}
  * @param searchLimit        text searches ({@code GET /api/transactions} with {@code q}) per user and
  *                           {@code window}: each one makes the core decrypt the period's descriptions
+ * @param exportLimit        {@code GET /api/me/export} (the user's data as a file) per user and {@code exportWindow}:
+ *                           each one makes the core read everything the user has
  * @param waitlistLimit      requests to {@code /api/waitlist/**} (sign-up, confirmation, unsubscribe
  *                           together) per IP and {@code waitlistWindow}
  * @param trustedProxies    the reverse proxies whose {@code X-Forwarded-For} is believed, as IPs or
@@ -37,6 +39,8 @@ public record RateLimitProperties(
         @DefaultValue("10") int connectTokenLimit,
         @DefaultValue("1h") Duration connectTokenWindow,
         @DefaultValue("30") int searchLimit,
+        @DefaultValue("3") int exportLimit,
+        @DefaultValue("24h") Duration exportWindow,
         @DefaultValue("5") int waitlistLimit,
         @DefaultValue("1h") Duration waitlistWindow,
         @DefaultValue List<String> trustedProxies) {

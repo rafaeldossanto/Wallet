@@ -3,6 +3,7 @@ package com.wallet.bff.auth;
 import com.wallet.bff.config.CoreProperties;
 import com.wallet.bff.config.JwtProperties;
 import com.wallet.bff.config.WebProperties;
+import com.wallet.bff.ratelimit.IpPseudonyms;
 import com.wallet.bff.ratelimit.RateLimitFilter;
 import com.wallet.bff.ratelimit.RateLimitProperties;
 import com.wallet.bff.ratelimit.RateLimiter;
@@ -65,7 +66,8 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, JsonSecurityErrorHandler errorHandler,
-                                            RateLimiter rateLimiter, RateLimitProperties rateLimits) throws Exception {
+                                            RateLimiter rateLimiter, RateLimitProperties rateLimits,
+                                            IpPseudonyms ipPseudonyms) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
@@ -86,7 +88,7 @@ public class SecurityConfig {
                 .headers(headers -> headers
                         .contentSecurityPolicy(csp -> csp.policyDirectives(CONTENT_SECURITY_POLICY))
                         .referrerPolicy(referrer -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER)))
-                .addFilterAfter(new RateLimitFilter(rateLimiter, rateLimits), BearerTokenAuthenticationFilter.class)
+                .addFilterAfter(new RateLimitFilter(rateLimiter, rateLimits, ipPseudonyms), BearerTokenAuthenticationFilter.class)
                 .build();
     }
 
