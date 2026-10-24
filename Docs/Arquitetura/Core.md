@@ -446,7 +446,7 @@ cada evento faz, o cooldown e os resultados estão em [[Sincronização#Webhooks
 
 - **Rota** `POST /internal/webhooks/pluggy` (módulo `sync`), liberada no `identity/config/SecurityConfig` como as de `/internal/auth/**`
   (sem JWT; a chave do gateway continua valendo). **202** sempre, depois de gravar o evento; sem `eventId`, 400 `validation.failed`.
-- **Tabela** `provider_webhook_events` (V14, [[Modelo de Dados]]): `INSERT ... ON CONFLICT (event_id) DO NOTHING`, então um evento
+- **Tabela** `provider_webhook_events` (V15, [[Modelo de Dados]]): `INSERT ... ON CONFLICT (event_id) DO NOTHING`, então um evento
   repetido é 202 sem fazer nada. O tratamento é `WebhookProcessor`, num `@TransactionalEventListener` `@Async` (depois do commit, fora da
   thread do pedido); a sincronização que ele pede passa por `ManualSyncService.request(..., WEBHOOK)`, as mesmas regras do botão.
 - **Registro** (módulo `provider`): `WebhookRegistration` fala com a Pluggy por uma porta nova, `ProviderWebhooks`
