@@ -17,6 +17,7 @@ import com.wallet.bff.model.dto.request.RefreshRequest;
 import com.wallet.bff.model.dto.request.RegisterRequest;
 import com.wallet.bff.model.dto.request.RenewConnectionRequest;
 import com.wallet.bff.model.dto.request.ResendConfirmationRequest;
+import com.wallet.bff.model.dto.request.TermsAcceptanceRequest;
 import com.wallet.bff.model.dto.request.TwoFactorCodeRequest;
 import com.wallet.bff.model.dto.request.TwoFactorDisableRequest;
 import com.wallet.bff.model.dto.request.TwoFactorSetupRequest;
@@ -126,6 +127,10 @@ public class CoreApi {
     /** The user's data as the core wrote it: passed on untouched, never read into objects (it can be large). */
     public byte[] exportMe() {
         return client.get(CoreRouteGroup.SCREENS, "/internal/me/export", Map.of(), new ParameterizedTypeReference<>() {});
+    }
+
+    public void acceptTerms(TermsAcceptanceRequest request) {
+        client.post(CoreRouteGroup.READS, "/internal/me/terms", request);
     }
 
     public void deleteMe(AccountDeletionRequest request) {

@@ -7,6 +7,7 @@ import com.wallet.bff.model.dto.request.AccountDeletionRequest;
 import com.wallet.bff.model.dto.request.EmailChangeRequest;
 import com.wallet.bff.model.dto.request.PasswordChangeRequest;
 import com.wallet.bff.model.dto.request.ProfileRequest;
+import com.wallet.bff.model.dto.request.TermsAcceptanceRequest;
 import com.wallet.bff.model.dto.response.UserResponse;
 import com.wallet.bff.service.AuthService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -57,6 +58,16 @@ public class MeController {
                 .filename("wallet-meus-dados-" + ClockConfig.today(clock) + ".json").build().toString());
         response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
         return file;
+    }
+
+    /**
+     * 204: the user accepts the current Terms of Use and Privacy Policy (L15), after the app showed them. 409
+     * {@code legal.terms_outdated} when {@code version} is not the current one; the app reloads {@code /api/me}.
+     */
+    @PostMapping("/api/me/terms")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void acceptTerms(@RequestBody TermsAcceptanceRequest request) {
+        coreApi.acceptTerms(request);
     }
 
     /** 202: the core sends a link to the new e-mail and the account moves when it is opened. */

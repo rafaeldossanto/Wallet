@@ -80,7 +80,7 @@ class BffEdgeTest extends BffTestSupport {
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"new@example.com\",\"password\":\"password123\",\"displayName\":\"New\"}"))
+                        .content("{\"email\":\"new@example.com\",\"password\":\"password123\",\"displayName\":\"New\",\"acceptTerms\":true}"))
                 .andExpect(status().isAccepted());
 
         CORE.verify(postRequestedFor(urlEqualTo("/internal/auth/register"))
