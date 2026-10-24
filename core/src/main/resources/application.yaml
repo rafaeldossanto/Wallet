@@ -162,6 +162,9 @@ wallet:
     identity:
       # A refresh token that expired or was revoked this long ago is deleted (with wallet.auth.cleanup-cron).
       refresh-tokens-after: 30d
+      # Records of access (Marco Civil, art. 15) are kept 6 months and then deleted; 185 days cover any
+      # 6 calendar months. They are read only by a court order, in the database.
+      access-records-after: 185d
   sync:
     interval: 6h
     initial-delay: 1m

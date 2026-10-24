@@ -3,6 +3,7 @@ package com.wallet.core.identity.service;
 import com.wallet.core.identity.dto.LoginRequest;
 import com.wallet.core.identity.dto.RefreshTokenRequest;
 import com.wallet.core.identity.dto.TokenResponse;
+import com.wallet.core.identity.entity.AccessEvent;
 import com.wallet.core.identity.entity.User;
 import com.wallet.core.identity.mapper.TokenMapper;
 import com.wallet.core.identity.repository.UserRepository;
@@ -37,6 +38,7 @@ public class AuthService {
     private final TwoFactorService twoFactor;
     private final AccessTokenService accessTokenService;
     private final RefreshTokenService refreshTokenService;
+    private final AccessRecords accessRecords;
 
     /** @param clientAddress where the BFF saw the request come from; scopes the lockout */
     public TokenResponse login(LoginRequest request, String clientAddress) {
@@ -70,13 +72,18 @@ public class AuthService {
             }
         }
         loginThrottle.registerSuccess(email, clientAddress);
+        accessRecords.record(user.getId(), AccessEvent.LOGIN, clientAddress);
         return TokenMapper.toResponse(accessTokenService.issue(user), refreshTokenService.issueForNewLogin(user.getId()));
     }
 
-    public TokenResponse refresh(RefreshTokenRequest request) {
+    /** @param clientAddress where the BFF saw the request come from; goes into the record of access */
+    public TokenResponse refresh(RefreshTokenRequest request, String clientAddress) {
         return switch (refreshTokenService.rotate(request.refreshToken())) {
             case RotationResult.Rotated(var userId, var refreshToken) -> userRepository.findById(userId)
-                    .map(user -> TokenMapper.toResponse(accessTokenService.issue(user), refreshToken))
+                    .map(user -> {
+                        accessRecords.record(user.getId(), AccessEvent.REFRESH, clientAddress);
+                        return TokenMapper.toResponse(accessTokenService.issue(user), refreshToken);
+                    })
                     .orElseThrow(AuthService::invalidRefreshToken);
             case RotationResult.Reused() -> throw new DomainException(ErrorType.UNAUTHORIZED,
                     "auth.refresh_reused", "Refresh token was already used; session revoked");

@@ -8,7 +8,11 @@ import java.time.Duration;
 /**
  * @param refreshTokensAfter a refresh token that expired, or was revoked, this long ago is deleted:
  *                           it opens nothing, and the e-mailed links have their own clean-up
+ * @param accessRecordsAfter a record of access (Marco Civil, art. 15) is deleted after this: the law asks
+ *                           for 6 months, and 185 days cover any 6 calendar months
  */
 @ConfigurationProperties("wallet.retention.identity")
-public record IdentityRetentionProperties(@DefaultValue("30d") Duration refreshTokensAfter) {
+public record IdentityRetentionProperties(
+        @DefaultValue("30d") Duration refreshTokensAfter,
+        @DefaultValue("185d") Duration accessRecordsAfter) {
 }

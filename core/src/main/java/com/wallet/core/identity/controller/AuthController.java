@@ -62,8 +62,9 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public TokenResponse refresh(@Valid @RequestBody RefreshTokenRequest request) {
-        return authService.refresh(request);
+    public TokenResponse refresh(@RequestHeader(name = ClientAddress.HEADER, required = false) String clientAddress,
+                                 @Valid @RequestBody RefreshTokenRequest request) {
+        return authService.refresh(request, ClientAddress.of(clientAddress));
     }
 
     @PostMapping("/logout")
