@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, sync, pluggy]
-atualizado: 2026-10-21
+atualizado: 2026-10-23
 ---
 
 # Sincronização
@@ -37,6 +37,14 @@ Cada sincronização é uma rodada de chamadas à Pluggy, na mesma apiKey de tod
   quando o usuário já tem as dele rodando, `503 service.busy` quando todas estão ocupadas, os dois
   com `Retry-After`. O executor em segundo plano usa virtual threads, então sem isso nada limitava
   quantas leituras rodavam juntas. Ver [[Core#Disponibilidade]].
+- **Autorização vencida (desde 2026-10-23, LGPD L5):** conexão cuja `consent_expires_at` já passou (ou que já está
+  `CONSENT_EXPIRED`) **não chama a Pluggy**, em nenhum gatilho. A agendada marca a conexão `CONSENT_EXPIRED` e a
+  rodada termina `SKIPPED connection.consent_expired` (o `findSchedulable` só olha `ACTIVE` e `SYNCING`, então a
+  partir daí ela nem entra na volta); o "Atualizar" responde `409 connection.consent_expired`, sem abrir rodada.
+  Os dados da conexão ficam. Quando a pessoa renova ([[Fluxo de Conexão#Consentimento (desde 2026-10-23)]]), a conexão
+  volta a `ACTIVE` e o `ConnectionRenewed` dispara uma atualização **pelas regras do botão**: cooldown e bulkhead
+  `manual-sync`; a rodada `SKIPPED connection.consent_expired` **não conta** para o cooldown (não leu nada), e o
+  que for recusado espera a agendada.
 
 ## Passo a passo de uma sincronização
 

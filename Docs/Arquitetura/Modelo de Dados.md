@@ -15,6 +15,7 @@ erDiagram
     users ||--o{ recovery_codes : "guarda"
     users ||--o{ email_notices : "recebe avisos"
     users ||--o{ connections : "tem"
+    users ||--o{ connection_consents : "consentiu"
     users ||--o{ fixed_expenses : "cadastra"
     users ||--o| planning_settings : "ajusta"
     users ||--o{ dismissed_fixed_expense_suggestions : "dispensa"
@@ -34,7 +35,8 @@ erDiagram
 `totp_enabled_at` (vazio com segredo = configuração esperando o primeiro código), `totp_last_step`
 (último passo de 30 s aceito: cada código vale uma vez), `created_at`. Desde a V10 o bloqueio
 saiu daqui (`failed_login_count` e `locked_until` foram removidos) e foi para `login_throttles`.
-Conta não confirmada é apagada depois de 7 dias.
+Conta não confirmada é apagada depois de 7 dias. `password_changed_at` (V13) é quando a senha mudou pela última
+vez (redefinição ou troca; vazio = nunca): os access tokens emitidos antes são recusados.
 
 **email_tokens** (V10) — os links mandados por e-mail: `id`, `user_id` (FK `users`, cascata),
 `purpose` (`CONFIRM_ACCOUNT`, `CHANGE_EMAIL` ou, desde a V12, `PASSWORD_RESET`: o link de "Esqueci minha
@@ -73,9 +75,19 @@ mais de 7 dias é apagado à noite (índice parcial em `created_at`). Ver [[Core
 
 **connections** — `id`, `user_id` (FK `users`, cascata), `provider` (`PLUGGY`),
 `provider_item_id` (único por provedor), `institution_name`, `institution_image_url`,
-`status` (`ACTIVE`, `SYNCING`, `NEEDS_ATTENTION`), `provider_updated_at`,
+`status` (`ACTIVE`, `SYNCING`, `NEEDS_ATTENTION` e, desde a V13, `CONSENT_EXPIRED`; `VARCHAR(20)` sem
+`CHECK`, então a V13 não mexeu na coluna), `provider_updated_at`,
 `last_synced_at`, `consent_expires_at`, `created_at`, `updated_at`. Desvincular
 apaga a linha, e a cascata leva tudo o que foi sincronizado.
+
+**connection_consents** (V13) — o que a pessoa aceitou ao conectar um banco (LGPD L3), uma linha a cada vínculo e
+a cada renovação: `id`, `user_id` (FK `users`, cascata), `connection_id` (**sem FK**, de propósito),
+`purpose_version` (o texto da tela "Antes de conectar" que ela aceitou, hoje `open-finance-v1`, enviado pelo app e
+exigido pelo core), `data_scopes` (o que o Wallet lê: `ACCOUNTS,TRANSACTIONS,CREDIT_CARDS,INVESTMENTS`),
+`granted_at`, `expires_at` (a validade que a Pluggy informou) e `revoked_at` (quando ela desvinculou). Desvincular
+grava `revoked_at` e depois apaga a conexão; como a tabela não tem chave estrangeira para ela, **a prova da
+concessão e da revogação sobrevive ao desvínculo** (um cascade a levaria junto) e só some com a exclusão da conta
+(`user_id` em cascata). Ver [[Fluxo de Conexão#Consentimento (desde 2026-10-23)]].
 
 **accounts** — `id`, `connection_id` (FK, cascata), `user_id`,
 `provider_account_id` (único por conexão), `kind` (`CHECKING`, `SAVINGS`,
@@ -119,7 +131,7 @@ seria carregada para a frente para sempre.
 
 **provider_calls** — a auditoria das chamadas à Pluggy, uma linha por requisição HTTP:
 `id`, `called_at`, `provider` (`PLUGGY`), `operation` (`FIND_ITEM`, `LIST_TRANSACTIONS`...),
-`reason` (`CONNECT`, `LINK`, `UNLINK`, `ACCOUNT_DELETION`, `INITIAL_SYNC`, `SCHEDULED_SYNC`,
+`reason` (`CONNECT`, `LINK`, `RENEW`, `UNLINK`, `ACCOUNT_DELETION`, `INITIAL_SYNC`, `SCHEDULED_SYNC`,
 `MANUAL_SYNC`, `WEBHOOK_SYNC`), `user_id`, `connection_id`, `provider_item_id`, `outcome`
 (`SUCCESS`/`FAILURE`), `http_status`, `error_code`, `duration_ms`. Índices em `called_at` e
 em (`connection_id`, `called_at`). **Sem chave estrangeira**, por isso fica fora do diagrama:

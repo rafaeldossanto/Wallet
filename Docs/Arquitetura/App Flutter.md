@@ -495,6 +495,19 @@ sozinhas. O BFF usa a mesma consulta para descartar o cache das telas daquele us
   Pluggy de demonstração (`demo-nubank`, `demo-itau`, `demo-xp` e os básicos `demo-banco` e
   `demo-corretora`).
 
+- **Antes de conectar (desde 2026-10-23, LGPD L3):** "Conectar banco", o Item ID e "Renovar" começam na tela
+  `ConsentScreen`: finalidade, dados lidos, "O Wallet só lê: não movimenta dinheiro.", validade e como revogar. A caixa
+  "Autorizo o Wallet a ler esses dados para essa finalidade." nasce desmarcada e "Continuar" só liga com ela
+  marcada; fechar a tela não conecta nada. O app manda `consentVersion: "open-finance-v1"` no vínculo e no connect
+  token, e o core exige.
+- **Autorização que vence (L5):** o cartão da conexão mostra "A autorização deste banco venceu. Renove para voltar
+  a atualizar." (com a data passada ou o status `CONSENT_EXPIRED`) e esconde o "Atualizar"; faltando 7 dias ou menos,
+  "A autorização vence em N dias." (ou "vence hoje"). O botão **Renovar** (só no Android) passa pela tela de finalidade
+  e abre o Pluggy Connect em modo atualização (`connectionId` no connect token); com o item de volta, o app chama
+  `POST /api/connections/{id}/renew` e diz "Autorização renovada." (se a Pluggy ainda mostra a data velha:
+  "A renovação ainda não apareceu no banco. Tente de novo em instantes."). Fora do Android o cartão diz "Renove
+  pelo app no celular.". O status ganhou o chip "Autorização vencida".
+
 Ver [[Fluxo de Conexão]].
 
 ## Limites conhecidos
@@ -505,7 +518,7 @@ Ver [[Fluxo de Conexão]].
 
 ## Testes
 
-208 testes com um BFF em memória (`test/support/fake_bff.dart`):
+223 testes com um BFF em memória (`test/support/fake_bff.dart`):
 
 - Unitários: `Money` (inclusive o valor digitado num formulário, `1.234,56`), sessão (restaurar, recusar, servidor fora), interceptor (duas chamadas
   com 401 geram **um** refresh), bloqueio por biometria, inatividade no navegador,
@@ -542,7 +555,12 @@ Ver [[Fluxo de Conexão]].
   senha" (envio com a mesma frase para qualquer e-mail, e-mail sem @ que não sai do app, servidor ocupado),
   "Trocar senha" (diálogo, sessão local apagada sem logout e aviso na entrada, senha atual errada no campo,
   validações locais), "Gerar códigos novos" (só com o 2FA ligado, mostra os 10 códigos, código errado) e a
-  frase única do `service.busy`/`auth.busy`.
+  frase única do `service.busy`/`auth.busy`; e `test/features/consent_test.dart` (desde 2026-10-23): a tela
+  "Antes de conectar" (o que diz, "Continuar" desligado até a caixa, fechar não conecta, o Item ID passando por
+  ela, a versão no vínculo e no connect token), o fim da autorização (vencida marcada ou só pela data, Renovar
+  no Android e "Renove pelo app no celular." fora dele, aviso com 7 dias e nenhum com 8, a renovação ponta a ponta
+  com o Pluggy Connect em modo atualização, fechar sem terminar, renovação ainda não vista, atualização recusada
+  por autorização vencida) e as regras puras de data.
 
 Além disso, verificado à mão em 2026-10-02 no Chrome (build release) e no emulador
 `trilha_pixel`, contra o core e o BFF reais com a Pluggy de demonstração.

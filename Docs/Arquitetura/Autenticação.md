@@ -68,9 +68,11 @@ de outra pessoa e esperar o dono confirmar uma conta com a senha do estranho den
    "Nova senha" e "Repita a nova senha" (8 caracteres ou mais, iguais) e só age no botão "Trocar
    senha": `POST /api/auth/password/reset` `{token, newPassword}` → **204**. Link desconhecido,
    vencido, usado, trocado por outro ou de outra finalidade (o do cadastro não troca senha, e o de
-   senha não confirma conta): **400 `auth.link_invalid`**, e o link de outra finalidade não é gasto.
+   senha não confirma conta): **422 `auth.link_invalid`** (o mesmo status e código da confirmação de e-mail), e o
+   link de outra finalidade não é gasto.
 3. Efeitos, na mesma transação: novo hash BCrypt; token gasto; **todas as famílias de refresh
-   revogadas** (todas as sessões caem; um access token já emitido vive até 15 min); zerados os
+   revogadas** e `users.password_changed_at` gravado (todas as sessões caem, e os access tokens já
+   emitidos também: ver abaixo); zerados os
    contadores de falha do e-mail (o do e-mail inteiro e o do endereço de onde a página chamou); e
    um aviso ao dono, "Sua senha do Wallet foi trocada", **sem link** e sem endereço de contato
    ("se não foi você, troque a senha de novo pelo 'Esqueci minha senha'"). O **2FA continua
@@ -86,6 +88,14 @@ e abre a entrada com "Senha trocada. Entre de novo com a senha nova."
 com 10 códigos que **trocam os antigos**, mostrados só ali. 2FA desligado: 409 `two_factor.not_enabled`;
 senha errada: 403 `auth.wrong_password`; código errado: 403 `auth.invalid_two_factor_code` (403
 porque há sessão aberta, e conta para o bloqueio, como ao desligar).
+
+**Access token emitido antes da troca (desde 2026-10-23):** um JWT não se revoga, então a V13 criou
+`users.password_changed_at`, gravado no reset e na troca. O `ActiveUserInterceptor` (a mesma consulta
+por chave primária que já confere se o usuário existe) recusa com **401 `auth.unauthenticated`** o token
+cujo `iat` é anterior a essa data, e o app já sabe lidar com ele: renova (o refresh foi revogado, então
+falha) e mostra a entrada. O `iat` tem precisão de segundo, então a troca vale a partir do começo do
+próprio segundo: entrar de novo no mesmo segundo da troca funciona; um token emitido nesse mesmo segundo
+antes da troca passa (o refresh dele já caiu).
 
 No BFF essas duas rotas de sessão contam como as que pedem a senha de novo (por usuário, com o limite
 do login), e as de `/api/auth/password/*` como o resto de `/api/auth/**` (por IP).
@@ -234,7 +244,7 @@ core não sobe sem SMTP, sem `WALLET_MAIL_FROM` ou sem `WALLET_PUBLIC_URL` (http
 | `auth.locked` | 423 | E-mail travado (de um endereço ou de todos), com `lockedUntil` | "Tente de novo às 17:15" |
 | `auth.busy` | 429 | Verificações de senha demais ao mesmo tempo | "O Wallet está com muito movimento agora. Tente de novo em alguns segundos." (a mesma frase do `service.busy`) |
 | `auth.wrong_password` | 403 | Senha pedida de novo (excluir, trocar e-mail, trocar senha, 2FA, códigos novos) errada | "Senha incorreta..." |
-| `auth.link_invalid` | 422 na confirmação de e-mail, 400 na troca de senha | Link desconhecido, vencido, já usado, trocado por um mais novo ou de outra finalidade | A página do link explica |
+| `auth.link_invalid` | 422 (confirmação de e-mail e redefinição de senha) | Link desconhecido, vencido, já usado, trocado por um mais novo ou de outra finalidade | A página do link explica |
 | `auth.email_taken` | 409 | Ao abrir o link de troca, o novo endereço já ganhou conta | A página do link explica |
 | `auth.email_unchanged` | 422 | Troca para o e-mail que a conta já tem | "Esse já é o e-mail da conta." |
 | `two_factor.invalid_code` | 422 | Primeiro código, ao ligar, não confere | "Confira o horário do celular..." |
