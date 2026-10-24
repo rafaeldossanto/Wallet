@@ -487,8 +487,12 @@ Login recusado e refresh recusado não gravam nada.
 
 Desde 2026-10-24. O nome de um gasto fixo é texto livre ("Psicólogo") e passou a ser cifrado em `fixed_expenses.name`, como a descrição das
 transações. Detalhes e o preenchimento das linhas antigas em [[Modelo de Dados#Criptografia de coluna]]. Efeito no código: o banco não ordena
-mais por nome, então `FixedExpenseRepository.findOrderedByDayThenName` ordena por dia no SQL e desempata pelo nome em memória (collator
-pt-BR, sem diferenciar maiúscula nem acento no desempate). Teste: `FixedExpenseEncryptionIT`.
+mais por nome: o SQL ordena por dia e id, e o desempate pelo nome acontece em memória, depois de decifrar, num lugar só
+(`FixedExpenseOrder`, regra pura; a lista, o plano do mês, as sugestões e a exportação leem por
+`FixedExpenseRepository.findOrderedByDayThenName`). Compara com um `Collator` pt-BR (letras, depois acentos, depois
+maiúsculas), o critério do Postgres, para a ordem visível não mudar. Testes: `FixedExpenseOrderTest` (a regra),
+`FixedExpenseOrderIT` (pergunta ao próprio Postgres, com a collation do banco, e exige a mesma ordem para 32 nomes com acento, caixa,
+número, espaço e hífen) e `FixedExpenseEncryptionIT`.
 
 ## Retenção (L8, desde 2026-10-24)
 
