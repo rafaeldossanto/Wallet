@@ -11,6 +11,7 @@ import '../../../core/widgets/common.dart';
 import '../../../core/widgets/loadable_view.dart';
 import '../data/connections_api.dart';
 import 'connections_controller.dart';
+import 'consent_screen.dart';
 import 'pluggy_connect_screen.dart';
 
 class ConnectionsScreen extends StatelessWidget {
@@ -84,11 +85,15 @@ class ConnectionsScreen extends StatelessWidget {
     );
   }
 
-  /// Pluggy Connect, then the same link as the Item ID; the list then follows the first sync.
+  /// The purpose screen, then Pluggy Connect, then the same link as the Item ID; the list then
+  /// follows the first sync.
   static Future<void> _connect(BuildContext context) async {
     final controller = context.read<ConnectionsController>();
     final messenger = ScaffoldMessenger.of(context);
     final l10n = context.l10n;
+    if (!await ConsentScreen.ask(context) || !context.mounted) {
+      return;
+    }
     final itemId = await PluggyConnectScreen.open(context);
     if (itemId == null) {
       return;
@@ -97,8 +102,28 @@ class ConnectionsScreen extends StatelessWidget {
     messenger.showSnackBar(SnackBar(content: Text(error == null ? l10n.connectionsConnected : l10n.errorMessage(error))));
   }
 
+  /// The purpose screen, then Pluggy Connect in update mode on the connection's item, then the
+  /// renewal is recorded. Closing Connect before the bank authorized brings no item and records nothing.
+  static Future<void> _renew(BuildContext context, String connectionId) async {
+    final controller = context.read<ConnectionsController>();
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = context.l10n;
+    if (!await ConsentScreen.ask(context) || !context.mounted) {
+      return;
+    }
+    final itemId = await PluggyConnectScreen.open(context, connectionId: connectionId);
+    if (itemId == null) {
+      return;
+    }
+    final error = await controller.renew(connectionId);
+    messenger.showSnackBar(SnackBar(content: Text(error == null ? l10n.connectionRenewed : l10n.errorMessage(error))));
+  }
+
   static Future<void> _showLinkDialog(BuildContext context) async {
     final controller = context.read<ConnectionsController>();
+    if (!await ConsentScreen.ask(context) || !context.mounted) {
+      return;
+    }
     final linked = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => ChangeNotifierProvider.value(value: controller, child: const _LinkDialog()),
@@ -147,6 +172,9 @@ class _ConnectionCardState extends State<ConnectionCard> {
     final theme = Theme.of(context);
     final connection = widget.connection;
     final name = connection.institutionName ?? l10n.institutionUnknown;
+    final now = DateTime.now();
+    final ended = connection.consentEnded(now);
+    final daysLeft = connection.consentDaysLeft(now);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -185,6 +213,32 @@ class _ConnectionCardState extends State<ConnectionCard> {
                 ],
               ),
             ],
+            if (ended) ...[
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.event_busy_outlined, color: theme.colorScheme.error, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(l10n.connectionConsentExpired)),
+                ],
+              ),
+              // Pluggy Connect only runs on the phone.
+              if (!AppConfig.usesPluggyConnect) ...[
+                const SizedBox(height: 4),
+                Text(l10n.connectionRenewOnPhone, style: theme.textTheme.bodySmall),
+              ],
+            ] else if (daysLeft != null) ...[
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.event_outlined, color: context.walletColors.warning, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(l10n.connectionConsentExpiresIn(daysLeft))),
+                ],
+              ),
+            ],
             if (connection.consentExpiresAt != null) ...[
               const SizedBox(height: 8),
               Text(l10n.connectionConsentUntil(Dates.short(connection.consentExpiresAt!)), style: theme.textTheme.bodySmall),
@@ -202,15 +256,22 @@ class _ConnectionCardState extends State<ConnectionCard> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  FilledButton.tonalIcon(
-                    onPressed: _busy || connection.isSyncing
-                        ? null
-                        : () => _run((controller) => controller.sync(connection.id), success: l10n.connectionSyncStarted),
-                    icon: connection.isSyncing
-                        ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.sync),
-                    label: Text(connection.isSyncing ? l10n.connectionSyncing : l10n.connectionSync),
-                  ),
+                  // An authorization that ended reads nothing: renewing replaces the update.
+                  if (!ended)
+                    FilledButton.tonalIcon(
+                      onPressed: _busy || connection.isSyncing
+                          ? null
+                          : () => _run((controller) => controller.sync(connection.id), success: l10n.connectionSyncStarted),
+                      icon: connection.isSyncing
+                          ? const SizedBox.square(dimension: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.sync),
+                      label: Text(connection.isSyncing ? l10n.connectionSyncing : l10n.connectionSync),
+                    ),
+                  if ((ended || daysLeft != null) && AppConfig.usesPluggyConnect)
+                    FilledButton(
+                      onPressed: _busy ? null : () => ConnectionsScreen._renew(context, connection.id),
+                      child: Text(l10n.connectionRenew),
+                    ),
                   TextButton.icon(
                     onPressed: _busy ? null : () => setState(() => _confirmingUnlink = true),
                     icon: const Icon(Icons.link_off),
@@ -279,6 +340,7 @@ class _StatusChip extends StatelessWidget {
       ConnectionStatus.active => (l10n.connectionStatusActive, context.walletColors.inflow),
       ConnectionStatus.syncing => (l10n.connectionStatusSyncing, scheme.primary),
       ConnectionStatus.needsAttention => (l10n.connectionStatusNeedsAttention, context.walletColors.warning),
+      ConnectionStatus.consentExpired => (l10n.connectionStatusConsentExpired, scheme.error),
       ConnectionStatus.unknown => (l10n.connectionStatusUnknown, scheme.onSurfaceVariant),
     };
     return Chip(

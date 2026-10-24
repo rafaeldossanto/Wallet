@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, seguranca, auth]
-atualizado: 2026-10-22
+atualizado: 2026-10-23
 ---
 
 # Autenticação
@@ -20,6 +20,8 @@ dos e-mails abrem.
 | Cookie, CORS, CSRF | Não sabe que existem | Cuida de tudo |
 
 ## Cadastro com confirmação por e-mail (achado A16, desde 2026-10-22)
+
+O pedido leva `acceptTerms: true` (L15, abaixo); sem isso, 400 `validation.failed`, o único desvio da resposta neutra.
 
 O cadastro responde **sempre igual**: `202` sem corpo ("enviamos um link para seu e-mail"). O
 que acontece por trás depende do e-mail, e só o dono descobre, na caixa de entrada:
@@ -50,10 +52,55 @@ de outra pessoa e esperar o dono confirmar uma conta com a senha do estranho den
 - Conta nunca confirmada é apagada depois de **7 dias** (limpeza noturna, `AccountHousekeeping`).
   A migration V10 marcou as contas que já existiam como confirmadas.
 
-> [!warning] Risco que sobra
+> [!note] O risco que sobrava foi fechado (desde 2026-10-23)
 > Se alguém cadastrar o e-mail da vítima depois dela e a vítima abrir justamente esse segundo link,
 > a conta nasce com a senha do estranho. A vítima não consegue entrar (percebe na hora) e a conta
-> está vazia, mas ela fica sem conta até existir "esqueci a senha", que ainda não existe.
+> está vazia. Agora ela retoma a conta com "Esqueci minha senha" ([[#Esqueci minha senha e trocar a senha (desde 2026-10-23)]]).
+
+## Esqueci minha senha e trocar a senha (desde 2026-10-23)
+
+**Esqueci minha senha** (tela de entrada → "Esqueci minha senha" → e-mail):
+
+1. `POST /api/auth/password/forgot` `{email}` → **202 sem corpo para qualquer e-mail**. O core só age
+   se a conta existe **e está confirmada** (a não confirmada tem a porta do cadastro; a inexistente
+   não ganha nada): grava um token em `email_tokens` com a finalidade `PASSWORD_RESET` (V12),
+   SHA-256, **1 h** de validade (`wallet.auth.email-links.password-reset-ttl`), só o mais novo vale,
+   no máximo **3 por hora** por conta, e manda o link `<WALLET_PUBLIC_URL>/password/reset#token=...`.
+2. A página do BFF (`/password/reset`, mesmo desenho da de confirmação; token depois do `#`) pede
+   "Nova senha" e "Repita a nova senha" (8 caracteres ou mais, iguais) e só age no botão "Trocar
+   senha": `POST /api/auth/password/reset` `{token, newPassword}` → **204**. Link desconhecido,
+   vencido, usado, trocado por outro ou de outra finalidade (o do cadastro não troca senha, e o de
+   senha não confirma conta): **422 `auth.link_invalid`** (o mesmo status e código da confirmação de e-mail), e o
+   link de outra finalidade não é gasto.
+3. Efeitos, na mesma transação: novo hash BCrypt; token gasto; **todas as famílias de refresh
+   revogadas** e `users.password_changed_at` gravado (todas as sessões caem, e os access tokens já
+   emitidos também: ver abaixo); zerados os
+   contadores de falha do e-mail (o do e-mail inteiro e o do endereço de onde a página chamou); e
+   um aviso ao dono, "Sua senha do Wallet foi trocada", **sem link** e sem endereço de contato
+   ("se não foi você, troque a senha de novo pelo 'Esqueci minha senha'"). O **2FA continua
+   ligado**: o login segue pedindo o código, porque um link na caixa de entrada não é um app autenticador.
+
+**Trocar senha** (logado): `PUT /api/me/password` `{currentPassword, newPassword}` → **204**. A senha
+atual passa pelo `PasswordConfirmation`: errada é **403 `auth.wrong_password`** e conta para o
+bloqueio, como na exclusão da conta. Nova igual à atual: **400 `validation.failed`**. Mesmos efeitos
+do reset (revoga todas as famílias, **a atual também**; aviso ao dono); o app apaga a sessão local
+e abre a entrada com "Senha trocada. Entre de novo com a senha nova."
+
+**Códigos de recuperação novos:** `POST /api/me/two-factor/recovery-codes` `{password, code}` → **200**
+com 10 códigos que **trocam os antigos**, mostrados só ali. 2FA desligado: 409 `two_factor.not_enabled`;
+senha errada: 403 `auth.wrong_password`; código errado: 403 `auth.invalid_two_factor_code` (403
+porque há sessão aberta, e conta para o bloqueio, como ao desligar).
+
+**Access token emitido antes da troca (desde 2026-10-23):** um JWT não se revoga, então a V13 criou
+`users.password_changed_at`, gravado no reset e na troca. O `ActiveUserInterceptor` (a mesma consulta
+por chave primária que já confere se o usuário existe) recusa com **401 `auth.unauthenticated`** o token
+cujo `iat` é anterior a essa data, e o app já sabe lidar com ele: renova (o refresh foi revogado, então
+falha) e mostra a entrada. O `iat` tem precisão de segundo, então a troca vale a partir do começo do
+próprio segundo: entrar de novo no mesmo segundo da troca funciona; um token emitido nesse mesmo segundo
+antes da troca passa (o refresh dele já caiu).
+
+No BFF essas duas rotas de sessão contam como as que pedem a senha de novo (por usuário, com o limite
+do login), e as de `/api/auth/password/*` como o resto de `/api/auth/**` (por IP).
 
 ## Tokens
 
@@ -160,6 +207,27 @@ passkey porque funciona igual no Flutter web, no Android e no Windows, sem WebAu
   O, U) e ficam só como SHA-256.
 - Se a `WALLET_DATA_KEY` mudar, o segredo não abre mais: só os códigos de recuperação entram.
 
+## Aceite dos Termos de Uso e da Política de Privacidade (L15, desde 2026-10-24)
+
+O mecanismo não depende do texto final: o que se guarda é a **versão** dos textos e o momento.
+
+- **No cadastro:** `acceptTerms` é obrigatório e precisa ser `true` (`@NotNull @AssertTrue`); sem isso, 400 `validation.failed` e nenhuma conta
+  nasce. O core grava `users.terms_version` (a versão corrente) e `users.terms_accepted_at`. O cadastro mais recente de um e-mail ainda
+  não confirmado vence, e leva o seu aceite junto. No app a caixa nasce **desmarcada** e sem ela o botão fica desligado.
+- **Versão e textos:** `wallet.legal.terms-version` (padrão `2026-10-preliminar`, `WALLET_TERMS_VERSION`), `wallet.legal.terms-url` e
+  `wallet.legal.privacy-url` (`WALLET_TERMS_URL`, `WALLET_PRIVACY_URL`; no deploy saem da landing, `https://<WALLET_DOMAIN>/termos.html` e
+  `/privacidade.html`). Valor em branco volta ao padrão. Quando o advogado mudar os textos, muda-se a versão e todo mundo aceita de novo.
+- **Quem tem versão antiga ou nula** (as contas de antes do L15, e todas quando os textos mudam): `GET /me` traz
+  `termsAcceptanceRequired` (true quando a versão da pessoa não é a corrente), `termsVersion` (a corrente), `termsUrl` e `privacyUrl`. Depois de
+  entrar, o app cobre a tela com um aviso que não fecha sem aceitar: "Atualizamos os Termos de Uso e a Política de Privacidade", com os links,
+  a caixa desmarcada e o botão "Aceitar e continuar".
+- **`POST /me/terms`** `{version}` (BFF: `/api/me/terms`) → **204** e grava a versão e o momento (aceitar duas vezes é inofensivo e guarda o
+  primeiro momento). Versão diferente da corrente → **409 `legal.terms_outdated`** (os textos mudaram enquanto a pessoa lia): nada é gravado e o
+  app recarrega o `/me`, que traz a versão nova.
+- **Só o app obriga, por enquanto, e é uma decisão consciente:** o servidor informa se o aceite é necessário e **não bloqueia nenhuma rota**.
+  Quem usar a API sem o app não é barrado. Bloquear no servidor é um passo a decidir.
+- Log `[LEGAL]` só com o id do usuário e a versão, nunca o e-mail.
+
 ## Perfil (LGPD L11, desde 2026-10-22)
 
 - `PUT /api/me` troca o nome.
@@ -181,6 +249,8 @@ que um estranho tenha digitado (nem o nome).
 | Tentativa de cadastro | Cadastro (ou troca de e-mail) com um e-mail que já tem conta (1/h) |
 | Conta bloqueada por um tempo | Quando o bloqueio trava (1/h) |
 | Confirme seu novo e-mail | Troca de e-mail (link, 24 h) |
+| Crie uma senha nova no Wallet | "Esqueci minha senha", só para conta confirmada (link, 1 h, até 3 por hora) |
+| Sua senha do Wallet foi trocada | Depois de trocar ou redefinir a senha; sem link |
 | O e-mail da sua conta foi trocado | Ao endereço antigo, quando a troca vale |
 
 Sem `WALLET_SMTP_HOST`, fora de produção o e-mail vai para o **log** com aviso de que é só
@@ -193,15 +263,17 @@ core não sobe sem SMTP, sem `WALLET_MAIL_FROM` ou sem `WALLET_PUBLIC_URL` (http
 |---|---|---|---|
 | `auth.invalid_credentials` | 401 | E-mail sem conta, senha errada ou conta não confirmada (os três iguais) | "E-mail ou senha incorretos. Se você acabou de criar a conta, abra antes o link..." |
 | `auth.two_factor_required` | 401 | Senha certa, 2FA ligado e sem `code` | Mostra o campo Código |
-| `auth.invalid_two_factor_code` | 401 no login, 403 ao desligar | Código do app ou de recuperação errado (conta para o bloqueio) | "Código incorreto..." |
+| `auth.invalid_two_factor_code` | 401 no login, 403 ao desligar e ao pedir códigos novos | Código do app ou de recuperação errado (conta para o bloqueio) | "Código incorreto..." |
 | `auth.locked` | 423 | E-mail travado (de um endereço ou de todos), com `lockedUntil` | "Tente de novo às 17:15" |
-| `auth.busy` | 429 | Verificações de senha demais ao mesmo tempo | "Muita gente entrando agora..." |
-| `auth.wrong_password` | 403 | Senha pedida de novo (excluir, trocar e-mail, 2FA) errada | "Senha incorreta..." |
-| `auth.link_invalid` | 422 | Link desconhecido, vencido, já usado ou trocado por um mais novo | A página do link explica |
+| `auth.busy` | 429 | Verificações de senha demais ao mesmo tempo | "O Wallet está com muito movimento agora. Tente de novo em alguns segundos." (a mesma frase do `service.busy`) |
+| `legal.terms_outdated` | 409 | `POST /me/terms` com uma versão que não é a corrente | "Os textos mudaram de novo. Leia a versão atual e aceite de novo." |
+| `auth.wrong_password` | 403 | Senha pedida de novo (excluir, trocar e-mail, trocar senha, 2FA, códigos novos) errada | "Senha incorreta..." |
+| `auth.link_invalid` | 422 (confirmação de e-mail e redefinição de senha) | Link desconhecido, vencido, já usado, trocado por um mais novo ou de outra finalidade | A página do link explica |
 | `auth.email_taken` | 409 | Ao abrir o link de troca, o novo endereço já ganhou conta | A página do link explica |
 | `auth.email_unchanged` | 422 | Troca para o e-mail que a conta já tem | "Esse já é o e-mail da conta." |
 | `two_factor.invalid_code` | 422 | Primeiro código, ao ligar, não confere | "Confira o horário do celular..." |
 | `two_factor.not_set_up` / `already_enabled` / `not_enabled` | 409 | Ordem errada dos passos do 2FA | Frase própria |
+| `service.busy` | 503 | Rota cheia no BFF ou no core (bulkhead), com `Retry-After` | A mesma frase de `auth.busy` |
 | `auth.unauthenticated` | 401 | Sem token, token vencido, sem a audience certa, ou de usuário que não existe mais | Renova a sessão ou volta ao login |
 
 Sumiu: `auth.email_taken` no **cadastro** (era o 409 que revelava contas); o cadastro agora é

@@ -61,12 +61,14 @@ public record AuthProperties(
      * @param baseUrl            where the links in the e-mails point: the BFF's public address, which
      *                           serves the confirmation page ({@code WALLET_PUBLIC_URL}). Empty =
      *                           http://localhost:8080, development only; required with {@code prod}
-     * @param ttl                how long a link works
-     * @param maxPerHour         confirmation links sent to one account per hour, sign-up included
+     * @param ttl                how long the sign-up and e-mail change links work
+     * @param maxPerHour         links of one kind sent to one account per hour (the sign-up's included)
+     * @param passwordResetTtl   how long the "Esqueci minha senha" link works; shorter than {@code ttl}: it opens an account
      */
     public record EmailLinks(
             String baseUrl,
             @DefaultValue("24h") Duration ttl,
-            @DefaultValue("3") int maxPerHour) {
+            @DefaultValue("3") int maxPerHour,
+            @DefaultValue("1h") Duration passwordResetTtl) {
     }
 }

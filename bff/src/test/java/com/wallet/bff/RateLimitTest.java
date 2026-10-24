@@ -1,7 +1,12 @@
 package com.wallet.bff;
 
 import com.github.tomakehurst.wiremock.client.WireMock;
+import com.wallet.bff.ratelimit.IpPseudonyms;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -14,9 +19,12 @@ import java.util.UUID;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.putRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -24,7 +32,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /** Its own context: tiny limits that would trip every other test. */
 @SpringBootTest(properties = {"wallet.rate-limit.default-limit=3", "wallet.rate-limit.auth-limit=2",
         "wallet.rate-limit.link-limit=2", "wallet.rate-limit.connect-token-limit=1"})
+@ExtendWith(OutputCaptureExtension.class)
 class RateLimitTest extends BffTestSupport {
+
+    @Autowired
+    private IpPseudonyms pseudonyms;
 
     private static final String CONNECTION = """
             {"id":"6f1c9a52-3b7e-4d1a-9c2f-8e5d4b3a2f10","institutionName":"Nubank","institutionImageUrl":null,
@@ -62,6 +74,24 @@ class RateLimitTest extends BffTestSupport {
     }
 
     /**
+     * An address is personal data: the log names the source by a stable pseudonym, so an abuse still
+     * reads as one source across lines, and never by the address itself (L12).
+     */
+    @Test
+    void theLogNamesAnAddressByItsPseudonymNeverByTheAddress(CapturedOutput output) throws Exception {
+        stubLogin();
+
+        login("203.0.113.40").andExpect(status().isOk());
+        login("203.0.113.40").andExpect(status().isOk());
+        login("203.0.113.40").andExpect(status().isTooManyRequests());
+        login("203.0.113.40").andExpect(status().isTooManyRequests());
+
+        String label = "[RATE-LIMIT] auth:ip:" + pseudonyms.of("203.0.113.40") + " went over 2 requests per PT1M";
+        assertThat(output.getAll()).contains(label).doesNotContain("203.0.113.40");
+        assertThat(output.getAll().split(java.util.regex.Pattern.quote(label), -1)).hasSize(3);
+    }
+
+    /**
      * Each link makes the core read up to a year of the bank at Pluggy: a low budget of its own,
      * per user and over an hour, that a percent-encoded path does not get around.
      */
@@ -80,6 +110,31 @@ class RateLimitTest extends BffTestSupport {
         link(bearer(UUID.randomUUID()), "/api/connections").andExpect(status().isCreated());
 
         CORE.verify(3, postRequestedFor(urlEqualTo("/internal/connections")));
+    }
+
+    /** Renewing reads the item at Pluggy and starts an update: the same budget as linking, shared with it. */
+    @Test
+    void renewingSharesTheBudgetOfLinking() throws Exception {
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/connections")).willReturn(aResponse().withStatus(201)
+                .withHeader("Content-Type", "application/json").withBody(CONNECTION)));
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/connections/6f1c9a52-3b7e-4d1a-9c2f-8e5d4b3a2f10/renew"))
+                .willReturn(okJson(CONNECTION)));
+        String rafael = bearer(UUID.randomUUID());
+
+        link(rafael, "/api/connections").andExpect(status().isCreated());
+        renew(rafael, "/api/connections/6f1c9a52-3b7e-4d1a-9c2f-8e5d4b3a2f10/renew").andExpect(status().isOk());
+        renew(rafael, "/api/connections/6f1c9a52-3b7e-4d1a-9c2f-8e5d4b3a2f10/%72enew")
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string(HttpHeaders.RETRY_AFTER, "3600"))
+                .andExpect(jsonPath("$.code").value("rate_limit.connections"));
+        renew(bearer(UUID.randomUUID()), "/api/connections/6f1c9a52-3b7e-4d1a-9c2f-8e5d4b3a2f10/renew").andExpect(status().isOk());
+
+        CORE.verify(2, postRequestedFor(urlEqualTo("/internal/connections/6f1c9a52-3b7e-4d1a-9c2f-8e5d4b3a2f10/renew")));
+    }
+
+    private ResultActions renew(String bearer, String path) throws Exception {
+        return mockMvc.perform(post(URI.create(path)).header(HttpHeaders.AUTHORIZATION, bearer)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"consentVersion\":\"open-finance-v1\"}"));
     }
 
     /** Every widget token is a call to Pluggy; spending them does not block the rest of the app. */
@@ -130,6 +185,37 @@ class RateLimitTest extends BffTestSupport {
                 .andExpect(jsonPath("$.code").value("rate_limit.exceeded"));
     }
 
+    /** Changing the password and renewing the recovery codes ask for the password again: same budget as the others. */
+    @Test
+    void thePasswordChangeAndTheNewRecoveryCodesHaveTheSignInLimitPerUser() throws Exception {
+        CORE.stubFor(WireMock.put(urlEqualTo("/internal/me/password")).willReturn(aResponse().withStatus(403)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"code\":\"auth.wrong_password\",\"message\":\"no\"}")));
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/me/two-factor/recovery-codes")).willReturn(aResponse().withStatus(403)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"code\":\"auth.wrong_password\",\"message\":\"no\"}")));
+        String guesser = bearer(UUID.randomUUID());
+
+        changePassword(guesser).andExpect(status().isForbidden());
+        newRecoveryCodes(guesser).andExpect(status().isForbidden());
+        changePassword(guesser)
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("rate_limit.exceeded"));
+
+        changePassword(bearer(UUID.randomUUID())).andExpect(status().isForbidden());
+        CORE.verify(2, putRequestedFor(urlEqualTo("/internal/me/password")));
+    }
+
+    private ResultActions changePassword(String bearer) throws Exception {
+        return mockMvc.perform(put("/api/me/password").header(HttpHeaders.AUTHORIZATION, bearer)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"currentPassword\":\"guess\",\"newPassword\":\"a brand new password\"}"));
+    }
+
+    private ResultActions newRecoveryCodes(String bearer) throws Exception {
+        return mockMvc.perform(post("/api/me/two-factor/recovery-codes").header(HttpHeaders.AUTHORIZATION, bearer)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"password\":\"guess\",\"code\":\"123456\"}"));
+    }
+
     private ResultActions login(String address, String forwardedFor) throws Exception {
         return mockMvc.perform(post("/api/auth/login")
                 .with(request -> {
@@ -156,7 +242,8 @@ class RateLimitTest extends BffTestSupport {
     }
 
     private ResultActions connectToken(String bearer) throws Exception {
-        return mockMvc.perform(post("/api/connections/connect-token").header(HttpHeaders.AUTHORIZATION, bearer));
+        return mockMvc.perform(post("/api/connections/connect-token").header(HttpHeaders.AUTHORIZATION, bearer)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"consentVersion\":\"open-finance-v1\"}"));
     }
 
     private ResultActions twoFactorSetUp(String bearer) throws Exception {

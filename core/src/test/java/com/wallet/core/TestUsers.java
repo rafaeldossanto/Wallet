@@ -30,7 +30,7 @@ public final class TestUsers {
      */
     public static UUID register(MockMvc mockMvc, String email) throws Exception {
         mockMvc.perform(post("/internal/auth/register").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"%s\",\"password\":\"%s\",\"displayName\":\"Test\"}".formatted(email, PASSWORD)))
+                        .content("{\"email\":\"%s\",\"password\":\"%s\",\"displayName\":\"Test\",\"acceptTerms\":true}".formatted(email, PASSWORD)))
                 .andExpect(status().isAccepted());
         JdbcTemplate jdbc = mockMvc.getDispatcherServlet().getWebApplicationContext().getBean(JdbcTemplate.class);
         return jdbc.queryForObject("UPDATE users SET email_confirmed_at = created_at WHERE email = ? RETURNING id",

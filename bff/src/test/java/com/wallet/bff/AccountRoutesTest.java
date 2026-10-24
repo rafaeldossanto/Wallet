@@ -43,7 +43,7 @@ class AccountRoutesTest extends BffTestSupport {
     @Test
     void signUpAnswersAcceptedWithNoBody() throws Exception {
         CORE.stubFor(WireMock.post(urlEqualTo("/internal/auth/register")).willReturn(aResponse().withStatus(202)));
-        String body = "{\"email\":\"rafael@example.com\",\"password\":\"password123\",\"displayName\":\"Rafael\"}";
+        String body = "{\"email\":\"rafael@example.com\",\"password\":\"password123\",\"displayName\":\"Rafael\",\"acceptTerms\":true}";
 
         perform(post("/api/auth/register"), body)
                 .andExpect(status().isAccepted())
@@ -151,6 +151,73 @@ class AccountRoutesTest extends BffTestSupport {
                 .andExpect(jsonPath("$.twoFactorEnabled").value(false));
 
         CORE.verify(putRequestedFor(urlEqualTo("/internal/me")).withRequestBody(equalToJson("{\"displayName\":\"Rafael Santos\"}")));
+    }
+
+    /** The box of the terms goes to the core as it came: the core is the one that refuses a sign-up without it (L15). */
+    @Test
+    void theAcceptanceOfTheTermsTravelsWithTheSignUp() throws Exception {
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/auth/register")).willReturn(aResponse().withStatus(400)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"code\":\"validation.failed\",\"message\":\"Request has invalid fields\"}")));
+
+        perform(post("/api/auth/register"), "{\"email\":\"rafael@example.com\",\"password\":\"password123\",\"displayName\":\"Rafael\"}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("validation.failed"));
+
+        CORE.verify(postRequestedFor(urlEqualTo("/internal/auth/register"))
+                .withRequestBody(equalToJson("{\"email\":\"rafael@example.com\",\"password\":\"password123\",\"displayName\":\"Rafael\"}", true, true)));
+    }
+
+    @Test
+    void theProfileSaysWhetherTheTermsMustBeAcceptedAgain() throws Exception {
+        UUID userId = UUID.randomUUID();
+        CORE.stubFor(WireMock.get(urlEqualTo("/internal/me")).willReturn(okJson("""
+                {"id":"%s","email":"rafael@example.com","displayName":"Rafael","createdAt":"2026-09-01T12:00:00Z",
+                 "pendingEmail":null,"twoFactorEnabled":false,"termsAcceptanceRequired":true,
+                 "termsVersion":"2026-10-preliminar","termsUrl":"https://wallet.example.com/termos.html",
+                 "privacyUrl":"https://wallet.example.com/privacidade.html"}
+                """.formatted(userId))));
+
+        mockMvc.perform(get("/api/me").header(HttpHeaders.AUTHORIZATION, bearer(userId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.termsAcceptanceRequired").value(true))
+                .andExpect(jsonPath("$.termsVersion").value("2026-10-preliminar"))
+                .andExpect(jsonPath("$.termsUrl").value("https://wallet.example.com/termos.html"))
+                .andExpect(jsonPath("$.privacyUrl").value("https://wallet.example.com/privacidade.html"));
+    }
+
+    @Test
+    void theAcceptanceOfTheTermsIsRelayedWithItsVersion() throws Exception {
+        UUID userId = UUID.randomUUID();
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/me/terms")).willReturn(aResponse().withStatus(204)));
+        String body = "{\"version\":\"2026-10-preliminar\"}";
+
+        perform(post("/api/me/terms").header(HttpHeaders.AUTHORIZATION, bearer(userId)), body)
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
+
+        CORE.verify(postRequestedFor(urlEqualTo("/internal/me/terms"))
+                .withHeader(HttpHeaders.AUTHORIZATION, equalTo(bearer(userId)))
+                .withRequestBody(equalToJson(body)));
+    }
+
+    @Test
+    void anOutdatedVersionIsTheCoresAnswer() throws Exception {
+        UUID userId = UUID.randomUUID();
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/me/terms")).willReturn(aResponse().withStatus(409)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"code\":\"legal.terms_outdated\",\"message\":\"changed\"}")));
+
+        perform(post("/api/me/terms").header(HttpHeaders.AUTHORIZATION, bearer(userId)), "{\"version\":\"2020-old\"}")
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("legal.terms_outdated"));
+    }
+
+    @Test
+    void withoutASessionTheTermsAreNotAccepted() throws Exception {
+        perform(post("/api/me/terms"), "{\"version\":\"2026-10-preliminar\"}").andExpect(status().isUnauthorized());
+
+        CORE.verify(0, postRequestedFor(urlEqualTo("/internal/me/terms")));
     }
 
     @Test

@@ -11,6 +11,7 @@ import 'package:wallet/features/connections/data/connections_api.dart';
 import 'package:wallet/features/connections/data/pluggy_connect.dart';
 import 'package:wallet/features/connections/presentation/pluggy_connect_screen.dart';
 
+import '../support/consent.dart';
 import '../support/fake_bff.dart';
 import '../support/fake_pluggy_connect.dart';
 import '../support/fixtures.dart';
@@ -269,6 +270,7 @@ void main() {
       expect(find.textContaining('Toque em Conectar banco'), findsOneWidget);
 
       await tester.tap(find.widgetWithText(FloatingActionButton, 'Conectar banco'));
+      await agreeToConsent(tester);
       await pumpFrames(tester);
       bff.json('POST', '/api/connections', Fixtures.connection(status: 'SYNCING', lastSyncedAt: null), status: 201);
       bff.json('GET', '/api/connections', [Fixtures.connection(status: 'SYNCING', lastSyncedAt: null)]);
@@ -277,7 +279,9 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(seconds: 1));
 
-      expect(bff.calls('POST', '/api/connections').single.data, {'providerItemId': 'item-1'});
+      expect(bff.calls('POST', '/api/connections').single.data,
+          {'providerItemId': 'item-1', 'consentVersion': 'open-finance-v1'});
+      expect(bff.calls('POST', '/api/connections/connect-token').single.data, {'consentVersion': 'open-finance-v1'});
       expect(find.text('Banco conectado. Os dados chegam em instantes.'), findsOneWidget);
       expect(find.text('Banco Demo'), findsOneWidget);
       expect(find.text('Atualizando'), findsOneWidget);
@@ -294,6 +298,7 @@ void main() {
       await openConnections(tester);
 
       await tester.tap(find.byTooltip('Vincular pelo Item ID'));
+      await agreeToConsent(tester);
       await tester.pumpAndSettle();
 
       expect(find.widgetWithText(TextField, 'Item ID'), findsOneWidget);
@@ -304,6 +309,7 @@ void main() {
       await openConnections(tester);
 
       await tester.tap(find.widgetWithText(FloatingActionButton, 'Conectar banco'));
+      await agreeToConsent(tester);
       await pumpFrames(tester);
       connect.view!.event('SUCCESS', itemId: 'item-1', itemStatus: 'UPDATED', executionStatus: 'SUCCESS');
       await tester.pumpAndSettle();

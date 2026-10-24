@@ -1,6 +1,7 @@
 package com.wallet.core.provider.pluggy;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -24,7 +25,9 @@ final class PluggyDtos {
     record AuthResponse(String apiKey) {
     }
 
-    record ConnectTokenRequest(ConnectTokenOptions options) {
+    /** {@code itemId} (top level, next to {@code options}) makes the token update that item: the renewal of its authorization. Left out when null. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    record ConnectTokenRequest(String itemId, ConnectTokenOptions options) {
     }
 
     record ConnectTokenOptions(String clientUserId, String oauthRedirectUri) {
@@ -32,6 +35,19 @@ final class PluggyDtos {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record ConnectTokenResponse(String accessToken) {
+    }
+
+    /** A webhook as Pluggy lists it (the headers are never shown back). */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Webhook(String id, String event, String url, String disabledAt) {
+    }
+
+    /** {@code POST /webhooks}: one event, where to post, and the headers Pluggy adds. */
+    record CreateWebhook(String event, String url, java.util.Map<String, String> headers) {
+    }
+
+    /** {@code PATCH /webhooks/{id}}. */
+    record UpdateWebhook(String url, java.util.Map<String, String> headers, boolean enabled) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

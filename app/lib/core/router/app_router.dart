@@ -1,6 +1,7 @@
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
@@ -25,6 +26,7 @@ GoRouter createRouter(SessionController session) => GoRouter(
         GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
         GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
         GoRoute(path: '/register', builder: (context, state) => const RegisterScreen()),
+        GoRoute(path: '/forgot-password', builder: (context, state) => const ForgotPasswordScreen()),
         StatefulShellRoute.indexedStack(
           builder: (context, state, navigationShell) => AdaptiveShell(navigationShell: navigationShell),
           branches: [
@@ -57,7 +59,7 @@ GoRouter createRouter(SessionController session) => GoRouter(
 StatefulShellBranch _branch(String path, Widget Function(BuildContext context, GoRouterState state) builder) =>
     StatefulShellBranch(routes: [GoRoute(path: path, builder: builder)]);
 
-const _publicPaths = {'/login', '/register'};
+const _publicPaths = {'/login', '/register', '/forgot-password'};
 
 String? _redirect(SessionController session, GoRouterState state) {
   final path = state.matchedLocation;
@@ -70,9 +72,9 @@ String? _redirect(SessionController session, GoRouterState state) {
       if (_publicPaths.contains(path)) {
         return null;
       }
-      // Whoever signed out on purpose, or deleted the account, starts over at the home next time.
+      // Whoever signed out on purpose, deleted the account or changed the password starts over at the home next time.
       final reason = session.lastSignOutReason;
-      if (reason == SignOutReason.requested || reason == SignOutReason.accountDeleted) {
+      if (reason == SignOutReason.requested || reason == SignOutReason.accountDeleted || reason == SignOutReason.passwordChanged) {
         return '/login';
       }
       return _with('/login', path == '/splash' ? from : _returnTo(state));

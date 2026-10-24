@@ -88,7 +88,7 @@ class ConnectionSlowProviderIT {
         List<RequestBuilder> links = new ArrayList<>();
         for (int index = 0; index < REQUESTS; index++) {
             links.add(post("/internal/connections").with(as(heavyUser)).contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"providerItemId\":\"%s\"}".formatted(UUID.randomUUID())));
+                    .content("{\"providerItemId\":\"%s\",\"consentVersion\":\"open-finance-v1\"}".formatted(UUID.randomUUID())));
         }
 
         try {

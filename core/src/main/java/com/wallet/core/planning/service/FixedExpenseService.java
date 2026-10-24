@@ -28,7 +28,7 @@ public class FixedExpenseService {
 
     @Transactional(readOnly = true)
     public List<FixedExpenseResponse> list(UUID userId) {
-        return repository.findByUserIdOrderByDayOfMonthAscNameAsc(userId).stream().map(PlanningMapper::toResponse).toList();
+        return repository.findOrderedByDayThenName(userId).stream().map(PlanningMapper::toResponse).toList();
     }
 
     @Transactional

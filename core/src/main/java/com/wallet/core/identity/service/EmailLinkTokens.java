@@ -5,18 +5,22 @@ import com.wallet.core.identity.entity.EmailToken;
 import com.wallet.core.identity.entity.EmailTokenPurpose;
 import com.wallet.core.identity.mapper.EmailTokenMapper;
 import com.wallet.core.identity.repository.EmailTokenRepository;
+import com.wallet.core.shared.security.OpaqueTokens;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 /**
  * The one-time tokens behind the e-mailed links: 256 random bits each ({@link OpaqueTokens}), kept
- * as SHA-256, good for {@code wallet.auth.email-links.ttl} (24 h) and only the newest of a purpose.
+ * as SHA-256, good for {@code wallet.auth.email-links.ttl} (24 h; 1 h for a password reset) and only
+ * the newest of a purpose.
  */
 @Service
 @RequiredArgsConstructor
@@ -41,17 +45,28 @@ public class EmailLinkTokens {
         repository.retireOpen(userId, purpose, now);
         String rawToken = OpaqueTokens.generate();
         repository.save(EmailTokenMapper.toEntity(userId, purpose, OpaqueTokens.hash(rawToken), newEmail, now,
-                now.plus(properties.emailLinks().ttl())));
+                now.plus(ttlOf(purpose))));
         return rawToken;
     }
 
-    /** Uses the link up: unknown, expired, already opened or replaced = empty. Runs in the caller's transaction. */
+    /**
+     * Uses the link up: unknown, expired, already opened, replaced, or of another kind than
+     * {@code purpose} = empty (and then not spent: a sign-up link does not reset a password).
+     * Runs in the caller's transaction.
+     */
     @Transactional
-    public Optional<EmailToken> consume(String rawToken) {
+    public Optional<EmailToken> consume(String rawToken, EmailTokenPurpose... purposes) {
         Instant now = clock.instant();
         return repository.findByTokenHash(OpaqueTokens.hash(rawToken))
+                .filter(token -> List.of(purposes).contains(token.getPurpose()))
                 .filter(token -> token.getExpiresAt().isAfter(now))
                 .filter(token -> repository.markUsed(token.getId(), now) == 1);
+    }
+
+    private Duration ttlOf(EmailTokenPurpose purpose) {
+        return EmailTokenPurpose.PASSWORD_RESET.equals(purpose)
+                ? properties.emailLinks().passwordResetTtl()
+                : properties.emailLinks().ttl();
     }
 
     /** The address an account is moving to, while its link is open. */

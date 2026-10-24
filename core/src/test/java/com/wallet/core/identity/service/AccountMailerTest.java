@@ -6,25 +6,9 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Where the e-mailed links point, and what the account e-mails say. */
+/** What the account e-mails say. */
 class AccountMailerTest {
-
-    @Test
-    void aDevelopmentMachineLinksToTheLocalBff() {
-        assertThat(AccountMailer.resolveBaseUrl(null, false)).isEqualTo("http://localhost:8080");
-        assertThat(AccountMailer.resolveBaseUrl("http://192.168.0.10:8080/", false)).isEqualTo("http://192.168.0.10:8080");
-    }
-
-    /** A link to localhost would leave every new account unconfirmed. */
-    @Test
-    void productionNeedsThePublicAddressOverHttps() {
-        assertThatThrownBy(() -> AccountMailer.resolveBaseUrl(" ", true)).hasMessageContaining("WALLET_PUBLIC_URL");
-        assertThatThrownBy(() -> AccountMailer.resolveBaseUrl("http://wallet.example.com", true)).hasMessageContaining("https");
-        assertThatThrownBy(() -> AccountMailer.resolveBaseUrl("wallet.example.com", true)).hasMessageContaining("absolute");
-        assertThat(AccountMailer.resolveBaseUrl("https://wallet.example.com//", true)).isEqualTo("https://wallet.example.com");
-    }
 
     @Test
     void theConfirmationCarriesTheLinkAndNothingAStrangerTyped() {
@@ -53,5 +37,25 @@ class AccountMailerTest {
 
         assertThat(email.to()).isEqualTo("old@example.com");
         assertThat(email.text()).contains("new@example.com").contains("01/10/2026 às 09:00");
+    }
+
+    @Test
+    void theResetLinkSaysItLastsAnHourAndThatIgnoringItChangesNothing() {
+        OutgoingEmail email = AccountEmails.passwordReset("rafael@example.com", "https://wallet.test/password/reset#token=abc");
+
+        assertThat(email.subject()).isEqualTo("Crie uma senha nova no Wallet");
+        assertThat(email.text()).contains("https://wallet.test/password/reset#token=abc").contains("1 hora")
+                .contains("continua a mesma");
+        assertThat(email.hasUnsubscribeUrl()).isFalse();
+    }
+
+    /** No link and no address to write to: whoever did not change it is sent nowhere by this e-mail. */
+    @Test
+    void theChangedNoticeHasNoLinkAndPointsToTheForgotPasswordFlow() {
+        OutgoingEmail email = AccountEmails.passwordChanged("rafael@example.com", Instant.parse("2026-10-01T12:00:00Z"));
+
+        assertThat(email.subject()).isEqualTo("Sua senha do Wallet foi trocada");
+        assertThat(email.text()).contains("01/10/2026 às 09:00").contains("Esqueci minha senha")
+                .doesNotContain("http").doesNotContain("@");
     }
 }

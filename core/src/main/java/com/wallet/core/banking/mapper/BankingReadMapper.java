@@ -1,6 +1,7 @@
 package com.wallet.core.banking.mapper;
 
 import com.wallet.core.banking.AccountSummary;
+import com.wallet.core.banking.BankingExport;
 import com.wallet.core.banking.CardBill;
 import com.wallet.core.banking.CardBillItem;
 import com.wallet.core.banking.RecurringDebit;
@@ -10,6 +11,7 @@ import com.wallet.core.banking.dto.CreditCardResponse;
 import com.wallet.core.banking.dto.TransactionResponse;
 import com.wallet.core.banking.entity.Account;
 import com.wallet.core.banking.entity.AccountTransaction;
+import com.wallet.core.banking.entity.BalanceSnapshot;
 import com.wallet.core.banking.entity.CreditCardBill;
 import com.wallet.core.shared.finance.Direction;
 import com.wallet.core.shared.money.Money;
@@ -48,6 +50,26 @@ public class BankingReadMapper {
                 transaction.getDescription(), transaction.getAmount(), transaction.getDirection(),
                 transaction.getStatus(), transaction.getCategory(), transaction.getInstallmentNumber(),
                 transaction.getInstallmentTotal());
+    }
+
+    public BankingExport toExport(List<Account> accounts, List<BalanceSnapshot> balances,
+                                  List<AccountTransaction> transactions, List<CreditCardBill> bills) {
+        return new BankingExport(
+                accounts.stream().map(BankingReadMapper::toSummary).toList(),
+                balances.stream()
+                        .map(snapshot -> new BankingExport.Balance(snapshot.getAccountId(), snapshot.getSnapshotDate(),
+                                snapshot.getBalance()))
+                        .toList(),
+                transactions.stream()
+                        .map(transaction -> new BankingExport.Transaction(transaction.getId(), transaction.getAccountId(),
+                                transaction.getBookedOn(), transaction.getDescription(), transaction.getAmount(),
+                                transaction.getDirection(), transaction.getStatus(), transaction.getCategory(),
+                                transaction.getInstallmentNumber(), transaction.getInstallmentTotal()))
+                        .toList(),
+                bills.stream()
+                        .map(bill -> new BankingExport.Bill(bill.getId(), bill.getAccountId(), bill.getDueDate(),
+                                bill.getClosingDate(), bill.getTotalAmount(), bill.getMinimumPayment(), bill.getCurrencyCode()))
+                        .toList());
     }
 
     public BillResponse toResponse(CreditCardBill bill) {

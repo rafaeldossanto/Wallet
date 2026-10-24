@@ -1,10 +1,13 @@
 package com.wallet.core;
 
 import com.wallet.core.mail.OutgoingEmail;
+import com.wallet.core.mail.transport.MailDeliveryException;
 import com.wallet.core.mail.transport.MailTransport;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -21,10 +24,23 @@ public class RecordingMailTransport implements MailTransport {
     private static final Duration WAIT = Duration.ofSeconds(5);
 
     private final List<OutgoingEmail> sent = new CopyOnWriteArrayList<>();
+    private final Set<String> refusing = ConcurrentHashMap.newKeySet();
 
     @Override
     public void deliver(OutgoingEmail email) {
+        if (refusing.contains(email.to())) {
+            throw new MailDeliveryException("The test server refused a " + email.kind() + " e-mail", new RuntimeException());
+        }
         sent.add(email);
+    }
+
+    /** From now on the server refuses every message to this address (until {@link #accept}). */
+    public void refuse(String address) {
+        refusing.add(address);
+    }
+
+    public void accept(String address) {
+        refusing.remove(address);
     }
 
     public List<OutgoingEmail> to(String address) {

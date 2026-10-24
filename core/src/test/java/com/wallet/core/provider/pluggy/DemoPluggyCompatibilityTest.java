@@ -86,9 +86,9 @@ class DemoPluggyCompatibilityTest {
     /** The app's deep link, as the core sends it by default, passes the redirect rule Pluggy enforces. */
     @Test
     void theConnectTokenIsGivenForTheAppsDeepLinkButNotForLocalhost() {
-        assertThat(provider.createConnectToken("user-1", "com.wallet.wallet://pluggy-connect"))
+        assertThat(provider.createConnectToken("user-1", "com.wallet.wallet://pluggy-connect", null))
                 .isEqualTo(DemoPluggy.CONNECT_TOKEN);
-        assertThatThrownBy(() -> provider.createConnectToken("user-1", "http://localhost:5000"))
+        assertThatThrownBy(() -> provider.createConnectToken("user-1", "http://localhost:5000", null))
                 .isInstanceOf(DomainException.class)
                 .hasFieldOrPropertyWithValue("code", ProviderErrors.UNAVAILABLE);
     }

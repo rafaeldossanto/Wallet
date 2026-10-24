@@ -37,6 +37,8 @@ public interface FinancialDataProvider {
      *
      * @param oauthRedirectUri where the bank sends the user back after an Open Finance
      *                         authorization: the app's deep link
+     * @param itemId           renewing an authorization: the item the widget updates (the token is made
+     *                         for it, and the widget opens in update mode). {@code null} = a new connection
      */
-    String createConnectToken(String clientUserId, String oauthRedirectUri);
+    String createConnectToken(String clientUserId, String oauthRedirectUri, String itemId);
 }

@@ -13,10 +13,16 @@ public interface ConnectionRegistry {
 
     Optional<LinkedConnection> find(UUID connectionId);
 
+    /** The connection of this provider item, if anybody linked it. */
+    Optional<LinkedConnection> findByProviderItemId(String providerItemId);
+
     /** Connections the scheduler should look at: everything not waiting on the user. */
     List<LinkedConnection> findSchedulable();
 
     List<LinkedConnection> findByUser(UUID userId);
+
+    /** The user's connections, oldest first, as the export of their data shows them. */
+    List<ConnectionSummary> summariesOf(UUID userId);
 
     /** False when the connection was unlinked in the meantime. */
     boolean markSyncing(UUID connectionId);
@@ -33,6 +39,9 @@ public interface ConnectionRegistry {
 
     /** The provider says the user has to act (log in again, renew consent). */
     void recordNeedsAttention(UUID connectionId);
+
+    /** The authorization ended (its date passed): the connection waits for the user to renew it, and the sync leaves it alone. */
+    void recordConsentExpired(UUID connectionId);
 
     /** A failed or skipped sync puts a connection back to ACTIVE without touching its timestamps. */
     void recordSyncEnded(UUID connectionId);

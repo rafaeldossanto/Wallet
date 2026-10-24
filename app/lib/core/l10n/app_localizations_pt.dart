@@ -175,6 +175,37 @@ class AppLocalizationsPt extends AppLocalizations {
   String get registerAction => 'Criar conta';
 
   @override
+  String get legalAcceptPrefix => 'Li e aceito os ';
+
+  @override
+  String get legalTermsLink => 'Termos de Uso';
+
+  @override
+  String get legalAcceptAnd => ' e a ';
+
+  @override
+  String get legalPrivacyLink => 'Política de Privacidade';
+
+  @override
+  String get legalLinkFailed =>
+      'Não foi possível abrir o texto agora. Tente de novo em instantes.';
+
+  @override
+  String get termsNoticeTitle =>
+      'Atualizamos os Termos de Uso e a Política de Privacidade';
+
+  @override
+  String get termsNoticeBody =>
+      'Leia os dois textos e aceite para continuar usando o Wallet.';
+
+  @override
+  String get termsNoticeAction => 'Aceitar e continuar';
+
+  @override
+  String get errorTermsOutdated =>
+      'Os textos mudaram de novo. Leia a versão atual e aceite de novo.';
+
+  @override
   String get registerGoToLogin => 'Já tenho conta';
 
   @override
@@ -1004,6 +1035,40 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsSignOut => 'Sair';
 
   @override
+  String get settingsYourData => 'Seus dados';
+
+  @override
+  String get settingsDownloadData => 'Baixar meus dados';
+
+  @override
+  String get settingsDownloadDataHelp =>
+      'Um arquivo com tudo o que o Wallet guarda sobre você: perfil, bancos, contas, transações, cartões, investimentos e planejamento.';
+
+  @override
+  String get settingsDownloadDataBusy => 'Preparando o arquivo…';
+
+  @override
+  String settingsDownloadDataDone(String fileName) {
+    return 'Pronto: $fileName';
+  }
+
+  @override
+  String settingsDownloadDataDoneIn(String fileName, String folder) {
+    return 'Pronto: $fileName, salvo em $folder';
+  }
+
+  @override
+  String get settingsDownloadDataLimit =>
+      'Você já baixou seus dados várias vezes hoje. Tente de novo amanhã.';
+
+  @override
+  String get settingsDownloadDataCancelled => 'Download cancelado.';
+
+  @override
+  String get settingsDownloadDataFailed =>
+      'Não foi possível salvar o arquivo neste aparelho.';
+
+  @override
   String get settingsDangerZone => 'Zona de perigo';
 
   @override
@@ -1225,8 +1290,8 @@ class AppLocalizationsPt extends AppLocalizations {
       'Código incorreto. Confira o app autenticador; cada erro conta para o bloqueio.';
 
   @override
-  String get errorAuthBusy =>
-      'Muita gente entrando agora. Tente de novo em instantes.';
+  String get errorBusy =>
+      'O Wallet está com muito movimento agora. Tente de novo em alguns segundos.';
 
   @override
   String get errorTwoFactorSetupCode =>
@@ -1349,4 +1414,157 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get errorUnexpected => 'Algo deu errado. Tente de novo.';
+
+  @override
+  String get errorConsentExpired =>
+      'A autorização deste banco venceu. Renove para voltar a atualizar.';
+
+  @override
+  String get errorConsentNotRenewed =>
+      'A renovação ainda não apareceu no banco. Tente de novo em instantes.';
+
+  @override
+  String get consentTitle => 'Antes de conectar';
+
+  @override
+  String get consentPurposeHeading => 'Para que';
+
+  @override
+  String get consentPurpose =>
+      'Mostrar seus saldos, extratos, cartões, faturas e investimentos no Wallet.';
+
+  @override
+  String get consentDataHeading => 'Dados que o Wallet lê';
+
+  @override
+  String get consentDataAccounts => 'Contas e saldos';
+
+  @override
+  String get consentDataTransactions =>
+      'Lançamentos (extrato) das contas e dos cartões';
+
+  @override
+  String get consentDataCards => 'Cartões de crédito e faturas';
+
+  @override
+  String get consentDataInvestments => 'Investimentos';
+
+  @override
+  String get consentReadOnly => 'O Wallet só lê: não movimenta dinheiro.';
+
+  @override
+  String get consentValidityHeading => 'Por quanto tempo';
+
+  @override
+  String get consentValidity =>
+      'Até você desconectar aqui ou no app do banco, ou até a autorização vencer.';
+
+  @override
+  String get consentRevokeHeading => 'Como revogar';
+
+  @override
+  String get consentRevoke =>
+      'Em Conexões, toque em Desvincular. Você também pode cancelar a autorização no app do banco.';
+
+  @override
+  String get consentCheckbox =>
+      'Autorizo o Wallet a ler esses dados para essa finalidade.';
+
+  @override
+  String get consentContinue => 'Continuar';
+
+  @override
+  String get connectionConsentExpired =>
+      'A autorização deste banco venceu. Renove para voltar a atualizar.';
+
+  @override
+  String connectionConsentExpiresIn(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'A autorização vence em $count dias.',
+      one: 'A autorização vence em 1 dia.',
+      zero: 'A autorização vence hoje.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get connectionRenew => 'Renovar';
+
+  @override
+  String get connectionRenewOnPhone => 'Renove pelo app no celular.';
+
+  @override
+  String get connectionRenewed => 'Autorização renovada.';
+
+  @override
+  String get connectionStatusConsentExpired => 'Autorização vencida';
+
+  @override
+  String get loginForgotPassword => 'Esqueci minha senha';
+
+  @override
+  String get loginPasswordChanged =>
+      'Senha trocada. Entre de novo com a senha nova.';
+
+  @override
+  String get forgotSubtitle => 'Vamos mandar um link para criar uma senha nova';
+
+  @override
+  String get forgotHelp => 'Digite o e-mail da sua conta.';
+
+  @override
+  String get forgotAction => 'Enviar o link';
+
+  @override
+  String get forgotSent =>
+      'Se houver uma conta com esse e-mail, enviamos um link para criar uma senha nova.';
+
+  @override
+  String get settingsChangePassword => 'Trocar senha';
+
+  @override
+  String get settingsChangePasswordHelp =>
+      'Pede a senha atual e tira todos os aparelhos da conta.';
+
+  @override
+  String get changePasswordHelp =>
+      'Depois de trocar, todos os aparelhos saem da conta, este também, e você entra de novo com a senha nova.';
+
+  @override
+  String get changePasswordAction => 'Trocar senha';
+
+  @override
+  String get fieldCurrentPassword => 'Senha atual';
+
+  @override
+  String get fieldNewPassword => 'Nova senha';
+
+  @override
+  String get fieldRepeatNewPassword => 'Repita a nova senha';
+
+  @override
+  String get validationPasswordsDiffer => 'As senhas não são iguais.';
+
+  @override
+  String get validationPasswordSame =>
+      'A nova senha precisa ser diferente da atual.';
+
+  @override
+  String get settingsNewRecoveryCodes => 'Gerar códigos novos';
+
+  @override
+  String get settingsNewRecoveryCodesHelp =>
+      'Os códigos de recuperação de agora deixam de valer.';
+
+  @override
+  String get newRecoveryCodesTitle => 'Gerar códigos de recuperação novos';
+
+  @override
+  String get newRecoveryCodesHelp =>
+      'Digite sua senha e um código do app autenticador. Os códigos de recuperação de agora deixam de valer.';
+
+  @override
+  String get newRecoveryCodesAction => 'Gerar';
 }

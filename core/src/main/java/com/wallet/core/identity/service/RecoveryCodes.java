@@ -1,5 +1,6 @@
 package com.wallet.core.identity.service;
 
+import com.wallet.core.shared.security.OpaqueTokens;
 import lombok.experimental.UtilityClass;
 
 import java.security.SecureRandom;

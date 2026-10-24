@@ -6,15 +6,19 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 import 'package:wallet/app.dart';
 import 'package:wallet/core/api/api_client.dart';
+import 'package:wallet/core/files/saved_file.dart';
 import 'package:wallet/core/session/session_store.dart';
 import 'package:wallet/core/updates/updater.dart';
 import 'package:wallet/features/connections/presentation/pluggy_connect_screen.dart';
 
 class FakeResponse {
-  const FakeResponse(this.body, {this.status = 200});
+  const FakeResponse(this.body, {this.status = 200, this.headers = const {}});
 
   final Object? body;
   final int status;
+
+  /// Extra response headers, such as a download's `Content-Disposition`.
+  final Map<String, String> headers;
 }
 
 typedef FakeHandler = Future<FakeResponse> Function(RequestOptions request);
@@ -64,6 +68,7 @@ class FakeBff implements HttpClientAdapter {
       response.status,
       headers: {
         Headers.contentTypeHeader: [Headers.jsonContentType],
+        for (final header in response.headers.entries) header.key: [header.value],
       },
     );
   }
@@ -94,12 +99,14 @@ AppDependencies fakeDependencies(
   String? storedRefreshToken = 'refresh-1',
   PluggyConnectHost? pluggyConnect,
   Updater? updater,
+  FileSaver? fileSaver,
 }) =>
     AppDependencies.create(
       api: fakeClient(bff),
       store: MemorySessionStore(storedRefreshToken),
       pluggyConnect: pluggyConnect ?? const PluggyConnectHost(),
       updater: updater,
+      fileSaver: fileSaver,
       withAppLock: false,
     );
 

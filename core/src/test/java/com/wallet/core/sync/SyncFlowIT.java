@@ -314,6 +314,58 @@ class SyncFlowIT {
                 .andExpect(jsonPath("$.code").value("sync.too_soon"));
     }
 
+    /** The authorization is over: nothing is read at the provider, and the connection says why it stopped. */
+    @Test
+    void aScheduledSyncOfAnExpiredConsentDoesNotCallTheProvider() {
+        expireConsent(Duration.ofDays(1));
+
+        assertThat(syncService.syncNow(connectionId, SyncTrigger.SCHEDULED)).isEqualTo(SyncRunStatus.SKIPPED);
+
+        verify(provider, never()).findItem(any());
+        verify(provider, never()).listAccounts(any());
+        assertThat(lastRun().getErrorCode()).isEqualTo("connection.consent_expired");
+        assertThat(statusOfConnection()).isEqualTo("CONSENT_EXPIRED");
+        // The poll leaves it alone from now on.
+        assertThat(jdbc.queryForObject("select count(*) from connections where id = ? and status in ('ACTIVE', 'SYNCING')",
+                Integer.class, connectionId)).isZero();
+    }
+
+    @Test
+    void aManualSyncOfAnExpiredConsentIs409AndCallsNothing() throws Exception {
+        expireConsent(Duration.ofSeconds(1));
+
+        mockMvc.perform(post("/internal/connections/" + connectionId + "/sync").with(as(userId)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("connection.consent_expired"));
+
+        verify(provider, never()).findItem(any());
+        assertThat(statusOfConnection()).isEqualTo("CONSENT_EXPIRED");
+        assertThat(runs.findByConnectionIdOrderByStartedAtDesc(connectionId)).isEmpty();
+    }
+
+    @Test
+    void aConnectionAlreadyMarkedExpiredStaysSoUntilItIsRenewed() throws Exception {
+        jdbc.update("update connections set status = 'CONSENT_EXPIRED' where id = ?", connectionId);
+
+        mockMvc.perform(post("/internal/connections/" + connectionId + "/sync").with(as(userId)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("connection.consent_expired"));
+        assertThat(syncService.syncNow(connectionId, SyncTrigger.SCHEDULED)).isEqualTo(SyncRunStatus.SKIPPED);
+
+        verify(provider, never()).findItem(any());
+        assertThat(statusOfConnection()).isEqualTo("CONSENT_EXPIRED");
+    }
+
+    /** The day before it ends the authorization still works. */
+    @Test
+    void anAuthorizationThatEndsTomorrowStillSyncs() {
+        stubStandardData();
+        jdbc.update("update connections set consent_expires_at = ? where id = ?",
+                Timestamp.from(clock.instant().plus(Duration.ofDays(1))), connectionId);
+
+        assertThat(syncService.syncNow(connectionId, SyncTrigger.SCHEDULED)).isEqualTo(SyncRunStatus.SUCCEEDED);
+    }
+
     @Test
     void manualSyncWhileOneIsRunningIsAConflict() throws Exception {
         insertRunningRun(TestClockConfiguration.START);
@@ -488,7 +540,7 @@ class SyncFlowIT {
     /** Links through the API, so the first sync starts in the background like in the app. */
     private UUID link(String providerItemId) throws Exception {
         String body = mockMvc.perform(post("/internal/connections").with(as(userId)).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"providerItemId\":\"%s\"}".formatted(providerItemId)))
+                        .content("{\"providerItemId\":\"%s\",\"consentVersion\":\"open-finance-v1\"}".formatted(providerItemId)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         return UUID.fromString(JsonPath.read(body, "$.id"));
@@ -526,6 +578,15 @@ class SyncFlowIT {
                 .createdAt(now)
                 .updatedAt(now)
                 .build()).getId();
+    }
+
+    private void expireConsent(Duration ago) {
+        jdbc.update("update connections set consent_expires_at = ? where id = ?",
+                Timestamp.from(clock.instant().minus(ago)), connectionId);
+    }
+
+    private String statusOfConnection() {
+        return jdbc.queryForObject("select status from connections where id = ?", String.class, connectionId);
     }
 
     private void insertRunningRun(Instant startedAt) {

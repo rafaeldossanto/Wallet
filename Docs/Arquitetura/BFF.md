@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, backend, bff]
-atualizado: 2026-10-22
+atualizado: 2026-10-24
 porta: 8080
 repo: Work/Wallet/bff
 ---
@@ -21,7 +21,7 @@ do BFF do Trilha. Construído em 2026-10-01 (T10 e T11 do [[Plano de Implementa�
 | **Sessão por plataforma** | Recebe os tokens do core e decide a entrega: no celular, no corpo; no navegador, refresh em cookie `HttpOnly`. Ver [[Autenticação]] |
 | **Rotas por tela** | Monta a resposta de uma tela juntando várias chamadas ao core em paralelo. O celular faz 1 requisição em vez de 5 |
 | **Cache curto** | Caffeine por usuário, 60 s nas telas agregadas. Limpa na hora quando o usuário pede sincronização, mexe em conexões ou quando uma sincronização termina no fundo (ver abaixo) |
-| **Proteção** | CORS só para a origem do app web, limite de requisições por IP (auth), por usuário (resto) e limites baixos próprios para vincular banco, pedir token do widget e buscar texto no extrato |
+| **Proteção** | CORS só para a origem do app web, limite de requisições por IP (auth e lista de espera), por usuário (resto) e limites baixos próprios para vincular banco, pedir token do widget e buscar texto no extrato |
 | **Resiliência** | Timeout de 5 s para o core; circuit breaker e bulkhead **por grupo de rotas** (ver [[#Grupos de rotas]]). Core fora do ar vira `503 bff.core_unavailable`; grupo cheio, `503 service.busy` |
 
 O BFF **não guarda dado** de negócio, **não fala com a Pluggy**, **não tem banco** e
@@ -38,7 +38,7 @@ bff/src/main/java/com/wallet/bff/
                 CoreRouteGroup, CoreCallGuards (circuito + bulkhead por grupo)
   config/       RestClientConfig, interceptors de Bearer e trace, RequestContextExecutor
   controller/   Auth, Me, Home, Screen (extrato, cartões, investimentos, insights),
-                Calendar, Connection, Planning
+                Calendar, Connection, Planning, Waitlist
   exception/    GlobalExceptionHandler (repassa o erro do core byte a byte)
   model/dto/    request/ e response/ (os contratos do app)
   ratelimit/    janela fixa por IP (auth) e por usuário
@@ -51,14 +51,26 @@ bff/src/main/java/com/wallet/bff/
 
 | Método | Rota | Chama no core |
 |---|---|---|
-| POST | `/api/auth/register` | `/internal/auth/register`: **202 sem corpo** para qualquer e-mail (o core manda o link de confirmação ou um aviso ao dono) |
+| POST | `/api/auth/register` | `/internal/auth/register` (corpo com `acceptTerms: true`; sem ele o core responde 400 `validation.failed`): **202 sem corpo** para qualquer e-mail (o core manda o link de confirmação ou um aviso ao dono) |
 | POST | `/api/auth/login` | `/internal/auth/login` e entrega por plataforma. Corpo `{email, password, code?}`: `code` só depois de `401 auth.two_factor_required` |
 | POST | `/api/auth/email/confirm` | `/internal/auth/email/confirm` com `{token}`: chamada pela página `/email/confirm`; responde `{result: ACCOUNT_CONFIRMED \| EMAIL_CHANGED}` ou `422 auth.link_invalid` |
 | POST | `/api/auth/email/resend` | `/internal/auth/email/resend` com `{email}`: 202 para qualquer e-mail |
+| POST | `/api/auth/password/forgot` | `/internal/auth/password/forgot` com `{email}`: **202 sem corpo** para qualquer e-mail (o core manda o link só para conta confirmada) |
+| POST | `/api/auth/password/reset` | `/internal/auth/password/reset` com `{token, newPassword}`: **204**; link inválido, vencido ou usado é **400 `auth.link_invalid`**. Chamada pela página `/password/reset`; derruba todas as sessões da conta |
+| GET | `/password/reset` | Página estática do BFF (`static/password`) que o link de "Esqueci minha senha" abre: lê o token depois do `#`, pede a senha nova duas vezes e troca ao tocar no botão |
+| GET | `/api/me/export` | `/internal/me/export` (grupo `SCREENS`): o JSON do core, sem mexer nele, como download (`Content-Disposition: attachment; filename="wallet-meus-dados-AAAA-MM-DD.json"`, data de Brasília, e `Cache-Control: no-store`). **3 por dia por usuário** (`wallet.rate-limit.export-limit` e `export-window`): passou, 429 `rate_limit.exceeded`. LGPD, acesso e portabilidade; ver [[Core#Exportação dos dados (L9 e L10)]] |
+| POST | `/api/me/terms` | `/internal/me/terms` com `{version}`: **204**; versão que não é a corrente, **409 `legal.terms_outdated`**, relayado. O aceite dos Termos de Uso e da Política de Privacidade (L15); ver [[Autenticação#Aceite dos Termos de Uso e da Política de Privacidade (L15, desde 2026-10-24)]]. Só o app obriga: nenhuma rota do BFF exige o aceite |
+| PUT | `/api/me/password` | `/internal/me/password` com `{currentPassword, newPassword}`: **204** e todas as sessões caem (a atual também). Senha atual errada: 403 `auth.wrong_password`; nova igual à atual: 400 `validation.failed`. Conta no limite das rotas que pedem a senha de novo |
+| POST | `/api/me/two-factor/recovery-codes` | `/internal/me/two-factor/recovery-codes` com `{password, code}`: **200** `{recoveryCodes}` (10 novos, trocam os antigos, mostrados uma vez). 2FA desligado: 409 `two_factor.not_enabled`. Conta no limite das rotas que pedem a senha de novo |
 | GET | `/email/confirm` | Página estática do próprio BFF (`static/email`) que os links dos e-mails abrem: lê o token depois do `#` e confirma ao tocar no botão |
+| POST | `/api/waitlist` | `/internal/waitlist` com `{email}`: **202 sem corpo** para qualquer e-mail. Pública, sem token. O corpo é `{email, consent}`; `consent` tem de ser `true` e `email` válido (`@NotBlank @Email @Size(max=320)`), senão **400 `validation.failed`** (a única validação que o BFF faz sozinho: o consentimento é dele) |
+| POST | `/api/waitlist/confirm` | `/internal/waitlist/confirm` com `{token}`: **204**; link vencido, desconhecido ou trocado: 400 `waitlist.invalid_token`. Chamada pela página `/waitlist/confirm` |
+| POST | `/api/waitlist/unsubscribe` | `/internal/waitlist/unsubscribe`: **204**, o token no corpo JSON `{token}` **ou** na query `?token=`. O botão de um clique dos provedores de e-mail (RFC 8058) manda `application/x-www-form-urlencoded` com `List-Unsubscribe=One-Click` e o token na query |
+| GET | `/waitlist/confirm`, `/waitlist/unsubscribe` | Páginas estáticas do BFF (`static/waitlist`) que os links da lista de espera abrem ([[#Páginas dos links]]) |
+| POST | `/api/webhooks/pluggy` | `/internal/webhooks/pluggy` com o corpo cru: **202** sem corpo. Pública, sem token, só com `wallet.webhooks.enabled` (senão 404) e o segredo em `X-Wallet-Webhook-Secret` (senão 401); lista de IPs opcional (403); 60 por minuto por IP. Ver [[#Webhooks da Pluggy]] |
 | POST | `/api/auth/refresh` | `/internal/auth/refresh` (web: lê o cookie) |
 | POST | `/api/auth/logout` | `/internal/auth/logout` e apaga o cookie |
-| GET | `/api/me` | `/internal/me`: `{id, email, displayName, createdAt, pendingEmail, twoFactorEnabled}` |
+| GET | `/api/me` | `/internal/me`: `{id, email, displayName, createdAt, pendingEmail, twoFactorEnabled, termsAcceptanceRequired, termsVersion, termsUrl, privacyUrl}` |
 | PUT | `/api/me` | `/internal/me` com `{displayName}` |
 | POST | `/api/me/email` | `/internal/me/email` com `{newEmail, password}`: 202; a troca só vale depois do link mandado ao novo endereço |
 | POST | `/api/me/two-factor/setup` | `/internal/me/two-factor/setup` com `{password}`: `{secret, otpauthUri}` |
@@ -85,6 +97,44 @@ bff/src/main/java/com/wallet/bff/
 | PUT, DELETE | `/api/planning/expected-salary` | `/internal/planning/expected-salary`; limpam o planejamento em cache |
 | GET | `/api/planning/fixed-expense-suggestions` | `/internal/planning/fixed-expense-suggestions`, sem cache |
 | DELETE | `/api/planning/fixed-expense-suggestions/{id}` | `/internal/planning/fixed-expense-suggestions/{id}`; o planejamento em cache fica |
+
+### Páginas dos links
+
+O BFF serve quatro páginas estáticas, as únicas em HTML, abertas pelos links dos e-mails; todas com o
+mesmo visual (`/email/confirm.css`), a CSP `script-src 'self'` e `Referrer-Policy: no-referrer`. Nenhuma
+age no GET: scanners de e-mail abrem todo link, então só o **botão** faz o POST.
+
+| Página | Link | Botão | Depois |
+|---|---|---|---|
+| `/email/confirm` | `…/email/confirm#token=…` | Confirmar e-mail | Conta confirmada ou e-mail trocado |
+| `/waitlist/confirm` | `…/waitlist/confirm#token=…` | Confirmar meu e-mail | "Pronto! Você está na lista do Wallet." ou "Este link venceu ou já foi usado." |
+| `/waitlist/unsubscribe` | `…/waitlist/unsubscribe?token=…` | Sair da lista | "Pronto, você saiu da lista. Não vamos mais te mandar e-mails." |
+| `/password/reset` | `…/password/reset#token=…` | Trocar senha (depois de "Nova senha" e "Repita a nova senha") | "Senha trocada! Agora é só entrar no app do Wallet com a senha nova." ou "Este link venceu ou já foi usado..." |
+
+O token de confirmação vem depois do `#` (o navegador não o envia) e sai da barra de endereço assim
+que é lido. O de descadastro vai na **query**, porque o botão de um clique dos provedores faz POST
+nessa URL exata (RFC 8058); a página também o tira da barra e posta em `/api/waitlist/unsubscribe?token=…`.
+A landing page (`site/`) chama `POST /api/waitlist` de **outra origem**, sem credenciais: a origem dela
+tem de estar em `WALLET_WEB_ALLOWED_ORIGINS` (lista separada por vírgula), senão o navegador bloqueia o
+formulário (CORS).
+
+### Webhooks da Pluggy
+
+`POST /api/webhooks/pluggy`: pública (sem JWT) e **não assinada** pela Pluggy, então é uma porta para dicas, fechada por um
+segredo. A rota só existe com `wallet.webhooks.enabled=true`; desligado (o padrão), responde **404**.
+
+1. **Limite por IP**, antes de tudo: `wallet.rate-limit.webhook-limit`, 60 por minuto, 429 `rate_limit.exceeded`.
+2. **Lista de IPs** (opcional, `WALLET_PLUGGY_WEBHOOK_IPS`: IPs ou CIDR; vazia = não confere), pelo mesmo `ClientAddress` do rate
+   limit (proxies confiáveis incluídos). Fora dela: **403** `webhook.forbidden`.
+3. **Segredo** no header `X-Wallet-Webhook-Secret` contra `WALLET_PLUGGY_WEBHOOK_SECRET`, em **tempo constante** (SHA-256 dos dois
+   lados e `MessageDigest.isEqual`, como o core faz com a chave do gateway). Sem ele ou errado: **401** `webhook.unauthorized`, e o
+   core não é chamado.
+4. Repassa o **corpo cru** a `POST /internal/webhooks/pluggy` (grupo `READS`), sem interpretar, e responde **202** sem corpo. Tudo
+   o que o core faz com o aviso está em [[Sincronização#Webhooks (desde 2026-10-24, achado A21)]].
+
+Com `SPRING_PROFILES_ACTIVE=prod` e os webhooks ligados, o segredo é obrigatório e precisa de 32 caracteres ou mais: sem ele o BFF
+não sobe, e a mensagem cita `WALLET_PLUGGY_WEBHOOK_SECRET`. Fora de produção, ligado e sem segredo, ele sobe e recusa todo aviso
+com 401. A rota ignora um `Authorization` que venha junto.
 
 ### A home
 
@@ -139,7 +189,7 @@ respondia 503 por 10 s. Desde 2026-10-22 cada chamada do `CoreApi` diz o seu gru
 
 | Grupo | Rotas do core | Bulkhead (chamadas em voo) |
 |---|---|---|
-| `AUTH` | cadastro, login, refresh, logout (cada login é um BCrypt) | 16 |
+| `AUTH` | cadastro, login, refresh, logout (cada login é um BCrypt), os links dos e-mails e a lista de espera | 16 |
 | `READS` | `me`, conexões (lista), contas, cartões, faturas, investimentos, extrato sem `q`, gastos fixos e salário esperado | 64 |
 | `SCREENS` | overview, gasto por categoria e por dia, patrimônio, planejamento do mês, sugestões | 32 |
 | `SEARCH` | extrato com `q` | 16 |
@@ -225,14 +275,20 @@ Achado A18, desde 2026-10-22: `/actuator/health` era público e ficava fora do r
 |---|---|
 | `WALLET_CORE_URL` | Endereço do core (`http://localhost:8081` no dev) |
 | `WALLET_GATEWAY_KEY` | Segredo enviado ao core em `X-Gateway-Key`, o **mesmo** valor do core. Vazio = chave de desenvolvimento; com `SPRING_PROFILES_ACTIVE=prod`, vazia, curta (< 32) ou a de desenvolvimento impedem a subida |
-| `WALLET_WEB_ALLOWED_ORIGINS` | Origem do Flutter Web (`http://localhost:5000` no dev) |
+| `WALLET_WEB_ALLOWED_ORIGINS` | Origens permitidas no CORS, separadas por vírgula: o Flutter Web (`http://localhost:5000` no dev) **e a landing page**, que chama `/api/waitlist` de outra origem, sem credenciais (ex.: `https://wallet.example.com,https://site.example.com`) |
 | `wallet.web.cookie-secure` | Flag `Secure` do cookie; ligada também no dev, porque o navegador aceita em `localhost` |
 | `wallet.cache.screen-ttl` | TTL do cache das telas (padrão 60 s) |
-| `wallet.rate-limit.*` | Janela (1 min), 20 por IP em `/api/auth/**`, 20 por usuário nas rotas que pedem senha ou código de novo (`/api/me/email`, `/api/me/two-factor/**`, `DELETE /api/me`), 300 por usuário no resto |
+| `wallet.rate-limit.*` | Janela (1 min), 20 por IP em `/api/auth/**` (a recuperação de senha incluída), 20 por usuário nas rotas que pedem senha ou código de novo (`/api/me/email`, `PUT /api/me/password`, `/api/me/two-factor/**` com os códigos novos, `DELETE /api/me`), 300 por usuário no resto |
 | `wallet.jwt.audience` | `aud` exigida nos tokens, `wallet-api` (a mesma do core) |
 | `wallet.rate-limit.link-limit` / `link-window` | `POST /api/connections` por usuário, além do geral: 10 por hora (cada vínculo faz o core ler até um ano do banco na Pluggy). Passou: 429 `rate_limit.connections` |
 | `wallet.rate-limit.connect-token-limit` / `connect-token-window` | `POST /api/connections/connect-token` por usuário, além do geral: 10 por hora (cada token é uma chamada à Pluggy). Passou: 429 `rate_limit.connections` |
+| `wallet.rate-limit.export-limit`, `.export-window` | A exportação dos dados (`GET /api/me/export`) por usuário, além do geral: 3 por 24 h (cada uma faz o core ler tudo o que o usuário tem). Passou: 429 `rate_limit.exceeded` |
 | `wallet.rate-limit.search-limit` | Busca por texto (`GET /api/transactions` com `q`) por usuário e janela, além do geral: 30 por minuto (cada busca faz o core decifrar o mês). Passou: 429 `rate_limit.exceeded` |
+| `wallet.rate-limit.waitlist-limit` / `waitlist-window` | `/api/waitlist/**` (inscrição, confirmação e descadastro, **juntos**) por **IP**, em vez do geral: 5 por hora. Rotas públicas, e cada inscrição manda um e-mail ao endereço digitado. Passou: 429 `rate_limit.exceeded` (o mesmo do auth), `Retry-After: 3600` |
+| `WALLET_PLUGGY_WEBHOOKS_ENABLED` | `wallet.webhooks.enabled`, padrão `false`: liga `POST /api/webhooks/pluggy` (desligado, 404). Ver [[#Webhooks da Pluggy]] |
+| `WALLET_PLUGGY_WEBHOOK_SECRET` | `wallet.webhooks.secret`: o que a Pluggy manda em `X-Wallet-Webhook-Secret`; o mesmo valor do core (que registra os webhooks). Com `prod` e webhooks ligados, obrigatório e com 32+ caracteres |
+| `WALLET_PLUGGY_WEBHOOK_IPS` | `wallet.webhooks.allowed-ips`: IPs ou CIDR de onde a Pluggy chama, separados por vírgula; vazio = não confere |
+| `wallet.rate-limit.webhook-limit` | `/api/webhooks/**` por **IP**, na janela geral (1 min): 60. Passou: 429 `rate_limit.exceeded` |
 | `wallet.core.max-concurrent-calls.*` | Bulkhead de cada grupo de rotas (`auth` 16, `reads` 64, `screens` 32, `search` 16, `provider` 16). Ver [[#Grupos de rotas]] |
 | `WALLET_BFF_MANAGEMENT_PORT` | `management.server.port`, padrão 9080, sempre em `127.0.0.1`: detalhes da saúde e readiness. Igual à porta pública impede a subida |
 | `WALLET_MAX_BODY_SIZE` | `wallet.http.max-body-size`, padrão `256KB`, o mesmo filtro do core: `Content-Length` maior recebe 413 `request.too_large` antes da segurança; corpo chunked é cortado durante a leitura |
@@ -266,6 +322,19 @@ entrava no cache e ficava vazia por um minuto. Desde 2026-10-02:
 - Sincronização agendada (a cada 6 h) com o app fechado: no pior caso, a tela fica até 60 s
   velha.
 
+## Logs sem dado pessoal (L12)
+
+Desde 2026-10-24. Um IP é dado pessoal, e a mensagem de uma exceção pode citar o pedido ou a resposta do core.
+
+- **`[RATE-LIMIT]`:** o log não traz mais o IP. Traz o **pseudônimo** dele (`IpPseudonyms`): HMAC-SHA256 do endereço,
+  com uma chave derivada da `WALLET_GATEWAY_KEY` (por um propósito próprio, `wallet-ip-log-v1`), e só os 12 primeiros
+  caracteres hexadecimais. O mesmo IP dá o mesmo texto, então um abuso ainda se correlaciona entre as linhas, mas
+  sem a chave ninguém volta ao endereço. O limite em si conta o IP de verdade, na memória. Usuário continua pelo id.
+- **Erro inesperado:** o `GlobalExceptionHandler` grava o trace id e a classe e a pilha de cada exceção da cadeia, **sem
+  mensagem** (`ExceptionLog.describe`).
+- Testes: `IpPseudonymsTest`, `RateLimitTest#theLogNamesAnAddressByItsPseudonymNeverByTheAddress` e
+  `GlobalExceptionHandlerTest`.
+
 ## Custo que o BFF traz
 
 - Uma mudança que chega ao app passa por dois serviços (DTO no core e no BFF). É o
@@ -294,6 +363,19 @@ entrava no cache e ficava vazia por um minuto. Desde 2026-10-02:
 - `RateLimitTest`: orçamento por usuário, login por IP e os limites próprios de vincular e do
   token do widget (caminho com `%63` não escapa: o filtro compara o caminho decodificado, como o
   Spring MVC roteia).
+- `PasswordRoutesTest` (desde 2026-10-23): "esqueci" sem sessão e com 202 sem corpo, a troca repassada com o token,
+  a nova senha e o endereço de onde veio, o link vencido do core repassado, a página servida com CSP e sem
+  referrer, a troca de senha e os códigos novos com o Bearer do usuário (e 401 sem sessão), a recusa 403
+  do core repassada; no `RateLimitTest`, a troca de senha e os códigos novos contando como as rotas que pedem a senha de novo.
+- `WebhookTest`, `WebhookDisabledTest` e `WebhookSecretTest` (desde 2026-10-24): segredo certo (o corpo vai ao core como veio, sem
+  `Authorization`), errado e ausente (401, o core não é chamado), IP fora da lista (403), desligado (404), recusa do core repassada,
+  limite por IP (errar o segredo conta) e um Bearer qualquer que não atrapalha; a regra do segredo (32 caracteres, `prod`, tempo
+  constante) e a lista de IPs/CIDR no `ClientAddressTest`.
+- `WaitlistTest` (desde 2026-10-23): consentimento ausente ou `false` e e-mail inválido dão 400
+  `validation.failed` sem chegar ao core; inscrição, confirmação e erro do core repassados; descadastro
+  com o token no corpo, na query e no POST de formulário do botão de um clique; 5 por hora por IP
+  (o sexto dá 429 e outro IP passa); as duas páginas servidas (CSP, sem descadastrar no GET) e o CORS
+  da origem permitida.
 - `CoreKeyRotationTest`: chave nova no core é aceita sem reiniciar o BFF.
 - `CoreRouteGroupsTest`: um grupo falhando abre só o próprio circuito (desvincular com a conexão
   caindo abre `PROVIDER`, `/api/me` continua), grupo cheio responde `service.busy` só para as suas

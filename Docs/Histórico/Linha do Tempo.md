@@ -291,3 +291,46 @@ atualizado: 2026-10-19
   - desvincular tinha o mesmo defeito (a revogação na Pluggy dentro da transação). A Pluggy saiu
     da transação, e a linha só é apagada depois que a revogação deu certo, numa transação curta
     (`ConnectionSlowProviderIT` e, para a revogação que falha, `PluggyConnectModeIT`).
+
+## 2026-10-23 e 2026-10-24
+
+- O Rafael pediu para tocar durante a noite tudo o que não dependia dele. Foi o primeiro lote no
+  modelo novo: o chat principal decide e especifica, e sessões no Sonnet executam.
+- **Lista de espera** (módulo `waitlist`, V11):
+  - inscrição com confirmação por e-mail;
+  - descadastro em um clique (RFC 8058);
+  - páginas de confirmar e de sair no BFF;
+  - comunicado de abertura por um comando no servidor.
+
+  Ver [[Core]] e [[BFF]].
+- **Landing page** em `site/`, com o visual do app e o formulário da lista de espera. Ver
+  [[Landing Page]].
+- **Senha** (V12): "Esqueci minha senha", "Trocar senha" e códigos de recuperação novos. Um
+  token emitido antes da troca deixa de valer (V13). Ver [[Autenticação]].
+- **Deploy preparado:** `deploy/` com compose, HTTPS automático, redes separadas e backup. Testado
+  localmente; nada foi criado na AWS. Ver [[Deploy]].
+- **Rascunhos legais** em `Docs/Legal/`: política, termos, ROPA, RIPD, incidentes e canal do
+  titular, além das páginas do site. São versões preliminares, para revisão jurídica.
+- **Consentimento** (V13):
+  - tela de finalidade antes de conectar;
+  - registro de cada consentimento e revogação;
+  - consentimento vencido parando a sincronização, com aviso e "Renovar" no Android.
+
+  Ver [[Fluxo de Conexão]].
+- **"Baixar meus dados"** (módulo `privacy`): exportação completa em JSON. Também os logs sem IP
+  nem mensagem de erro.
+- **Retenção técnica:** limpeza noturna de transações removidas há mais de 90 dias, de
+  sincronizações antigas e de sessões vencidas.
+- **Nome dos gastos fixos cifrado** (V15) e **registros de acesso** de 6 meses do Marco Civil
+  (V14), com o IP cifrado.
+- **Webhooks da Pluggy** (V16), tratados como dica de sincronização, atrás de um segredo
+  (fecha o A21). O registro é feito por um comando.
+- **Aceite versionado dos termos** (V17): caixa no cadastro e aviso para quem tem versão antiga.
+- Com isso, a auditoria de segurança de 2026-10-19 fica sem achado aberto.
+- A revisão de código do PR #5 encontrou três bloqueadores, corrigidos na `dev`:
+  - **"Esqueci minha senha" não abria em produção:** o Caddy não repassava `/password/*` ao BFF, e
+    a página caía no app. Agora o `CaddyRoutesTest` do BFF confere que toda página pública do
+    BFF está no Caddyfile. Ver [[Deploy]].
+  - Os dois `ExceptionLog` passaram a usar `nonNull`.
+  - O registro de acesso passou a ser montado no `AccessRecordMapper`, seguindo as convenções da
+    casa.

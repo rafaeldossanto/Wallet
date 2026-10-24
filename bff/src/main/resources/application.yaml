@@ -84,6 +84,18 @@ wallet:
     allowed-origins: ${WALLET_WEB_ALLOWED_ORIGINS:http://localhost:5000}
     # Browsers accept Secure cookies on http://localhost, so this can stay on in development.
     cookie-secure: true
+  webhooks:
+    # Pluggy's webhooks (POST /api/webhooks/pluggy): not signed, so only hints, and the route is
+    # closed (404) unless this is on. A call gets in only with the secret in X-Wallet-Webhook-Secret
+    # (compared in constant time) and, when allowed-ips is set, from one of those addresses.
+    # The core registers the hooks at Pluggy with the same secret (a command, see Deploy).
+    enabled: ${WALLET_PLUGGY_WEBHOOKS_ENABLED:false}
+    # 32+ characters (openssl rand -base64 48). With SPRING_PROFILES_ACTIVE=prod and enabled, it is
+    # required: without it the BFF does not start.
+    secret: ${WALLET_PLUGGY_WEBHOOK_SECRET:}
+    # IPs or CIDR ranges separated by commas that Pluggy calls from. Empty = not checked. The address
+    # is the connection's (or the client behind wallet.rate-limit.trusted-proxies).
+    allowed-ips: ${WALLET_PLUGGY_WEBHOOK_IPS:}
   cache:
     screen-ttl: 60s
   rate-limit:
@@ -105,6 +117,18 @@ wallet:
     # 400 ms after the last key and searches one month: 30 a minute is far beyond typing.
     # Going over answers 429 rate_limit.exceeded.
     search-limit: 30
+    # Per user: the export of the user's data (GET /api/me/export) reads everything they have in the
+    # core. Going over answers 429 rate_limit.exceeded.
+    export-limit: 3
+    export-window: 24h
+    # Per IP on /api/waitlist/** (the landing page's sign-up, confirmation and unsubscribe, all
+    # together): public routes, and each sign-up sends an e-mail to whatever address was typed.
+    # Going over answers 429 rate_limit.exceeded.
+    waitlist-limit: 5
+    waitlist-window: 1h
+    # Per IP on /api/webhooks/** (the provider's webhooks, when wallet.webhooks.enabled): public routes.
+    # Going over answers 429 rate_limit.exceeded.
+    webhook-limit: 60
     # Reverse proxies whose X-Forwarded-For is believed, as IPs or CIDR ranges separated by
     # commas (e.g. 127.0.0.1,10.0.0.0/8). Only the hops they appended count: the client is the
     # first address from the right that is not one of them. Empty = the connection's own address,

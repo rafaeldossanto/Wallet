@@ -85,6 +85,28 @@ public class ClientAddress {
         }
     }
 
+    /**
+     * The addresses a public route lets in: IPs or CIDR ranges. Empty = every address. The address
+     * compared is the one {@link #of} resolves, trusted proxies included.
+     */
+    public static final class Allowlist {
+
+        private final List<AddressRange> ranges;
+
+        /** @throws IllegalArgumentException when an entry is not an IP or a CIDR range: the BFF does not start */
+        public Allowlist(List<String> entries) {
+            this.ranges = entries.stream().filter(entry -> hasText(entry)).map(AddressRange::parse).toList();
+        }
+
+        public boolean isEmpty() {
+            return ranges.isEmpty();
+        }
+
+        public boolean allows(String address) {
+            return ranges.isEmpty() || literal(address).map(parsed -> ranges.stream().anyMatch(range -> range.contains(parsed))).orElse(false);
+        }
+    }
+
     /** One IP or a CIDR range of the same family. */
     record AddressRange(byte[] network, int prefixLength) {
 

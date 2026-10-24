@@ -66,7 +66,7 @@ public class FixedExpenseSuggestionService {
         LocalDate today = WalletTime.today(clock);
         DateRange period = new DateRange(WalletTime.currentMonth(clock).minusMonths(LOOKBACK_MONTHS).atDay(1), today);
         return FixedExpenseSuggestions.select(banking.recurringDebits(userId, period, MIN_MONTHS),
-                fixedExpenses.findByUserIdOrderByDayOfMonthAscNameAsc(userId), dismissed, cipher::fingerprint);
+                fixedExpenses.findOrderedByDayThenName(userId), dismissed, cipher::fingerprint);
     }
 
     private static DomainException notFound() {

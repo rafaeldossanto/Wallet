@@ -5,6 +5,7 @@ import com.wallet.core.identity.config.JwtProperties;
 import com.wallet.core.identity.entity.RefreshToken;
 import com.wallet.core.identity.mapper.RefreshTokenMapper;
 import com.wallet.core.identity.repository.RefreshTokenRepository;
+import com.wallet.core.shared.security.OpaqueTokens;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -62,6 +63,12 @@ public class RefreshTokenService {
     public void revokeFamilyOf(String rawToken) {
         repository.findByTokenHash(OpaqueTokens.hash(rawToken))
                 .ifPresent(token -> repository.revokeFamily(token.getFamilyId(), clock.instant()));
+    }
+
+    /** Ends every session of the account (a new password). Runs in the caller's transaction. */
+    @Transactional
+    public void revokeAllOf(UUID userId) {
+        repository.revokeAllOfUser(userId, clock.instant());
     }
 
     private RotationResult rotateCurrent(RefreshToken current, Instant now) {

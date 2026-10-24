@@ -1,0 +1,34 @@
+form {
+  display: grid;
+  gap: 8px;
+  text-align: left;
+}
+
+label {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+}
+
+input:focus {
+  outline: 2px solid var(--action);
+  outline-offset: 1px;
+}
+
+form button {
+  margin-top: 16px;
+}
+
+form[hidden] {
+  display: none;
+}

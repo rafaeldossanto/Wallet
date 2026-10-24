@@ -5,6 +5,9 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -24,12 +27,14 @@ import java.io.UncheckedIOException;
 import java.sql.SQLTransientConnectionException;
 import java.time.Instant;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@ExtendWith(OutputCaptureExtension.class)
 class GlobalExceptionHandlerTest {
 
     private MockMvc mockMvc;
@@ -83,6 +88,34 @@ class GlobalExceptionHandlerTest {
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.code").value("internal.error"))
                 .andExpect(jsonPath("$.message").value("Unexpected error"));
+    }
+
+    /**
+     * The driver's message can carry the user's data ({@code Key (email)=(...) already exists}), and so
+     * can a parser's quote of the body: the log keeps the classes and the stack, never the messages,
+     * the causes' included (L12).
+     */
+    @Test
+    void anUnexpectedErrorIsLoggedWithoutAnyMessage(CapturedOutput output) throws Exception {
+        mockMvc.perform(get("/fake/leaky").header("X-Trace-Id", "ab12cd34"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.code").value("internal.error"));
+
+        assertThat(output.getAll())
+                .contains("[EXCEPTION] Unexpected error, trace ab12cd34")
+                .contains("java.lang.IllegalStateException")
+                .contains("Caused by: org.springframework.dao.DataIntegrityViolationException")
+                .contains("GlobalExceptionHandlerTest$FakeController.leaky")
+                .doesNotContain("rafael@example.com")
+                .doesNotContain("already exists");
+    }
+
+    @Test
+    void aTraceIdThatIsNotOursIsNotLogged(CapturedOutput output) throws Exception {
+        mockMvc.perform(get("/fake/boom").header("X-Trace-Id", "rafael@example.com"))
+                .andExpect(status().isInternalServerError());
+
+        assertThat(output.getAll()).contains("[EXCEPTION] Unexpected error, trace -").doesNotContain("rafael@example.com");
     }
 
     @Test
@@ -175,6 +208,12 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/locked")
         public String locked() {
             throw new AccountLockedException(Instant.parse("2026-10-19T20:15:00Z"));
+        }
+
+        @GetMapping("/leaky")
+        public String leaky() {
+            throw new IllegalStateException("could not save rafael@example.com",
+                    new DataIntegrityViolationException("ERROR: Key (email)=(rafael@example.com) already exists"));
         }
 
         @GetMapping("/boom")

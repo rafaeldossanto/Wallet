@@ -1,6 +1,7 @@
 package com.wallet.bff.controller;
 
 import com.wallet.bff.client.CoreApi;
+import com.wallet.bff.model.dto.request.NewRecoveryCodesRequest;
 import com.wallet.bff.model.dto.request.TwoFactorCodeRequest;
 import com.wallet.bff.model.dto.request.TwoFactorDisableRequest;
 import com.wallet.bff.model.dto.request.TwoFactorSetupRequest;
@@ -34,6 +35,12 @@ public class TwoFactorController {
     @PostMapping("/enable")
     public RecoveryCodesResponse enable(@RequestBody TwoFactorCodeRequest request) {
         return coreApi.enableTwoFactor(request);
+    }
+
+    /** Ten new recovery codes for the old ones; the core asks for the password and a code. */
+    @PostMapping("/recovery-codes")
+    public RecoveryCodesResponse newRecoveryCodes(@RequestBody NewRecoveryCodesRequest request) {
+        return coreApi.newRecoveryCodes(request);
     }
 
     @DeleteMapping

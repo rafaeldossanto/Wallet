@@ -1,10 +1,12 @@
 package com.wallet.core.identity.service;
 
+import com.wallet.core.identity.config.LegalProperties;
 import com.wallet.core.identity.dto.RegisterRequest;
 import com.wallet.core.identity.entity.EmailTokenPurpose;
 import com.wallet.core.identity.entity.User;
 import com.wallet.core.identity.mapper.UserMapper;
 import com.wallet.core.identity.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -28,6 +30,7 @@ import java.time.Instant;
  * <p>The password is hashed in every case and before any database work, so the answer takes as
  * long whatever the e-mail, and no connection is held while BCrypt waits for its turn.
  */
+@Slf4j
 @Service
 public class RegistrationService {
 
@@ -35,15 +38,17 @@ public class RegistrationService {
     private final PasswordHasher hasher;
     private final EmailLinkTokens links;
     private final AccountMailer mailer;
+    private final LegalProperties legal;
     private final Clock clock;
     private final TransactionTemplate transactions;
 
     public RegistrationService(UserRepository users, PasswordHasher hasher, EmailLinkTokens links, AccountMailer mailer,
-                               Clock clock, PlatformTransactionManager transactionManager) {
+                               LegalProperties legal, Clock clock, PlatformTransactionManager transactionManager) {
         this.users = users;
         this.hasher = hasher;
         this.links = links;
         this.mailer = mailer;
+        this.legal = legal;
         this.clock = clock;
         this.transactions = new TransactionTemplate(transactionManager);
     }
@@ -53,8 +58,10 @@ public class RegistrationService {
         String passwordHash = hasher.encode(request.password());
         transactions.executeWithoutResult(status -> {
             Instant now = clock.instant();
-            User candidate = UserMapper.toUnconfirmed(email, passwordHash, request.displayName(), now);
-            if (users.insertUnconfirmedIfAbsent(candidate.getId(), email, passwordHash, candidate.getDisplayName(), now) == 1) {
+            User candidate = UserMapper.toUnconfirmed(email, passwordHash, request.displayName(), legal.termsVersion(), now);
+            if (users.insertUnconfirmedIfAbsent(candidate.getId(), email, passwordHash, candidate.getDisplayName(),
+                    legal.termsVersion(), now) == 1) {
+                log.info("[LEGAL] User {} accepted the terms at sign-up, version {}", candidate.getId(), legal.termsVersion());
                 sendConfirmation(candidate);
                 return;
             }
@@ -64,6 +71,9 @@ public class RegistrationService {
                 } else if (links.mayIssue(existing.getId(), EmailTokenPurpose.CONFIRM_ACCOUNT)) {
                     existing.setPasswordHash(passwordHash);
                     existing.setDisplayName(candidate.getDisplayName());
+                    // The latest sign-up is the one that accepted: its acceptance replaces the older one.
+                    existing.setTermsVersion(legal.termsVersion());
+                    existing.setTermsAcceptedAt(now);
                     // The days until an unconfirmed account is deleted count from the latest sign-up.
                     existing.setCreatedAt(now);
                     sendConfirmation(existing);

@@ -3,6 +3,7 @@ package com.wallet.bff.auth;
 import com.wallet.bff.config.CoreProperties;
 import com.wallet.bff.config.JwtProperties;
 import com.wallet.bff.config.WebProperties;
+import com.wallet.bff.ratelimit.IpPseudonyms;
 import com.wallet.bff.ratelimit.RateLimitFilter;
 import com.wallet.bff.ratelimit.RateLimitProperties;
 import com.wallet.bff.ratelimit.RateLimiter;
@@ -49,8 +50,18 @@ public class SecurityConfig {
     /** The page the e-mailed links open ({@code ConfirmationPageConfig}), with its script and style. */
     private static final String EMAIL_PAGES = "/email/**";
 
+    /** The waitlist's routes, and the pages its e-mailed links open ({@code WaitlistPageConfig}). */
+    private static final String WAITLIST_ROUTES = "/api/waitlist/**";
+    private static final String WAITLIST_PAGES = "/waitlist/**";
+
+    /** The page the "Esqueci minha senha" link opens ({@code PasswordResetPageConfig}). */
+    private static final String PASSWORD_PAGES = "/password/**";
+
+    /** Pluggy's webhooks: no session, a secret of their own (WebhookController). */
+    private static final String WEBHOOK_ROUTES = "/api/webhooks/**";
+
     /**
-     * For the confirmation page, the only HTML the BFF serves, and harmless on the JSON routes:
+     * For the pages of the e-mailed links, the only HTML the BFF serves, and harmless on the JSON routes:
      * nothing but its own script, style and calls, never inside a frame.
      */
     private static final String CONTENT_SECURITY_POLICY = "default-src 'none'; script-src 'self'; style-src 'self'; "
@@ -58,13 +69,14 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, JsonSecurityErrorHandler errorHandler,
-                                            RateLimiter rateLimiter, RateLimitProperties rateLimits) throws Exception {
+                                            RateLimiter rateLimiter, RateLimitProperties rateLimits,
+                                            IpPseudonyms ipPseudonyms) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(AUTH_ROUTES, EMAIL_PAGES, "/error").permitAll()
+                        .requestMatchers(AUTH_ROUTES, EMAIL_PAGES, WAITLIST_ROUTES, WAITLIST_PAGES, PASSWORD_PAGES, WEBHOOK_ROUTES, "/error").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(resourceServer -> resourceServer
                         .bearerTokenResolver(ignoringAuthRoutes())
@@ -79,7 +91,7 @@ public class SecurityConfig {
                 .headers(headers -> headers
                         .contentSecurityPolicy(csp -> csp.policyDirectives(CONTENT_SECURITY_POLICY))
                         .referrerPolicy(referrer -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER)))
-                .addFilterAfter(new RateLimitFilter(rateLimiter, rateLimits), BearerTokenAuthenticationFilter.class)
+                .addFilterAfter(new RateLimitFilter(rateLimiter, rateLimits, ipPseudonyms), BearerTokenAuthenticationFilter.class)
                 .build();
     }
 
@@ -89,8 +101,9 @@ public class SecurityConfig {
      */
     private static BearerTokenResolver ignoringAuthRoutes() {
         RequestMatcher authRoutes = PathPatternRequestMatcher.withDefaults().matcher(AUTH_ROUTES);
+        RequestMatcher webhookRoutes = PathPatternRequestMatcher.withDefaults().matcher(WEBHOOK_ROUTES);
         DefaultBearerTokenResolver resolver = new DefaultBearerTokenResolver();
-        return request -> authRoutes.matches(request) ? null : resolver.resolve(request);
+        return request -> authRoutes.matches(request) || webhookRoutes.matches(request) ? null : resolver.resolve(request);
     }
 
     /**

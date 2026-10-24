@@ -2,6 +2,7 @@ package com.wallet.core.identity.config;
 
 import com.wallet.core.shared.security.GatewayKey;
 import com.wallet.core.shared.security.GatewayKeyFilter;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,10 +22,13 @@ import org.springframework.security.web.SecurityFilterChain;
  * routes below included.
  */
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties({JwtProperties.class, AuthProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, AuthProperties.class, IdentityRetentionProperties.class,
+        LegalProperties.class})
 public class SecurityConfig {
 
+    /** Only a web application has a filter chain: the announcement command runs without one. */
     @Bean
+    @ConditionalOnWebApplication
     SecurityFilterChain securityFilterChain(HttpSecurity http, JsonSecurityErrorHandler errorHandler,
                                             GatewayKey gatewayKey) throws Exception {
         return http
@@ -32,7 +36,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/internal/auth/**", "/internal/.well-known/jwks.json", "/error").permitAll()
+                        .requestMatchers("/internal/auth/**", "/internal/waitlist/**", "/internal/webhooks/**", "/internal/.well-known/jwks.json", "/error").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(resourceServer -> resourceServer
                         .jwt(Customizer.withDefaults())

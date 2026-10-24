@@ -60,7 +60,7 @@ void main() {
 
     bff.json('POST', '/api/connections', Fixtures.connection(), status: 201);
     expect(await controller.link(' demo-banco '), isNull);
-    expect(bff.calls('POST', '/api/connections').last.data, {'providerItemId': 'demo-banco'});
+    expect(bff.calls('POST', '/api/connections').last.data, {'providerItemId': 'demo-banco', 'consentVersion': 'open-finance-v1'});
     expect(rings, 1);
     controller.dispose();
   });

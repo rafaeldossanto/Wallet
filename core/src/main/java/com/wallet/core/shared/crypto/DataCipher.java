@@ -19,6 +19,7 @@ import java.util.Base64;
 import java.util.HexFormat;
 
 import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
 import static org.springframework.util.StringUtils.hasText;
 
 /**
@@ -71,6 +72,11 @@ public class DataCipher {
         } catch (GeneralSecurityException ex) {
             throw new IllegalStateException("Could not encrypt", ex);
         }
+    }
+
+    /** Whether {@code stored} carries the version prefix of an encrypted value (not whether it can be read). */
+    public boolean isEncrypted(String stored) {
+        return nonNull(stored) && stored.startsWith(VERSION);
     }
 
     /**

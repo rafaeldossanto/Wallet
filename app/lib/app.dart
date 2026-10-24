@@ -10,7 +10,10 @@ import 'core/config/server_address.dart';
 import 'core/desktop/desktop.dart';
 import 'core/desktop/desktop_settings.dart';
 import 'core/desktop/window_frame.dart';
+import 'core/files/device_file_saver.dart';
+import 'core/files/saved_file.dart';
 import 'core/l10n/l10n.dart';
+import 'core/legal/terms_gate.dart';
 import 'core/router/app_router.dart';
 import 'core/security/app_lock.dart';
 import 'core/security/idle_timeout.dart';
@@ -31,12 +34,14 @@ import 'features/insights/data/insights_api.dart';
 import 'features/investments/data/investments_api.dart';
 import 'features/overview/data/home_api.dart';
 import 'features/planning/data/planning_api.dart';
+import 'features/settings/data/data_export_api.dart';
 import 'features/transactions/data/transactions_api.dart';
 
 /// Everything the screens need, built once. Tests build it with a fake HTTP adapter.
 class AppDependencies {
   AppDependencies._(
-      this.api, this.session, this.appLock, this.theme, this.desktop, this.updater, this.server, this.pluggyConnect);
+      this.api, this.session, this.appLock, this.theme, this.desktop, this.updater, this.server, this.pluggyConnect,
+      this.fileSaver);
 
   factory AppDependencies.create({
     ApiClient? api,
@@ -46,6 +51,7 @@ class AppDependencies {
     Updater? updater,
     ServerAddress? server,
     PluggyConnectHost pluggyConnect = const PluggyConnectHost(),
+    FileSaver? fileSaver,
     bool withAppLock = !kIsWeb,
   }) {
     final client = api ?? ApiClient.create(baseUrl: server?.current);
@@ -57,7 +63,8 @@ class AppDependencies {
     );
     client.dio.interceptors.add(AuthInterceptor(session, client.dio));
     return AppDependencies._(client, session, withAppLock ? AppLock(session: session) : null,
-        theme ?? ThemeController(MemoryThemePreference()), desktop, updater ?? desktop?.updater, server, pluggyConnect);
+        theme ?? ThemeController(MemoryThemePreference()), desktop, updater ?? desktop?.updater, server, pluggyConnect,
+        fileSaver ?? saveToDevice);
   }
 
   final ApiClient api;
@@ -77,6 +84,9 @@ class AppDependencies {
 
   /// How "Conectar banco" shows Pluggy Connect on Android.
   final PluggyConnectHost pluggyConnect;
+
+  /// Where a file the user asked for goes: their downloads. Replaced in tests.
+  final FileSaver fileSaver;
   final DataChanges dataChanges = DataChanges();
 
   List<SingleChildWidget> get providers => [
@@ -95,7 +105,10 @@ class AppDependencies {
         Provider(create: (_) => InsightsApi(api)),
         Provider(create: (_) => PlanningApi(api)),
         Provider(create: (_) => ConnectionsApi(api)),
+        Provider(create: (_) => DataExportApi(api)),
+        Provider.value(value: fileSaver),
         Provider.value(value: pluggyConnect),
+        Provider<OpenOutside>.value(value: pluggyConnect.openOutside),
       ];
 }
 
@@ -157,7 +170,7 @@ class _WalletAppState extends State<WalletApp> {
       localizationsDelegates: const [AppLocalizations.delegate, ...GlobalMaterialLocalizations.delegates],
       routerConfig: _router,
       builder: (context, child) {
-        final app = child ?? const SizedBox.shrink();
+        final app = TermsGate(child: child ?? const SizedBox.shrink());
         if (kIsWeb) {
           return IdleTimeout(session: dependencies.session, child: app);
         }

@@ -1,0 +1,23 @@
+# Build output and tooling.
+target/
+.idea/
+*.iml
+.vscode/
+.git/
+.gitignore
+.gitattributes
+
+# Secrets and local settings never go into an image.
+.env
+.env.*
+*.pem
+*.key
+secrets/
+application-local.yml
+application-local.yaml
+
+# Not needed to build.
+db/
+*.md
+Dockerfile
+.dockerignore

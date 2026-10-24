@@ -1,8 +1,13 @@
 package com.wallet.bff.client;
 
 import com.wallet.bff.model.dto.request.AccountDeletionRequest;
+import com.wallet.bff.model.dto.request.ConnectTokenRequest;
 import com.wallet.bff.model.dto.request.EmailChangeRequest;
 import com.wallet.bff.model.dto.request.EmailTokenRequest;
+import com.wallet.bff.model.dto.request.NewRecoveryCodesRequest;
+import com.wallet.bff.model.dto.request.PasswordChangeRequest;
+import com.wallet.bff.model.dto.request.PasswordResetRequest;
+import com.wallet.bff.model.dto.request.ForgotPasswordRequest;
 import com.wallet.bff.model.dto.request.ExpectedSalaryRequest;
 import com.wallet.bff.model.dto.request.FixedExpenseRequest;
 import com.wallet.bff.model.dto.request.LinkConnectionRequest;
@@ -10,10 +15,14 @@ import com.wallet.bff.model.dto.request.LoginRequest;
 import com.wallet.bff.model.dto.request.ProfileRequest;
 import com.wallet.bff.model.dto.request.RefreshRequest;
 import com.wallet.bff.model.dto.request.RegisterRequest;
+import com.wallet.bff.model.dto.request.RenewConnectionRequest;
 import com.wallet.bff.model.dto.request.ResendConfirmationRequest;
+import com.wallet.bff.model.dto.request.TermsAcceptanceRequest;
 import com.wallet.bff.model.dto.request.TwoFactorCodeRequest;
 import com.wallet.bff.model.dto.request.TwoFactorDisableRequest;
 import com.wallet.bff.model.dto.request.TwoFactorSetupRequest;
+import com.wallet.bff.model.dto.request.WaitlistEmailRequest;
+import com.wallet.bff.model.dto.request.WaitlistTokenRequest;
 import com.wallet.bff.model.dto.response.AccountResponse;
 import com.wallet.bff.model.dto.response.BillResponse;
 import com.wallet.bff.model.dto.response.CalendarResponse;
@@ -68,6 +77,37 @@ public class CoreApi {
         client.post(CoreRouteGroup.AUTH, "/internal/auth/email/resend", request);
     }
 
+    /** 202 and no body, whatever the e-mail: the link goes only to a confirmed account, and nobody learns which. */
+    public void forgotPassword(ForgotPasswordRequest request) {
+        client.post(CoreRouteGroup.AUTH, "/internal/auth/password/forgot", request);
+    }
+
+    public void resetPassword(PasswordResetRequest request) {
+        client.post(CoreRouteGroup.AUTH, "/internal/auth/password/reset", request);
+    }
+
+    /** Checks the current password again (a BCrypt), so it is in the AUTH group like the e-mail change. */
+    public void changePassword(PasswordChangeRequest request) {
+        client.put(CoreRouteGroup.AUTH, "/internal/me/password", request);
+    }
+
+    public RecoveryCodesResponse newRecoveryCodes(NewRecoveryCodesRequest request) {
+        return client.post(CoreRouteGroup.AUTH, "/internal/me/two-factor/recovery-codes", request, new ParameterizedTypeReference<>() {});
+    }
+
+    /** 202 and no body, whatever the e-mail: the core never tells whether it was already on the list. */
+    public void subscribeToWaitlist(WaitlistEmailRequest request) {
+        client.post(CoreRouteGroup.AUTH, "/internal/waitlist", request);
+    }
+
+    public void confirmWaitlist(WaitlistTokenRequest request) {
+        client.post(CoreRouteGroup.AUTH, "/internal/waitlist/confirm", request);
+    }
+
+    public void unsubscribeFromWaitlist(WaitlistTokenRequest request) {
+        client.post(CoreRouteGroup.AUTH, "/internal/waitlist/unsubscribe", request);
+    }
+
     public CoreTokens login(LoginRequest request) {
         return client.post(CoreRouteGroup.AUTH, "/internal/auth/login", request, new ParameterizedTypeReference<>() {});
     }
@@ -82,6 +122,15 @@ public class CoreApi {
 
     public UserResponse me() {
         return client.get(CoreRouteGroup.READS, "/internal/me", Map.of(), new ParameterizedTypeReference<>() {});
+    }
+
+    /** The user's data as the core wrote it: passed on untouched, never read into objects (it can be large). */
+    public byte[] exportMe() {
+        return client.get(CoreRouteGroup.SCREENS, "/internal/me/export", Map.of(), new ParameterizedTypeReference<>() {});
+    }
+
+    public void acceptTerms(TermsAcceptanceRequest request) {
+        client.post(CoreRouteGroup.READS, "/internal/me/terms", request);
     }
 
     public void deleteMe(AccountDeletionRequest request) {
@@ -116,8 +165,18 @@ public class CoreApi {
         return client.post(CoreRouteGroup.PROVIDER, "/internal/connections", request, new ParameterizedTypeReference<>() {});
     }
 
-    public ConnectTokenResponse connectToken() {
-        return client.post(CoreRouteGroup.PROVIDER, "/internal/connections/connect-token", null, new ParameterizedTypeReference<>() {});
+    /** Pluggy's webhook, a hint: the body goes as it came, and the core answers 202. */
+    public void pluggyWebhook(byte[] body) {
+        client.post(CoreRouteGroup.READS, "/internal/webhooks/pluggy", body);
+    }
+
+    public ConnectTokenResponse connectToken(ConnectTokenRequest request) {
+        return client.post(CoreRouteGroup.PROVIDER, "/internal/connections/connect-token", request, new ParameterizedTypeReference<>() {});
+    }
+
+    /** The core reads the item at the provider, so it is in the PROVIDER group like linking. */
+    public ConnectionResponse renewConnection(UUID connectionId, RenewConnectionRequest request) {
+        return client.post(CoreRouteGroup.PROVIDER, "/internal/connections/" + connectionId + "/renew", request, new ParameterizedTypeReference<>() {});
     }
 
     public void unlink(UUID connectionId) {

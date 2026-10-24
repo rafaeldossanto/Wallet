@@ -2,7 +2,9 @@ package com.wallet.bff.service;
 
 import com.wallet.bff.cache.ScreenCache;
 import com.wallet.bff.client.CoreApi;
+import com.wallet.bff.model.dto.request.ConnectTokenRequest;
 import com.wallet.bff.model.dto.request.LinkConnectionRequest;
+import com.wallet.bff.model.dto.request.RenewConnectionRequest;
 import com.wallet.bff.model.dto.response.ConnectTokenResponse;
 import com.wallet.bff.model.dto.response.ConnectionResponse;
 import com.wallet.bff.model.dto.response.SyncStartedResponse;
@@ -31,8 +33,15 @@ public class ConnectionService {
     }
 
     /** Nothing to evict: the connection only exists once the app links the item the widget created. */
-    public ConnectTokenResponse connectToken() {
-        return coreApi.connectToken();
+    public ConnectTokenResponse connectToken(ConnectTokenRequest request) {
+        return coreApi.connectToken(request);
+    }
+
+    /** The renewed connection is ACTIVE again with a sync on its way: the cached screens are stale. */
+    public ConnectionResponse renew(UUID userId, UUID connectionId, RenewConnectionRequest request) {
+        ConnectionResponse renewed = coreApi.renewConnection(connectionId, request);
+        cache.evictUser(userId);
+        return renewed;
     }
 
     public ConnectionResponse link(UUID userId, LinkConnectionRequest request) {

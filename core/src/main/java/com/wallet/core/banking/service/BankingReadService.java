@@ -2,6 +2,7 @@ package com.wallet.core.banking.service;
 
 import com.wallet.core.banking.AccountSummary;
 import com.wallet.core.banking.BalancePoint;
+import com.wallet.core.banking.BankingExport;
 import com.wallet.core.banking.BankingQueries;
 import com.wallet.core.banking.CardBill;
 import com.wallet.core.banking.CashFlow;
@@ -19,6 +20,7 @@ import com.wallet.core.banking.entity.CreditCardBill;
 import com.wallet.core.banking.mapper.BankingReadMapper;
 import com.wallet.core.banking.repository.AccountRepository;
 import com.wallet.core.banking.repository.AccountTransactionRepository;
+import com.wallet.core.banking.repository.BalanceSnapshotRepository;
 import com.wallet.core.banking.repository.BankingAggregates;
 import com.wallet.core.banking.repository.CreditCardBillRepository;
 import com.wallet.core.banking.repository.TransactionDescriptions;
@@ -73,6 +75,7 @@ public class BankingReadService implements BankingQueries {
     private final AccountTransactionRepository transactions;
     private final TransactionDescriptions descriptions;
     private final CreditCardBillRepository bills;
+    private final BalanceSnapshotRepository balanceSnapshots;
     private final BankingAggregates aggregates;
     private final Clock clock;
 
@@ -139,6 +142,17 @@ public class BankingReadService implements BankingQueries {
     @Transactional(readOnly = true)
     public List<AccountSummary> accounts(UUID userId) {
         return accounts.findByUserIdOrderByCreatedAtAsc(userId).stream().map(BankingReadMapper::toSummary).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public BankingExport export(UUID userId) {
+        List<Account> owned = accounts.findByUserIdOrderByCreatedAtAsc(userId);
+        List<UUID> accountIds = owned.stream().map(Account::getId).toList();
+        return BankingReadMapper.toExport(owned,
+                balanceSnapshots.findByAccountIdInOrderBySnapshotDateAscAccountIdAsc(accountIds),
+                transactions.findByUserIdAndDeletedAtIsNullOrderByBookedOnAscCreatedAtAscIdAsc(userId),
+                bills.findByAccountIdInOrderByDueDateAscIdAsc(accountIds));
     }
 
     @Override

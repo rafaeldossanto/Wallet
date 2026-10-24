@@ -282,7 +282,7 @@ Gerar o APK aqui no PC, com a mesma chave (sai em `build/app/outputs/flutter-apk
 ```powershell
 cd app
 $env:ANDROID_KEY_PROPERTIES = "$HOME\.wallet\android\key.properties"
-flutter build apk --release --dart-define=WALLET_VERSION=0.1.4
+flutter build apk --release --dart-define=WALLET_VERSION=0.1.5
 ```
 
 #### Conectar banco pelo Pluggy Connect (Android)

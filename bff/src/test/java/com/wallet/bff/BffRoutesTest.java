@@ -531,14 +531,14 @@ class BffRoutesTest extends BffTestSupport {
 
         mockMvc.perform(post("/api/connections").header(HttpHeaders.AUTHORIZATION, rafael)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"providerItemId\":\"item-123\"}"))
+                        .content("{\"providerItemId\":\"item-123\",\"consentVersion\":\"open-finance-v1\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(CONNECTION_ID));
         mockMvc.perform(delete("/api/connections/" + CONNECTION_ID).header(HttpHeaders.AUTHORIZATION, rafael))
                 .andExpect(status().isNoContent());
 
         CORE.verify(postRequestedFor(urlEqualTo("/internal/connections"))
-                .withRequestBody(equalToJson("{\"providerItemId\":\"item-123\"}")));
+                .withRequestBody(equalToJson("{\"providerItemId\":\"item-123\",\"consentVersion\":\"open-finance-v1\"}")));
         CORE.verify(deleteRequestedFor(urlEqualTo("/internal/connections/" + CONNECTION_ID)));
     }
 
@@ -549,12 +549,72 @@ class BffRoutesTest extends BffTestSupport {
                 .willReturn(okJson("{\"connectToken\":\"connect-token-1\"}")));
         String rafael = bearer(UUID.randomUUID());
 
-        mockMvc.perform(post("/api/connections/connect-token").header(HttpHeaders.AUTHORIZATION, rafael))
+        mockMvc.perform(post("/api/connections/connect-token").header(HttpHeaders.AUTHORIZATION, rafael)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"consentVersion\":\"open-finance-v1\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.connectToken").value("connect-token-1"));
 
         CORE.verify(postRequestedFor(urlEqualTo("/internal/connections/connect-token"))
-                .withHeader(HttpHeaders.AUTHORIZATION, equalTo(rafael)));
+                .withHeader(HttpHeaders.AUTHORIZATION, equalTo(rafael))
+                .withRequestBody(equalToJson("{\"consentVersion\":\"open-finance-v1\"}")));
+    }
+
+    /** Renewing: the widget in update mode, on the item of this connection. */
+    @Test
+    void theConnectTokenOfARenewalNamesTheConnection() throws Exception {
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/connections/connect-token"))
+                .willReturn(okJson("{\"connectToken\":\"update-token-1\"}")));
+
+        mockMvc.perform(post("/api/connections/connect-token").header(HttpHeaders.AUTHORIZATION, bearer(UUID.randomUUID()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"consentVersion\":\"open-finance-v1\",\"connectionId\":\"" + CONNECTION_ID + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.connectToken").value("update-token-1"));
+
+        CORE.verify(postRequestedFor(urlEqualTo("/internal/connections/connect-token"))
+                .withRequestBody(equalToJson("{\"consentVersion\":\"open-finance-v1\",\"connectionId\":\"" + CONNECTION_ID + "\"}")));
+    }
+
+    /** The core requires the consent version: its refusal travels on as it came. */
+    @Test
+    void aMissingConsentVersionIsTheCoresRefusal() throws Exception {
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/connections")).willReturn(aResponse().withStatus(400)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"code\":\"validation.failed\",\"message\":\"Request has invalid fields\"}")));
+
+        mockMvc.perform(post("/api/connections").header(HttpHeaders.AUTHORIZATION, bearer(UUID.randomUUID()))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"providerItemId\":\"item-123\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("validation.failed"));
+    }
+
+    /** After the widget renewed it: the core records the consent and brings the connection back; the cached screens go. */
+    @Test
+    void renewingARecordedConnectionIsRelayed() throws Exception {
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/connections/" + CONNECTION_ID + "/renew"))
+                .willReturn(okJson(connectionJson())));
+        String rafael = bearer(UUID.randomUUID());
+
+        mockMvc.perform(post("/api/connections/" + CONNECTION_ID + "/renew").header(HttpHeaders.AUTHORIZATION, rafael)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"consentVersion\":\"open-finance-v1\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(CONNECTION_ID));
+
+        CORE.verify(postRequestedFor(urlEqualTo("/internal/connections/" + CONNECTION_ID + "/renew"))
+                .withHeader(HttpHeaders.AUTHORIZATION, equalTo(rafael))
+                .withRequestBody(equalToJson("{\"consentVersion\":\"open-finance-v1\"}")));
+    }
+
+    @Test
+    void aRenewalTheProviderDoesNotShowYetIsTheCoresConflict() throws Exception {
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/connections/" + CONNECTION_ID + "/renew")).willReturn(aResponse().withStatus(409)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"code\":\"connection.consent_not_renewed\",\"message\":\"not yet\"}")));
+
+        mockMvc.perform(post("/api/connections/" + CONNECTION_ID + "/renew").header(HttpHeaders.AUTHORIZATION, bearer(UUID.randomUUID()))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"consentVersion\":\"open-finance-v1\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("connection.consent_not_renewed"));
     }
 
     @Test
@@ -571,7 +631,8 @@ class BffRoutesTest extends BffTestSupport {
                 .withHeader("Content-Type", "application/json")
                 .withBody("{\"code\":\"provider.unavailable\",\"message\":\"Data provider unavailable: timeout\"}")));
 
-        mockMvc.perform(post("/api/connections/connect-token").header(HttpHeaders.AUTHORIZATION, bearer(UUID.randomUUID())))
+        mockMvc.perform(post("/api/connections/connect-token").header(HttpHeaders.AUTHORIZATION, bearer(UUID.randomUUID()))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"consentVersion\":\"open-finance-v1\"}"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("provider.unavailable"));
     }

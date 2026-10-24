@@ -17,6 +17,7 @@ import org.springframework.web.util.UrlPathHelper;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 import static org.springframework.util.StringUtils.hasText;
 
@@ -29,8 +30,12 @@ import static org.springframework.util.StringUtils.hasText;
  * their own, low and over a longer window ({@link RateLimitProperties}), on top of the general one.
  * So does the statement's text search, over the general window: the core decrypts the period to
  * answer each one. So do the routes that ask for the password or a second-factor code again
- * (changing the e-mail, the second factor, deleting the account): per user, with the sign-in's
- * limit, so an open session is no way around it to guess a password. The health checks never get
+ * (changing the e-mail or the password, the second factor and its recovery codes, deleting the account): per user, with the sign-in's
+ * limit, so an open session is no way around it to guess a password. The export of the user's data
+ * ({@code GET /api/me/export}) counts per user against a few a day: each one reads everything they
+ * have. The waitlist's public routes
+ * ({@code /api/waitlist}) count per IP too, all together, against a low limit over a long window:
+ * each sign-up sends an e-mail to an address the caller picked. The health checks never get
  * here: they have a chain of their own.
  *
  * <p>The address comes from {@link ClientAddress}: the connection's own, unless it is one of the
@@ -45,14 +50,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final String CONNECTIONS =
             "{\"code\":\"rate_limit.connections\",\"message\":\"Too many attempts to connect a bank; try again later\"}";
 
+    private static final Pattern RENEW = Pattern.compile("/api/connections/[^/]+/renew");
+
     private final RateLimiter rateLimiter;
     private final RateLimitProperties properties;
     private final ClientAddress clientAddress;
+    private final IpPseudonyms pseudonyms;
 
     /** @throws IllegalArgumentException when a trusted proxy is not an IP or a CIDR range: the BFF does not start */
-    public RateLimitFilter(RateLimiter rateLimiter, RateLimitProperties properties) {
+    public RateLimitFilter(RateLimiter rateLimiter, RateLimitProperties properties, IpPseudonyms pseudonyms) {
         this.rateLimiter = rateLimiter;
         this.properties = properties;
+        this.pseudonyms = pseudonyms;
         this.clientAddress = new ClientAddress(properties.trustedProxies());
     }
 
@@ -64,20 +73,36 @@ public class RateLimitFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         }
+        if (isWaitlistRoute(path)) {
+            if (!acquire("waitlist", address(request), properties.waitlistLimit(), properties.waitlistWindow())) {
+                reject(response, GENERAL, properties.waitlistWindow());
+                return;
+            }
+            chain.doFilter(request, response);
+            return;
+        }
+        if (path.startsWith("/api/webhooks/")) {
+            // The provider's webhooks: public, so counted per address before anything else looks at them.
+            if (!acquire("webhook", address(request), properties.webhookLimit(), properties.window())) {
+                reject(response, GENERAL, properties.window());
+                return;
+            }
+            chain.doFilter(request, response);
+            return;
+        }
         boolean authRoute = path.startsWith("/api/auth/");
-        String key = authRoute ? "auth:" + clientAddress.of(request) : "api:" + caller(request);
         int limit = authRoute ? properties.authLimit() : properties.defaultLimit();
-        if (!acquire(key, limit, properties.window())) {
+        if (!acquire(authRoute ? "auth" : "api", authRoute ? address(request) : caller(request), limit, properties.window())) {
             reject(response, GENERAL, properties.window());
             return;
         }
         if (isCredentialRoute(request.getMethod(), path)
-                && !acquire("credentials:" + caller(request), properties.authLimit(), properties.window())) {
+                && !acquire("credentials", caller(request), properties.authLimit(), properties.window())) {
             reject(response, GENERAL, properties.window());
             return;
         }
         Optional<RouteLimit> route = routeLimitOf(request, path);
-        if (route.isPresent() && !acquire(route.get().name() + ":" + caller(request), route.get().limit(), route.get().window())) {
+        if (route.isPresent() && !acquire(route.get().name(), caller(request), route.get().limit(), route.get().window())) {
             reject(response, route.get().body(), route.get().window());
             return;
         }
@@ -89,6 +114,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 && hasText(request.getParameter("q"))) {
             return Optional.of(new RouteLimit("search", properties.searchLimit(), properties.window(), GENERAL));
         }
+        if (HttpMethod.GET.matches(request.getMethod()) && "/api/me/export".equals(path)) {
+            return Optional.of(new RouteLimit("export", properties.exportLimit(), properties.exportWindow(), GENERAL));
+        }
         if (!HttpMethod.POST.matches(request.getMethod())) {
             return Optional.empty();
         }
@@ -97,29 +125,44 @@ public class RateLimitFilter extends OncePerRequestFilter {
                     Optional.of(new RouteLimit("link", properties.linkLimit(), properties.linkWindow(), CONNECTIONS));
             case "/api/connections/connect-token" -> Optional.of(new RouteLimit("connect-token",
                     properties.connectTokenLimit(), properties.connectTokenWindow(), CONNECTIONS));
-            default -> Optional.empty();
+            // Renewing reads the item at Pluggy and starts an update: it spends the budget of linking.
+            default -> RENEW.matcher(path).matches()
+                    ? Optional.of(new RouteLimit("link", properties.linkLimit(), properties.linkWindow(), CONNECTIONS))
+                    : Optional.empty();
         };
+    }
+
+    /** The landing page's waitlist, a counter of its own per address: it is public and each sign-up sends an e-mail. */
+    private static boolean isWaitlistRoute(String path) {
+        return "/api/waitlist".equals(path) || path.startsWith("/api/waitlist/");
     }
 
     private static boolean isCredentialRoute(String method, String path) {
         return path.startsWith("/api/me/two-factor")
                 || "/api/me/email".equals(path) && HttpMethod.POST.matches(method)
+                || "/api/me/password".equals(path) && HttpMethod.PUT.matches(method)
                 || "/api/me".equals(path) && HttpMethod.DELETE.matches(method);
     }
 
-    private boolean acquire(String key, int limit, Duration window) {
-        boolean acquired = rateLimiter.tryAcquire(key, limit, window);
+    private boolean acquire(String scope, Caller caller, int limit, Duration window) {
+        boolean acquired = rateLimiter.tryAcquire(scope + ":" + caller.key(), limit, window);
         if (!acquired) {
-            log.warn("[RATE-LIMIT] {} went over {} requests per {}", key, limit, window);
+            log.warn("[RATE-LIMIT] {}:{} went over {} requests per {}", scope, caller.label(), limit, window);
         }
         return acquired;
     }
 
-    private String caller(HttpServletRequest request) {
+    private Caller caller(HttpServletRequest request) {
         if (SecurityContextHolder.getContext().getAuthentication() instanceof JwtAuthenticationToken token) {
-            return "user:" + token.getToken().getSubject();
+            String user = "user:" + token.getToken().getSubject();
+            return new Caller(user, user);
         }
-        return "ip:" + clientAddress.of(request);
+        return address(request);
+    }
+
+    private Caller address(HttpServletRequest request) {
+        String address = clientAddress.of(request);
+        return new Caller("ip:" + address, "ip:" + pseudonyms.of(address));
     }
 
     /** Fixed bodies, nothing from the request in them: nothing to escape. */
@@ -128,6 +171,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
         response.setHeader(HttpHeaders.RETRY_AFTER, String.valueOf(window.toSeconds()));
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.getWriter().write(body);
+    }
+
+    /**
+     * Who is being counted. The key is what the limiter counts under; the label is what the log may
+     * show: a user's id, or the pseudonym of an address (L12), never the address.
+     */
+    private record Caller(String key, String label) {
     }
 
     private record RouteLimit(String name, int limit, Duration window, String body) {

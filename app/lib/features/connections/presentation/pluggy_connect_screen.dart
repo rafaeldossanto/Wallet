@@ -121,11 +121,16 @@ class WebConnectView implements ConnectView {
 /// The item comes with `SUCCESS`, once the bank's data is in. Leaving earlier, after the bank
 /// authorized, still returns it: the data keeps arriving at Pluggy and comes in with the next sync.
 class PluggyConnectScreen extends StatefulWidget {
-  const PluggyConnectScreen({super.key});
+  const PluggyConnectScreen({super.key, this.connectionId});
+
+  /// Renewing: the connection whose authorization the widget updates. Null = a new connection.
+  final String? connectionId;
 
   /// Opens the screen above the navigation and returns the item id it popped with.
-  static Future<String?> open(BuildContext context) => Navigator.of(context, rootNavigator: true).push<String>(
-        MaterialPageRoute(fullscreenDialog: true, builder: (_) => const PluggyConnectScreen()),
+  /// With [connectionId] it opens in update mode, to renew that connection's authorization.
+  static Future<String?> open(BuildContext context, {String? connectionId}) =>
+      Navigator.of(context, rootNavigator: true).push<String>(
+        MaterialPageRoute(fullscreenDialog: true, builder: (_) => PluggyConnectScreen(connectionId: connectionId)),
       );
 
   @override
@@ -152,7 +157,7 @@ class _PluggyConnectScreenState extends State<PluggyConnectScreen> implements Co
   Future<void> _start() async {
     final String token;
     try {
-      token = await context.read<ConnectionsApi>().connectToken();
+      token = await context.read<ConnectionsApi>().connectToken(connectionId: widget.connectionId);
     } on ApiException catch (error) {
       if (mounted) {
         setState(() => _tokenError = error);

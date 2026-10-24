@@ -3,6 +3,7 @@ package com.wallet.core.banking.repository;
 import com.wallet.core.banking.entity.CreditCardBill;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -13,4 +14,6 @@ public interface CreditCardBillRepository extends JpaRepository<CreditCardBill, 
     List<CreditCardBill> findByAccountIdOrderByDueDateDesc(UUID accountId);
 
     List<CreditCardBill> findByAccountIdOrderByDueDateAsc(UUID accountId);
+
+    List<CreditCardBill> findByAccountIdInOrderByDueDateAscIdAsc(Collection<UUID> accountIds);
 }

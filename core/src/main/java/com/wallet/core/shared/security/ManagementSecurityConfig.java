@@ -2,6 +2,7 @@ package com.wallet.core.shared.security;
 
 import org.springframework.boot.actuate.autoconfigure.web.server.ManagementPortType;
 import org.springframework.boot.actuate.endpoint.web.WebServerNamespace;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.health.actuate.endpoint.HealthEndpoint;
 import org.springframework.boot.security.autoconfigure.actuate.web.servlet.EndpointRequest;
 import org.springframework.context.annotation.Bean;
@@ -33,7 +34,9 @@ import org.springframework.security.web.util.matcher.OrRequestMatcher;
 @Configuration(proxyBeanMethods = false)
 public class ManagementSecurityConfig {
 
+    /** Only a web application has a filter chain: the announcement command runs without one. */
     @Bean
+    @ConditionalOnWebApplication
     @Order(Ordered.HIGHEST_PRECEDENCE)
     SecurityFilterChain managementSecurityFilterChain(HttpSecurity http, Environment environment) throws Exception {
         if (ManagementPortType.SAME.equals(ManagementPortType.get(environment))) {

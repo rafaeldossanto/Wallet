@@ -46,7 +46,7 @@ class PasswordHasherTest {
         return new AuthProperties(Duration.ofMinutes(1),
                 new AuthProperties.Lockout(5, 20, Duration.ofMinutes(15), Duration.ofHours(24), Duration.ofHours(24)),
                 new AuthProperties.PasswordChecks(concurrency, maxWait),
-                new AuthProperties.EmailLinks(null, Duration.ofHours(24), 3),
+                new AuthProperties.EmailLinks(null, Duration.ofHours(24), 3, Duration.ofHours(1)),
                 Duration.ofDays(7), Duration.ofHours(1), "0 15 4 * * *");
     }
 

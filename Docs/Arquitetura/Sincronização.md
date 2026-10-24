@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, sync, pluggy]
-atualizado: 2026-10-21
+atualizado: 2026-10-24
 ---
 
 # Sincronização
@@ -14,7 +14,7 @@ Como os dados saem da Pluggy e chegam ao [[Modelo de Dados]].
 | `INITIAL` | Logo depois de vincular a conexão | Evento `ConnectionLinked`, em segundo plano e só depois do commit |
 | `SCHEDULED` | A cada 6 h (`wallet.sync.interval`) | Pula a conexão se a Pluggy não atualizou desde a última leitura |
 | `MANUAL` | Botão "Atualizar" no app | Só 15 min depois do fim da última tentativa da conexão (`429 sync.too_soon`, ver abaixo); responde `202` e roda em segundo plano |
-| `WEBHOOK` | Produção | Não funciona no dev: a Pluggy não alcança o localhost |
+| `WEBHOOK` | Um aviso da Pluggy (item atualizado, erro ou transações), só com os webhooks ligados | Pelas regras do botão: cooldown, bulkhead e uma por conexão ([[#Webhooks (desde 2026-10-24, achado A21)]]). Não funciona no dev: a Pluggy não alcança o localhost |
 
 ## Limites contra a leitura repetida (desde 2026-10-21, achado A7)
 
@@ -37,6 +37,14 @@ Cada sincronização é uma rodada de chamadas à Pluggy, na mesma apiKey de tod
   quando o usuário já tem as dele rodando, `503 service.busy` quando todas estão ocupadas, os dois
   com `Retry-After`. O executor em segundo plano usa virtual threads, então sem isso nada limitava
   quantas leituras rodavam juntas. Ver [[Core#Disponibilidade]].
+- **Autorização vencida (desde 2026-10-23, LGPD L5):** conexão cuja `consent_expires_at` já passou (ou que já está
+  `CONSENT_EXPIRED`) **não chama a Pluggy**, em nenhum gatilho. A agendada marca a conexão `CONSENT_EXPIRED` e a
+  rodada termina `SKIPPED connection.consent_expired` (o `findSchedulable` só olha `ACTIVE` e `SYNCING`, então a
+  partir daí ela nem entra na volta); o "Atualizar" responde `409 connection.consent_expired`, sem abrir rodada.
+  Os dados da conexão ficam. Quando a pessoa renova ([[Fluxo de Conexão#Consentimento (desde 2026-10-23)]]), a conexão
+  volta a `ACTIVE` e o `ConnectionRenewed` dispara uma atualização **pelas regras do botão**: cooldown e bulkhead
+  `manual-sync`; a rodada `SKIPPED connection.consent_expired` **não conta** para o cooldown (não leu nada), e o
+  que for recusado espera a agendada.
 
 ## Passo a passo de uma sincronização
 
@@ -109,13 +117,41 @@ O Wallet grava sempre **valor positivo + direção**:
   o que foi gravado; se chegou antes, nada é gravado. A rodada some junto com a conexão
   (cascata em `sync_runs`), então nunca fica presa em `RUNNING`.
 
-## Webhooks (produção)
+## Webhooks (desde 2026-10-24, achado A21)
 
-- Eventos úteis: `item/updated`, `item/error`, `transactions/created`,
-  `transactions/updated`, `transactions/deleted`.
-- A Pluggy **não assina** o webhook. Proteção: header secreto definido no cadastro
-  do webhook + lista de IPs da Pluggy.
-- Resposta 2xx em até 10 s: o endpoint só grava o evento (idempotente por
-  `eventId`) e a sincronização roda depois.
+Um aviso de "item atualizado" da Pluggy vira uma sincronização logo, em vez de esperar as 6 h. A Pluggy **não assina** o
+webhook, então ele é só uma **dica**: o Wallet não confia em nada do corpo e sempre lê a Pluggy por conta própria. Do corpo
+só usa `eventId`, `event` e `itemId`; o resto nem é lido nem guardado.
+
+**Registro (global, pela API da Pluggy).** `POST /webhooks` com `event`, `url` e `headers` (os nomes e os eventos são os do SDK
+oficial `pluggyai/pluggy-node`; um connect token não leva header, por isso não se usa o `webhookUrl` dele). É um **comando no
+servidor**, no padrão do comunicado da lista de espera: um `ApplicationRunner` que só liga com `wallet.webhooks.register=true`,
+registra e sai. Idempotente: lista o que existe e, para cada um dos seis eventos (`item/updated`, `item/error`, `item/deleted`,
+`transactions/created`, `transactions/updated`, `transactions/deleted`), atualiza (`PATCH`, e reativa) o que já aponta para
+`<WALLET_PUBLIC_URL>/api/webhooks/pluggy` ou cria o que falta; um webhook que aponta para outro lugar não é tocado. O header é
+`X-Wallet-Webhook-Secret`. Comando e variáveis em [[Deploy#Webhooks da Pluggy (opcional)]].
+
+**Entrada.** `POST /api/webhooks/pluggy` no BFF (pública, ver [[BFF#Webhooks da Pluggy]]) confere o segredo e repassa o corpo cru a
+`POST /internal/webhooks/pluggy`, que responde **202** na hora: grava o evento em `provider_webhook_events` com
+`INSERT ... ON CONFLICT (event_id) DO NOTHING` (um evento repetido é 202 e não faz mais nada) e o trata **depois do commit e fora da
+thread do pedido**, como a primeira sincronização depois de vincular (`WebhookReceived`).
+
+**Tratamento** (`WebhookProcessor`), registrado em `outcome`:
+
+| Evento / situação | O que faz | `outcome` |
+|---|---|---|
+| Item que ninguém vinculou | nada | `UNKNOWN_ITEM` |
+| `item/deleted` | a conexão passa a `NEEDS_ATTENTION` (o status que já existe para "o banco pede uma ação"); a agendada a pula | `ITEM_DELETED` |
+| Autorização vencida | não chama a Pluggy | `CONSENT_EXPIRED` |
+| Qualquer outro evento de item conhecido | pede uma sincronização com o gatilho `WEBHOOK`, **pelas regras do botão "Atualizar"** (`ManualSyncService`): o cooldown de 15 min, o bulkhead `manual-sync` e uma sincronização por conexão | `SYNC_REQUESTED` |
+| ... dentro do cooldown | nada; a agendada lê depois | `SKIPPED_COOLDOWN` |
+| ... uma já rodando, ou sem vaga no bulkhead | nada | `SKIPPED_BUSY` |
+
+A sincronização do gatilho `WEBHOOK` lê sempre (não pula por "nada novo", como a agendada faz): o aviso já diz que algo mudou.
+Como o `item/updated` costuma chegar logo depois da leitura que o próprio Wallet pediu, é normal que boa parte dos avisos caia no
+cooldown; é o preço de nenhuma dica poder furar o limite de leitura (A7). Logs `[WEBHOOK]` só com ids, nunca o conteúdo.
+
+**Retenção.** `provider_webhook_events` perde as linhas com mais de 30 dias, toda noite (05:05,
+`wallet.retention.webhooks`; `WebhookEventHousekeeping`, no padrão do `AccountHousekeeping`).
 
 Ver [[Fluxo de Conexão]] e [[Core]].

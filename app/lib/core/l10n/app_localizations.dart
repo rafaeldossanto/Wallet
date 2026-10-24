@@ -358,6 +358,60 @@ abstract class AppLocalizations {
   /// **'Criar conta'**
   String get registerAction;
 
+  /// No description provided for @legalAcceptPrefix.
+  ///
+  /// In pt, this message translates to:
+  /// **'Li e aceito os '**
+  String get legalAcceptPrefix;
+
+  /// No description provided for @legalTermsLink.
+  ///
+  /// In pt, this message translates to:
+  /// **'Termos de Uso'**
+  String get legalTermsLink;
+
+  /// No description provided for @legalAcceptAnd.
+  ///
+  /// In pt, this message translates to:
+  /// **' e a '**
+  String get legalAcceptAnd;
+
+  /// No description provided for @legalPrivacyLink.
+  ///
+  /// In pt, this message translates to:
+  /// **'Política de Privacidade'**
+  String get legalPrivacyLink;
+
+  /// No description provided for @legalLinkFailed.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível abrir o texto agora. Tente de novo em instantes.'**
+  String get legalLinkFailed;
+
+  /// No description provided for @termsNoticeTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Atualizamos os Termos de Uso e a Política de Privacidade'**
+  String get termsNoticeTitle;
+
+  /// No description provided for @termsNoticeBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Leia os dois textos e aceite para continuar usando o Wallet.'**
+  String get termsNoticeBody;
+
+  /// No description provided for @termsNoticeAction.
+  ///
+  /// In pt, this message translates to:
+  /// **'Aceitar e continuar'**
+  String get termsNoticeAction;
+
+  /// No description provided for @errorTermsOutdated.
+  ///
+  /// In pt, this message translates to:
+  /// **'Os textos mudaram de novo. Leia a versão atual e aceite de novo.'**
+  String get errorTermsOutdated;
+
   /// No description provided for @registerGoToLogin.
   ///
   /// In pt, this message translates to:
@@ -1768,6 +1822,60 @@ abstract class AppLocalizations {
   /// **'Sair'**
   String get settingsSignOut;
 
+  /// No description provided for @settingsYourData.
+  ///
+  /// In pt, this message translates to:
+  /// **'Seus dados'**
+  String get settingsYourData;
+
+  /// No description provided for @settingsDownloadData.
+  ///
+  /// In pt, this message translates to:
+  /// **'Baixar meus dados'**
+  String get settingsDownloadData;
+
+  /// No description provided for @settingsDownloadDataHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Um arquivo com tudo o que o Wallet guarda sobre você: perfil, bancos, contas, transações, cartões, investimentos e planejamento.'**
+  String get settingsDownloadDataHelp;
+
+  /// No description provided for @settingsDownloadDataBusy.
+  ///
+  /// In pt, this message translates to:
+  /// **'Preparando o arquivo…'**
+  String get settingsDownloadDataBusy;
+
+  /// No description provided for @settingsDownloadDataDone.
+  ///
+  /// In pt, this message translates to:
+  /// **'Pronto: {fileName}'**
+  String settingsDownloadDataDone(String fileName);
+
+  /// No description provided for @settingsDownloadDataDoneIn.
+  ///
+  /// In pt, this message translates to:
+  /// **'Pronto: {fileName}, salvo em {folder}'**
+  String settingsDownloadDataDoneIn(String fileName, String folder);
+
+  /// No description provided for @settingsDownloadDataLimit.
+  ///
+  /// In pt, this message translates to:
+  /// **'Você já baixou seus dados várias vezes hoje. Tente de novo amanhã.'**
+  String get settingsDownloadDataLimit;
+
+  /// No description provided for @settingsDownloadDataCancelled.
+  ///
+  /// In pt, this message translates to:
+  /// **'Download cancelado.'**
+  String get settingsDownloadDataCancelled;
+
+  /// No description provided for @settingsDownloadDataFailed.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível salvar o arquivo neste aparelho.'**
+  String get settingsDownloadDataFailed;
+
   /// No description provided for @settingsDangerZone.
   ///
   /// In pt, this message translates to:
@@ -2134,11 +2242,11 @@ abstract class AppLocalizations {
   /// **'Código incorreto. Confira o app autenticador; cada erro conta para o bloqueio.'**
   String get errorInvalidTwoFactorCode;
 
-  /// No description provided for @errorAuthBusy.
+  /// No description provided for @errorBusy.
   ///
   /// In pt, this message translates to:
-  /// **'Muita gente entrando agora. Tente de novo em instantes.'**
-  String get errorAuthBusy;
+  /// **'O Wallet está com muito movimento agora. Tente de novo em alguns segundos.'**
+  String get errorBusy;
 
   /// No description provided for @errorTwoFactorSetupCode.
   ///
@@ -2337,6 +2445,264 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Algo deu errado. Tente de novo.'**
   String get errorUnexpected;
+
+  /// No description provided for @errorConsentExpired.
+  ///
+  /// In pt, this message translates to:
+  /// **'A autorização deste banco venceu. Renove para voltar a atualizar.'**
+  String get errorConsentExpired;
+
+  /// No description provided for @errorConsentNotRenewed.
+  ///
+  /// In pt, this message translates to:
+  /// **'A renovação ainda não apareceu no banco. Tente de novo em instantes.'**
+  String get errorConsentNotRenewed;
+
+  /// No description provided for @consentTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Antes de conectar'**
+  String get consentTitle;
+
+  /// No description provided for @consentPurposeHeading.
+  ///
+  /// In pt, this message translates to:
+  /// **'Para que'**
+  String get consentPurposeHeading;
+
+  /// No description provided for @consentPurpose.
+  ///
+  /// In pt, this message translates to:
+  /// **'Mostrar seus saldos, extratos, cartões, faturas e investimentos no Wallet.'**
+  String get consentPurpose;
+
+  /// No description provided for @consentDataHeading.
+  ///
+  /// In pt, this message translates to:
+  /// **'Dados que o Wallet lê'**
+  String get consentDataHeading;
+
+  /// No description provided for @consentDataAccounts.
+  ///
+  /// In pt, this message translates to:
+  /// **'Contas e saldos'**
+  String get consentDataAccounts;
+
+  /// No description provided for @consentDataTransactions.
+  ///
+  /// In pt, this message translates to:
+  /// **'Lançamentos (extrato) das contas e dos cartões'**
+  String get consentDataTransactions;
+
+  /// No description provided for @consentDataCards.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cartões de crédito e faturas'**
+  String get consentDataCards;
+
+  /// No description provided for @consentDataInvestments.
+  ///
+  /// In pt, this message translates to:
+  /// **'Investimentos'**
+  String get consentDataInvestments;
+
+  /// No description provided for @consentReadOnly.
+  ///
+  /// In pt, this message translates to:
+  /// **'O Wallet só lê: não movimenta dinheiro.'**
+  String get consentReadOnly;
+
+  /// No description provided for @consentValidityHeading.
+  ///
+  /// In pt, this message translates to:
+  /// **'Por quanto tempo'**
+  String get consentValidityHeading;
+
+  /// No description provided for @consentValidity.
+  ///
+  /// In pt, this message translates to:
+  /// **'Até você desconectar aqui ou no app do banco, ou até a autorização vencer.'**
+  String get consentValidity;
+
+  /// No description provided for @consentRevokeHeading.
+  ///
+  /// In pt, this message translates to:
+  /// **'Como revogar'**
+  String get consentRevokeHeading;
+
+  /// No description provided for @consentRevoke.
+  ///
+  /// In pt, this message translates to:
+  /// **'Em Conexões, toque em Desvincular. Você também pode cancelar a autorização no app do banco.'**
+  String get consentRevoke;
+
+  /// No description provided for @consentCheckbox.
+  ///
+  /// In pt, this message translates to:
+  /// **'Autorizo o Wallet a ler esses dados para essa finalidade.'**
+  String get consentCheckbox;
+
+  /// No description provided for @consentContinue.
+  ///
+  /// In pt, this message translates to:
+  /// **'Continuar'**
+  String get consentContinue;
+
+  /// No description provided for @connectionConsentExpired.
+  ///
+  /// In pt, this message translates to:
+  /// **'A autorização deste banco venceu. Renove para voltar a atualizar.'**
+  String get connectionConsentExpired;
+
+  /// No description provided for @connectionConsentExpiresIn.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count, plural, =0{A autorização vence hoje.} =1{A autorização vence em 1 dia.} other{A autorização vence em {count} dias.}}'**
+  String connectionConsentExpiresIn(int count);
+
+  /// No description provided for @connectionRenew.
+  ///
+  /// In pt, this message translates to:
+  /// **'Renovar'**
+  String get connectionRenew;
+
+  /// No description provided for @connectionRenewOnPhone.
+  ///
+  /// In pt, this message translates to:
+  /// **'Renove pelo app no celular.'**
+  String get connectionRenewOnPhone;
+
+  /// No description provided for @connectionRenewed.
+  ///
+  /// In pt, this message translates to:
+  /// **'Autorização renovada.'**
+  String get connectionRenewed;
+
+  /// No description provided for @connectionStatusConsentExpired.
+  ///
+  /// In pt, this message translates to:
+  /// **'Autorização vencida'**
+  String get connectionStatusConsentExpired;
+
+  /// No description provided for @loginForgotPassword.
+  ///
+  /// In pt, this message translates to:
+  /// **'Esqueci minha senha'**
+  String get loginForgotPassword;
+
+  /// No description provided for @loginPasswordChanged.
+  ///
+  /// In pt, this message translates to:
+  /// **'Senha trocada. Entre de novo com a senha nova.'**
+  String get loginPasswordChanged;
+
+  /// No description provided for @forgotSubtitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Vamos mandar um link para criar uma senha nova'**
+  String get forgotSubtitle;
+
+  /// No description provided for @forgotHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Digite o e-mail da sua conta.'**
+  String get forgotHelp;
+
+  /// No description provided for @forgotAction.
+  ///
+  /// In pt, this message translates to:
+  /// **'Enviar o link'**
+  String get forgotAction;
+
+  /// No description provided for @forgotSent.
+  ///
+  /// In pt, this message translates to:
+  /// **'Se houver uma conta com esse e-mail, enviamos um link para criar uma senha nova.'**
+  String get forgotSent;
+
+  /// No description provided for @settingsChangePassword.
+  ///
+  /// In pt, this message translates to:
+  /// **'Trocar senha'**
+  String get settingsChangePassword;
+
+  /// No description provided for @settingsChangePasswordHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Pede a senha atual e tira todos os aparelhos da conta.'**
+  String get settingsChangePasswordHelp;
+
+  /// No description provided for @changePasswordHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Depois de trocar, todos os aparelhos saem da conta, este também, e você entra de novo com a senha nova.'**
+  String get changePasswordHelp;
+
+  /// No description provided for @changePasswordAction.
+  ///
+  /// In pt, this message translates to:
+  /// **'Trocar senha'**
+  String get changePasswordAction;
+
+  /// No description provided for @fieldCurrentPassword.
+  ///
+  /// In pt, this message translates to:
+  /// **'Senha atual'**
+  String get fieldCurrentPassword;
+
+  /// No description provided for @fieldNewPassword.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nova senha'**
+  String get fieldNewPassword;
+
+  /// No description provided for @fieldRepeatNewPassword.
+  ///
+  /// In pt, this message translates to:
+  /// **'Repita a nova senha'**
+  String get fieldRepeatNewPassword;
+
+  /// No description provided for @validationPasswordsDiffer.
+  ///
+  /// In pt, this message translates to:
+  /// **'As senhas não são iguais.'**
+  String get validationPasswordsDiffer;
+
+  /// No description provided for @validationPasswordSame.
+  ///
+  /// In pt, this message translates to:
+  /// **'A nova senha precisa ser diferente da atual.'**
+  String get validationPasswordSame;
+
+  /// No description provided for @settingsNewRecoveryCodes.
+  ///
+  /// In pt, this message translates to:
+  /// **'Gerar códigos novos'**
+  String get settingsNewRecoveryCodes;
+
+  /// No description provided for @settingsNewRecoveryCodesHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Os códigos de recuperação de agora deixam de valer.'**
+  String get settingsNewRecoveryCodesHelp;
+
+  /// No description provided for @newRecoveryCodesTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Gerar códigos de recuperação novos'**
+  String get newRecoveryCodesTitle;
+
+  /// No description provided for @newRecoveryCodesHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Digite sua senha e um código do app autenticador. Os códigos de recuperação de agora deixam de valer.'**
+  String get newRecoveryCodesHelp;
+
+  /// No description provided for @newRecoveryCodesAction.
+  ///
+  /// In pt, this message translates to:
+  /// **'Gerar'**
+  String get newRecoveryCodesAction;
 }
 
 class _AppLocalizationsDelegate

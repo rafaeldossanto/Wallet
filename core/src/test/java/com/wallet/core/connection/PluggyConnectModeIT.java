@@ -151,6 +151,6 @@ class PluggyConnectModeIT {
 
     private ResultActions link(UUID user, String itemId) throws Exception {
         return mockMvc.perform(post("/internal/connections").with(as(user)).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"providerItemId\":\"%s\"}".formatted(itemId)));
+                .content("{\"providerItemId\":\"%s\",\"consentVersion\":\"open-finance-v1\"}".formatted(itemId)));
     }
 }

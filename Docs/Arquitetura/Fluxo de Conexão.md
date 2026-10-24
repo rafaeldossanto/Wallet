@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, open-finance, fluxo]
-atualizado: 2026-10-21
+atualizado: 2026-10-23
 ---
 
 # Fluxo de Conexão
@@ -105,6 +105,51 @@ sequenceDiagram
   widget de verdade não aceita o token dela. Com a demo, use o Item ID.
 - **Sandbox:** em build de debug o widget mostra também os bancos de teste da Pluggy.
 
+## Consentimento (desde 2026-10-23)
+
+LGPD L3 (a finalidade antes dos dados) e L5 (o fim da autorização).
+
+**Antes de conectar.** Toda conexão nova e toda renovação começa na tela **"Antes de conectar"** do app,
+seja por Pluggy Connect ou por Item ID: a finalidade ("Mostrar seus saldos, extratos, cartões, faturas e
+investimentos no Wallet."), os dados lidos (contas e saldos, lançamentos, cartões e faturas, investimentos),
+"O Wallet só lê: não movimenta dinheiro.", a validade ("Até você desconectar aqui ou no app do banco, ou até
+a autorização vencer.") e como revogar. A caixa "Autorizo o Wallet a ler esses dados para essa finalidade."
+nasce **desmarcada** e só a pessoa a marca; sem ela o botão "Continuar" não anda. O texto tem uma versão,
+`open-finance-v1` (`ConnectionsApi.consentVersion`), e mudar o texto é uma versão nova.
+
+**O contrato.** O app manda `consentVersion` em `POST /api/connections` e em
+`POST /api/connections/connect-token`, e o core **exige**: sem ele, `400 validation.failed` e a Pluggy nem é
+chamada. O core grava uma linha em `connection_consents` a cada vínculo e a cada renovação (versão, escopos
+`ACCOUNTS,TRANSACTIONS,CREDIT_CARDS,INVESTMENTS`, `granted_at`, `expires_at` informado pela Pluggy). Desvincular
+grava `revoked_at` e só então apaga a conexão. A tabela **não tem chave estrangeira** para `connections` de propósito:
+um `ON DELETE CASCADE` apagaria a prova da concessão e da revogação junto com a conexão, justamente quando a pessoa
+a revoga. O registro pertence ao usuário (`user_id` em cascata): some só com a exclusão da conta.
+Ver [[Modelo de Dados]].
+
+**Quando a autorização vence (L5).** A conexão com `consent_expires_at` no passado:
+
+- a **sincronização agendada** não chama a Pluggy: marca a conexão `CONSENT_EXPIRED` (status novo) e a rodada
+  termina `SKIPPED connection.consent_expired`; dali em diante a agendada nem olha para ela;
+- o **"Atualizar"** responde `409 connection.consent_expired` e também marca a conexão;
+- os dados dela **não são apagados** (a retenção é outra tarefa);
+- o app mostra "A autorização deste banco venceu. Renove para voltar a atualizar." com o botão **Renovar**; faltando
+  7 dias ou menos, "A autorização vence em N dias." (também com o botão); fora do Android, "Renove pelo app no celular.".
+
+**Renovar (Android).** O app mostra a tela de finalidade e abre o Pluggy Connect **em modo atualização**:
+`POST /api/connections/connect-token` com `{consentVersion, connectionId}` (só conexão do próprio usuário;
+a de outro é `404 connection.not_found`) e o core pede o token à Pluggy com o `itemId` da conexão
+(`POST /connect_token` com `itemId` no topo do corpo, ao lado de `options`; o widget recebe o token e
+`updateItem`). Quando o widget termina, o app chama `POST /api/connections/{id}/renew` `{consentVersion}`: o core
+lê o item na Pluggy (fora de transação, `provider_calls.reason = RENEW`) e, se a data de validade avançou e está no
+futuro, grava a validade nova, volta a conexão para `ACTIVE`, escreve uma linha nova em `connection_consents` e
+publica `ConnectionRenewed`. Se a Pluggy ainda mostra a data velha (o widget foi fechado antes), `409
+connection.consent_not_renewed` e nada muda. O `/renew` conta no **mesmo limite por usuário do vincular** no BFF
+(10 por hora, `429 rate_limit.connections`).
+
+**A atualização depois da renovação** é a do botão: o `ConnectionRenewed` chama o `ManualSyncService`, com o
+**cooldown** (15 min) e o **bulkhead** `manual-sync` dele. O que eles recusam não é erro: a conexão já está ACTIVE e a
+agendada lê na próxima volta. A rodada `SKIPPED` do vencimento não conta para o cooldown (não leu nada).
+
 ## Dono do item
 
 | Item | `MEU_PLUGGY` (dev) | `PLUGGY_CONNECT` (produção) |
@@ -135,6 +180,7 @@ Pluggy, tudo na apiKey de todos os usuários (achados A7, A8 e A9).
 |---|---|---|---|
 | Conexões por usuário | Core (`wallet.provider.max-connections-per-user`) | 10 | 422 `connection.limit_reached` |
 | Vínculos (`POST /api/connections`), contando tentativas que falham | BFF (`wallet.rate-limit.link-limit` / `link-window`) | 10 por hora, por usuário | 429 `rate_limit.connections` |
+| Renovar (`POST /api/connections/{id}/renew`) | BFF, o mesmo contador do vincular (`wallet.rate-limit.link-limit` / `link-window`) | 10 por hora, por usuário | 429 `rate_limit.connections` |
 | Tokens do widget (`POST /api/connections/connect-token`) | BFF (`wallet.rate-limit.connect-token-limit` / `connect-token-window`) | 10 por hora, por usuário | 429 `rate_limit.connections` |
 
 - O teto vale também com pedidos em paralelo. As conferências (já vinculado por este usuário,

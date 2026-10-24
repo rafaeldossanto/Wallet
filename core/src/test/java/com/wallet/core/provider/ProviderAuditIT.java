@@ -70,6 +70,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ExtendWith(OutputCaptureExtension.class)
 class ProviderAuditIT {
 
+    private static final String CONSENT = "{\"consentVersion\":\"open-finance-v1\"}";
+
     private static final String API_KEY = "it-api-key";
     private static final String CLIENT_SECRET = "it-client-secret";
     private static final String EMPTY_PAGE = "{\"page\":1,\"total\":0,\"totalPages\":1,\"results\":[]}";
@@ -150,7 +152,7 @@ class ProviderAuditIT {
     void theConnectTokenIsRecordedForTheUserWithoutTheToken(CapturedOutput output) throws Exception {
         pluggy.stubFor(WireMock.post("/connect_token").willReturn(okJson("{\"accessToken\":\"it-connect-token\"}")));
 
-        mockMvc.perform(post("/internal/connections/connect-token").with(as(userId)))
+        mockMvc.perform(post("/internal/connections/connect-token").with(as(userId)).contentType(MediaType.APPLICATION_JSON).content(CONSENT))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.connectToken").value("it-connect-token"));
 
@@ -238,7 +240,7 @@ class ProviderAuditIT {
 
     private ResultActions link() throws Exception {
         return mockMvc.perform(post("/internal/connections").with(as(userId)).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"providerItemId\":\"%s\"}".formatted(itemId)));
+                .content("{\"providerItemId\":\"%s\",\"consentVersion\":\"open-finance-v1\"}".formatted(itemId)));
     }
 
     private UUID linked() throws Exception {

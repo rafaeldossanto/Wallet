@@ -28,13 +28,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * DELETE /api/me: the core checks the password and deletes the account, the BFF ends the session
- * and forgets the user's screens. The read timeouts are short here so the slow-call test is quick.
+ * and forgets the user's screens.
+ *
+ * <p>The usual read timeout is 5 s, not shorter, because the JWKS fetch that validates the first token
+ * of the context uses it too: at 500 ms it timed out whenever the machine was busy and failed the
+ * whole class. The slow-call test pays for it with delays past 5 s (and the slow timeout above them).
  */
-@SpringBootTest(properties = {"wallet.rate-limit.auth-limit=1000", "wallet.core.read-timeout=500ms",
-        "wallet.core.slow-read-timeout=10s"})
+@SpringBootTest(properties = {"wallet.rate-limit.auth-limit=1000", "wallet.core.read-timeout=5s",
+        "wallet.core.slow-read-timeout=15s"})
 class AccountDeletionTest extends BffTestSupport {
 
     private static final String PASSWORD_BODY = "{\"password\":\"password123\"}";
+
+    /** Past the usual read timeout (5 s), inside the slow one (15 s). */
+    private static final int CORE_DELAY_MS = 6000;
 
     @Autowired
     private ScreenCache cache;
@@ -65,8 +72,8 @@ class AccountDeletionTest extends BffTestSupport {
     @Test
     void waitsForACoreThatIsRevokingConnections() throws Exception {
         UUID userId = UUID.randomUUID();
-        CORE.stubFor(WireMock.delete(urlEqualTo("/internal/me")).willReturn(aResponse().withStatus(204).withFixedDelay(1500)));
-        CORE.stubFor(WireMock.get(urlEqualTo("/internal/me")).willReturn(aResponse().withStatus(200).withFixedDelay(1500)));
+        CORE.stubFor(WireMock.delete(urlEqualTo("/internal/me")).willReturn(aResponse().withStatus(204).withFixedDelay(CORE_DELAY_MS)));
+        CORE.stubFor(WireMock.get(urlEqualTo("/internal/me")).willReturn(aResponse().withStatus(200).withFixedDelay(CORE_DELAY_MS)));
 
         mockMvc.perform(delete("/api/me").header(HttpHeaders.AUTHORIZATION, bearer(userId))
                         .contentType(MediaType.APPLICATION_JSON).content(PASSWORD_BODY))

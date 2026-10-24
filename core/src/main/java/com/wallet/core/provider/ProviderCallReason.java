@@ -6,6 +6,8 @@ public enum ProviderCallReason {
     CONNECT,
     /** Checking an item before linking it. */
     LINK,
+    /** Reading the item after the user renewed its authorization in the widget. */
+    RENEW,
     /** Revoking the item at the provider when the user unlinks it. */
     UNLINK,
     /** Revoking every item of a user who is deleting their account, before the data goes. */
@@ -17,5 +19,7 @@ public enum ProviderCallReason {
     /** The "Atualizar" button. */
     MANUAL_SYNC,
     /** A provider webhook (production). */
-    WEBHOOK_SYNC
+    WEBHOOK_SYNC,
+    /** The command that registers the Wallet's webhooks at the provider. */
+    WEBHOOK_SETUP
 }

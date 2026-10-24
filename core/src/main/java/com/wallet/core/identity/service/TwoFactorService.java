@@ -95,13 +95,34 @@ public class TwoFactorService {
             }
             user.setTotpEnabledAt(now);
             user.setTotpLastStep(step.getAsLong());
-            recoveryCodes.deleteByUser(userId);
-            List<String> codes = RecoveryCodes.generate();
-            recoveryCodes.saveAll(codes.stream()
-                    .map(recoveryCode -> RecoveryCodeMapper.toEntity(userId, RecoveryCodes.hash(recoveryCode), now))
-                    .toList());
+            RecoveryCodesResponse issued = replaceRecoveryCodes(userId, now);
             log.info("[SECURITY] User {} turned the second factor on", userId);
-            return new RecoveryCodesResponse(codes);
+            return issued;
+        });
+    }
+
+    /**
+     * Ten new recovery codes in place of the ones the person has (lost, or spent down): the old
+     * ones stop working. Like turning the factor off, it takes the password and a code, and a wrong
+     * code is 403 and counts toward the lockout. Shown once, like at turn-on.
+     */
+    public RecoveryCodesResponse renewRecoveryCodes(UUID userId, String password, String code, String clientAddress) {
+        User user = existing(userId);
+        if (!user.isTwoFactorEnabled()) {
+            throw new DomainException(ErrorType.CONFLICT, "two_factor.not_enabled", "The second factor is off");
+        }
+        passwordConfirmation.confirm(user, password, clientAddress);
+        if (!verify(user, code)) {
+            throw passwordConfirmation.failure(user, clientAddress, () -> wrongCode(ErrorType.FORBIDDEN));
+        }
+        return transactions.execute(status -> {
+            User locked = users.findByIdForUpdate(userId).orElseThrow(TwoFactorService::unauthenticated);
+            if (!locked.isTwoFactorEnabled()) {
+                throw new DomainException(ErrorType.CONFLICT, "two_factor.not_enabled", "The second factor is off");
+            }
+            RecoveryCodesResponse renewed = replaceRecoveryCodes(userId, clock.instant());
+            log.info("[SECURITY] User {} generated new recovery codes", userId);
+            return renewed;
         });
     }
 
@@ -179,5 +200,15 @@ public class TwoFactorService {
 
     private static DomainException unauthenticated() {
         return new DomainException(ErrorType.UNAUTHORIZED, "auth.unauthenticated", "User of this token no longer exists");
+    }
+
+    /** Deletes the codes the person has and saves ten new ones (hashes only); the response is the only time they are shown. */
+    private RecoveryCodesResponse replaceRecoveryCodes(UUID userId, Instant now) {
+        recoveryCodes.deleteByUser(userId);
+        List<String> codes = RecoveryCodes.generate();
+        recoveryCodes.saveAll(codes.stream()
+                .map(recoveryCode -> RecoveryCodeMapper.toEntity(userId, RecoveryCodes.hash(recoveryCode), now))
+                .toList());
+        return new RecoveryCodesResponse(codes);
     }
 }

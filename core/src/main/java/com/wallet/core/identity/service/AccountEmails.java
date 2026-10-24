@@ -72,4 +72,26 @@ public class AccountEmails {
                 Se não foi você, alguém usou a sua senha. Entre no Wallet com o endereço acima e a sua senha, troque o e-mail de volta em Ajustes e ligue a verificação em duas etapas.""".formatted(WHEN.format(when), newAddress)
                 + SIGNATURE, "email-changed");
     }
+
+    public OutgoingEmail passwordReset(String to, String link) {
+        return OutgoingEmail.of(to, "Crie uma senha nova no Wallet", """
+                Olá!
+
+                Recebemos um pedido para criar uma senha nova para a sua conta do Wallet. Para escolher a senha, abra o link abaixo em até 1 hora:
+
+                %s
+
+                Se não foi você, ignore esta mensagem: a sua senha continua a mesma.""".formatted(link) + SIGNATURE, "password-reset");
+    }
+
+    /** Without a link, on purpose: whoever did not change the password must not be sent anywhere by this e-mail. */
+    public OutgoingEmail passwordChanged(String to, Instant when) {
+        return OutgoingEmail.of(to, "Sua senha do Wallet foi trocada", """
+                Olá!
+
+                A senha da sua conta do Wallet foi trocada em %s (horário de Brasília), e a conta foi desconectada de todos os aparelhos. Para continuar, entre de novo com a senha nova.
+
+                Se não foi você, troque a senha de novo pelo "Esqueci minha senha" na tela de entrada do Wallet.""".formatted(WHEN.format(when))
+                + SIGNATURE, "password-changed");
+    }
 }

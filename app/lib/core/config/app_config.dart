@@ -15,6 +15,29 @@ abstract final class AppConfig {
     return 'http://localhost:8080';
   }
 
+  static const _siteUrlOverride = String.fromEnvironment('WALLET_SITE_URL');
+
+  /// Where the landing site lives, which has the Terms of Use and the Privacy Policy. `--dart-define=WALLET_SITE_URL=`
+  /// overrides it; otherwise it follows the BFF: `https://app.example.com` is served next to `https://example.com`,
+  /// and in development the site is the folder served on port 5181 (`python -m http.server 5181 --directory site`).
+  static String get siteUrl {
+    if (_siteUrlOverride.isNotEmpty) {
+      return _siteUrlOverride;
+    }
+    final bff = Uri.tryParse(bffUrl);
+    if (bff != null && bff.scheme == 'https' && bff.host.startsWith('app.')) {
+      return bff.replace(host: bff.host.substring('app.'.length)).toString();
+    }
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:5181';
+    }
+    return 'http://localhost:5181';
+  }
+
+  static Uri get termsUrl => Uri.parse('$siteUrl/termos.html');
+
+  static Uri get privacyUrl => Uri.parse('$siteUrl/privacidade.html');
+
   /// The installed Windows app, where the lock is Windows Hello.
   static bool get isWindows => !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
 

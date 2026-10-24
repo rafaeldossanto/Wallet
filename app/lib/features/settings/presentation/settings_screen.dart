@@ -11,7 +11,9 @@ import '../../../core/theme/theme_controller.dart';
 import '../../../core/updates/update_views.dart';
 import '../../../core/updates/updater.dart';
 import '../../../core/widgets/common.dart';
+import 'change_password_dialog.dart';
 import 'delete_account_dialog.dart';
+import 'download_data_tile.dart';
 import 'profile_dialogs.dart';
 import 'two_factor_dialogs.dart';
 
@@ -115,6 +117,19 @@ class SettingsScreen extends StatelessWidget {
                             ? null
                             : (on) => on ? showEnableTwoFactorDialog(context) : showDisableTwoFactorDialog(context),
                       ),
+                      if (user?.twoFactorEnabled == true)
+                        ListTile(
+                          leading: const Icon(Icons.pin_outlined),
+                          title: Text(l10n.settingsNewRecoveryCodes),
+                          subtitle: Text(l10n.settingsNewRecoveryCodesHelp),
+                          onTap: () => showNewRecoveryCodesDialog(context),
+                        ),
+                      ListTile(
+                        leading: const Icon(Icons.password_outlined),
+                        title: Text(l10n.settingsChangePassword),
+                        subtitle: Text(l10n.settingsChangePasswordHelp),
+                        onTap: user == null ? null : () => showChangePasswordDialog(context),
+                      ),
                       ListTile(
                         leading: const Icon(Icons.logout),
                         title: Text(l10n.settingsSignOut),
@@ -130,6 +145,8 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   SectionCard(title: l10n.settingsUpdates, flush: true, child: const UpdateTile()),
                 ],
+                const SizedBox(height: 16),
+                SectionCard(title: l10n.settingsYourData, flush: true, child: const DownloadDataTile()),
                 const SizedBox(height: 16),
                 SectionCard(
                   title: l10n.settingsDangerZone,

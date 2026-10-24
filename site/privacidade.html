@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Política de Privacidade — Wallet</title>
+  <meta name="description" content="Quais dados o Wallet guarda, para quê, com quem os divide, por quanto tempo e como você controla tudo isso.">
+  <meta name="robots" content="noindex">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0B0B0C" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#EEF0F4" media="(prefers-color-scheme: light)">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:site_name" content="Wallet">
+  <meta property="og:title" content="Política de Privacidade — Wallet">
+  <meta property="og:description" content="Quais dados o Wallet guarda, para quê, com quem os divide, por quanto tempo e como você controla tudo isso.">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/favicon.png" type="image/png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="index.html" aria-label="Wallet, voltar para o início">
+        <img src="assets/logo.svg" alt="" width="36" height="36">
+        <span>Wallet</span>
+      </a>
+      <a class="button button-small" href="index.html">Voltar ao início</a>
+    </div>
+  </header>
+
+  <main class="doc" id="conteudo">
+    <div class="container">
+      <article class="doc-inner">
+<h1>Política de Privacidade</h1>
+<p class="notice"><strong>Versão preliminar, em revisão jurídica. Não vale como documento final.</strong></p>
+<p>Última atualização: <mark>[DATA DE VIGÊNCIA]</mark></p>
+<p>Esta política explica quais dados o Wallet guarda sobre você, para quê, com quem os divide, por quanto tempo e como você controla tudo isso. Ela vale para o aplicativo (Android, Windows e navegador) e para a página de apresentação do Wallet.</p>
+<p>O que está entre colchetes, como <mark>[RAZÃO SOCIAL]</mark>, ainda não foi definido e será preenchido antes da publicação.</p>
+<h2 id="quem-e-o-responsavel-pelos-seus-dados">1. Quem é o responsável pelos seus dados</h2>
+<div class="table-wrap" role="region" tabindex="0" aria-label="Quem é o responsável pelos seus dados"><table class=""><tbody><tr><th scope="row">Controlador</th><td><mark>[RAZÃO SOCIAL]</mark>, CNPJ <mark>[CNPJ]</mark></td></tr><tr><th scope="row">Endereço</th><td><mark>[ENDEREÇO]</mark></td></tr><tr><th scope="row">Encarregado (canal do titular)</th><td><mark>[NOME E E-MAIL DO ENCARREGADO]</mark></td></tr></tbody></table></div>
+<p>O controlador é quem decide como os dados são usados. Para qualquer pedido ou dúvida sobre seus dados, fale com o encarregado.</p>
+<h2 id="o-que-e-o-wallet">2. O que é o Wallet</h2>
+<p>O Wallet é uma carteira financeira pessoal <strong>somente de leitura</strong>. Ele junta saldos, extratos, cartões, faturas e investimentos de vários bancos, pelo Open Finance, para você ver tudo num lugar só.</p>
+<ul><li>O Wallet <strong>não movimenta dinheiro</strong>: não paga contas, não faz transferências nem Pix.</li><li>O Wallet <strong>não é um banco</strong>.</li><li>O Wallet <strong>não recomenda investimentos</strong>. O que ele mostra é descritivo.</li><li>O Wallet <strong>não é para menores de 18 anos</strong>.</li></ul>
+<h2 id="quais-dados-tratamos">3. Quais dados tratamos</h2>
+<div class="table-wrap" role="region" tabindex="0" aria-label="Quais dados tratamos"><table class="stack"><thead><tr><th scope="col">Grupo</th><th scope="col">Quais dados</th><th scope="col">Observação</th></tr></thead><tbody><tr><td data-label="Grupo">Conta</td><td data-label="Quais dados">E-mail, nome, senha, data em que você confirmou o e-mail, versão dos Termos de Uso e desta política que você aceitou e quando</td><td data-label="Observação">A senha nunca é guardada: guardamos só um código irreversível dela (hash BCrypt)</td></tr><tr><td data-label="Grupo">Segundo fator</td><td data-label="Quais dados">Segredo do segundo fator (TOTP) e códigos de recuperação</td><td data-label="Observação">O segredo é guardado cifrado; os códigos de recuperação, só como hash</td></tr><tr><td data-label="Grupo">Proteção do login</td><td data-label="Quais dados">Contadores de tentativas de entrada, por e-mail (em hash) e por endereço IP</td><td data-label="Observação">Servem para bloquear quem tenta adivinhar senhas</td></tr><tr><td data-label="Grupo">Sessões</td><td data-label="Quais dados">Chaves de renovação do login (refresh tokens)</td><td data-label="Observação">Guardadas só como hash</td></tr><tr><td data-label="Grupo">Registros de acesso</td><td data-label="Quais dados">Data, hora e endereço IP de cada entrada e de cada renovação do login</td><td data-label="Observação">O IP é guardado cifrado. É uma obrigação legal (Marco Civil da Internet, art. 15) e ninguém lê esses registros, a não ser por ordem judicial</td></tr><tr><td data-label="Grupo">Conexões com bancos</td><td data-label="Quais dados">Identificador da conexão no provedor, situação e validade do seu consentimento</td><td data-label="Observação">Não guardamos usuário nem senha do banco</td></tr><tr><td data-label="Grupo">Dados financeiros</td><td data-label="Quais dados">Contas (instituição, tipo e últimos 4 dígitos), saldos e histórico de saldos, transações (valor, data, categoria, parcelas e descrição), cartões e faturas, investimentos e histórico</td><td data-label="Observação">A descrição de cada transação é guardada cifrada (AES-256-GCM)</td></tr><tr><td data-label="Grupo">Planejamento</td><td data-label="Quais dados">Gastos fixos (nome) e salário esperado</td><td data-label="Observação">O nome dos gastos fixos é guardado cifrado</td></tr><tr><td data-label="Grupo">Auditoria do provedor</td><td data-label="Quais dados">Registro das chamadas que o Wallet faz ao provedor de Open Finance</td><td data-label="Observação">Pseudônimo, sem valores, por 180 dias</td></tr><tr><td data-label="Grupo">Lista de espera</td><td data-label="Quais dados">E-mail, situação da inscrição, versão do consentimento e datas</td><td data-label="Observação">Só para avisar quando o Wallet abrir</td></tr><tr><td data-label="Grupo">Registros técnicos</td><td data-label="Quais dados">Identificadores internos; o IP aparece nos registros do limite de tentativas</td><td data-label="Observação">Veja a seção 8</td></tr></tbody></table></div>
+<p>O Wallet <strong>não coleta</strong> a senha do seu banco e <strong>não usa ferramentas de medição ou de publicidade de terceiros</strong> no aplicativo. A página de apresentação não usa cookies nem rastreadores. A versão para navegador guarda um cookie de sessão, necessário para manter você conectado.</p>
+<h2 id="para-que-usamos-e-em-que-base-legal">4. Para que usamos e em que base legal</h2>
+<div class="table-wrap" role="region" tabindex="0" aria-label="Para que usamos e em que base legal"><table class="stack"><thead><tr><th scope="col">Finalidade</th><th scope="col">Dados</th><th scope="col">Base legal (LGPD)</th></tr></thead><tbody><tr><td data-label="Finalidade">Criar e manter sua conta, e entregar o serviço</td><td data-label="Dados">Conta, sessões, segundo fator, planejamento</td><td data-label="Base legal (LGPD)">Execução de contrato (art. 7º, V)</td></tr><tr><td data-label="Finalidade">Proteger sua conta contra tentativas de invasão</td><td data-label="Dados">Contadores de tentativa, IP</td><td data-label="Base legal (LGPD)">Execução de contrato (art. 7º, V)</td></tr><tr><td data-label="Finalidade">Buscar e mostrar seus dados dos bancos pelo Open Finance</td><td data-label="Dados">Conexões e dados financeiros</td><td data-label="Base legal (LGPD)">Consentimento (art. 7º, I)</td></tr><tr><td data-label="Finalidade">Avisar por e-mail quando o Wallet abrir</td><td data-label="Dados">Lista de espera</td><td data-label="Base legal (LGPD)">Consentimento (art. 7º, I)</td></tr><tr><td data-label="Finalidade">Guardar registros de acesso à aplicação, quando existirem</td><td data-label="Dados">Registros de acesso</td><td data-label="Base legal (LGPD)">Obrigação legal (art. 7º, II), Marco Civil da Internet, art. 15</td></tr></tbody></table></div>
+<p>O compartilhamento de dados bancários acontece com o <strong>seu consentimento</strong>, por instituição autorizada, em respeito ao sigilo bancário (Lei Complementar 105/2001).</p>
+<h2 id="como-o-wallet-se-conecta-aos-seus-bancos">5. Como o Wallet se conecta aos seus bancos</h2>
+<p>A conexão é feita pelo Open Finance, por uma instituição autorizada pelo Banco Central (a Pluggy). Funciona assim:</p>
+<ol><li>Você escolhe o banco e autoriza <strong>no aplicativo do próprio banco</strong>. O Wallet nunca vê a sua senha.</li><li>O consentimento segue as regras do Open Finance (Resolução Conjunta nº 1/2020): você sabe quais dados serão lidos e para quê.</li><li>Você pode revogar quando quiser. No Wallet, <strong>desvincular o banco revoga a autorização na Pluggy</strong>. Também é possível revogar no aplicativo do banco.</li></ol>
+<h2 id="com-quem-compartilhamos">6. Com quem compartilhamos</h2>
+<div class="table-wrap" role="region" tabindex="0" aria-label="Com quem compartilhamos"><table class="stack"><thead><tr><th scope="col">Quem</th><th scope="col">Papel</th><th scope="col">O que recebe ou faz</th></tr></thead><tbody><tr><td data-label="Quem">Pluggy</td><td data-label="Papel">Operador (Open Finance)</td><td data-label="O que recebe ou faz">Faz a ligação com os bancos e entrega os dados que você autorizou ao Wallet</td></tr><tr><td data-label="Quem">Amazon Web Services (AWS)</td><td data-label="Papel">Operador (infraestrutura)</td><td data-label="O que recebe ou faz">Hospeda o servidor (EC2) e envia os e-mails da conta (SES), na região <mark>[REGIÃO DA AWS]</mark></td></tr><tr><td data-label="Quem">GitHub</td><td data-label="Papel">Distribuição do aplicativo</td><td data-label="O que recebe ou faz">O aplicativo consulta o GitHub para saber se há versão nova, e o GitHub recebe o seu IP</td></tr></tbody></table></div>
+<p><mark>[A CONFIRMAR: o Wallet não vende dados e não os usa para publicidade.]</mark></p>
+<p>Fora estes casos, só compartilhamos dados se a lei ou uma autoridade exigir.</p>
+<h2 id="transferencia-para-fora-do-brasil">7. Transferência para fora do Brasil</h2>
+<p>Se os dados forem tratados fora do Brasil, isso só pode acontecer com as garantias do art. 33 da LGPD. Isso depende da região da AWS escolhida e de onde a Pluggy hospeda os dados: <mark>[A CONFIRMAR]</mark>.</p>
+<h2 id="por-quanto-tempo-guardamos">8. Por quanto tempo guardamos</h2>
+<div class="table-wrap" role="region" tabindex="0" aria-label="Por quanto tempo guardamos"><table class="stack"><thead><tr><th scope="col">Dado</th><th scope="col">Prazo</th></tr></thead><tbody><tr><td data-label="Dado">Dados da conta e dados financeiros</td><td data-label="Prazo">Até você excluir a conta. A exclusão apaga tudo e revoga a autorização na Pluggy</td></tr><tr><td data-label="Dado">Conta cujo e-mail não foi confirmado</td><td data-label="Prazo">7 dias</td></tr><tr><td data-label="Dado">Inscrição na lista de espera ainda não confirmada</td><td data-label="Prazo">7 dias</td></tr><tr><td data-label="Dado">Inscrição confirmada na lista de espera</td><td data-label="Prazo"><mark>[A DEFINIR]</mark></td></tr><tr><td data-label="Dado">Auditoria das chamadas ao provedor</td><td data-label="Prazo">180 dias</td></tr><tr><td data-label="Dado">Histórico de saldos, de investimentos e transações que seguem no seu banco</td><td data-label="Prazo">Ficam enquanto a conta existir: é o histórico que o Wallet mostra. <mark>[A DEFINIR: prazo de conta inativa]</mark></td></tr><tr><td data-label="Dado">Transações que o banco deixou de informar</td><td data-label="Prazo">90 dias, depois são apagadas de vez</td></tr><tr><td data-label="Dado">Registro das sincronizações com o banco</td><td data-label="Prazo">90 dias (a mais recente de cada conexão fica)</td></tr><tr><td data-label="Dado">Chaves de renovação do login (sessões)</td><td data-label="Prazo">Até 30 dias depois de vencerem ou de serem revogadas</td></tr><tr><td data-label="Dado">Cópias de segurança</td><td data-label="Prazo">Diárias, guardadas por 14 dias. Um dado excluído pode permanecer nelas até esse prazo</td></tr><tr><td data-label="Dado">Registros de acesso à aplicação (Marco Civil, art. 15)</td><td data-label="Prazo">6 meses, em sigilo. Ficam mesmo que você exclua a conta, porque a lei manda guardar</td></tr><tr><td data-label="Dado">Registros técnicos do servidor</td><td data-label="Prazo"><mark>[A DEFINIR]</mark></td></tr></tbody></table></div>
+<h2 id="como-protegemos-seus-dados">9. Como protegemos seus dados</h2>
+<ul><li>Toda a comunicação usa HTTPS.</li><li>Só uma porta é aberta à internet; o núcleo do sistema e o banco de dados ficam numa rede interna.</li><li>Senhas são guardadas em hash BCrypt, nunca em texto.</li><li>O segundo fator é opcional, e o login bloqueia, de forma progressiva, quem erra demais.</li><li>As descrições das transações são cifradas no banco de dados.</li><li>Fazemos cópias de segurança diárias, guardadas por 14 dias.</li><li>O aplicativo guarda as chaves de acesso no armazenamento seguro do aparelho.</li></ul>
+<p>Nenhum sistema é totalmente seguro. Se acontecer um incidente que possa causar risco ou dano relevante, comunicamos você e a ANPD, nos termos da lei.</p>
+<h2 id="seus-direitos">10. Seus direitos</h2>
+<p>A LGPD (art. 18) dá a você estes direitos. Veja como cada um funciona hoje:</p>
+<div class="table-wrap" role="region" tabindex="0" aria-label="Seus direitos"><table class="stack"><thead><tr><th scope="col">Direito</th><th scope="col">Como exercer hoje</th></tr></thead><tbody><tr><td data-label="Direito">Confirmar que tratamos seus dados e acessar</td><td data-label="Como exercer hoje">Os dados aparecem no aplicativo. Em Ajustes, "Seus dados", "Baixar meus dados" gera um arquivo com tudo o que o Wallet guarda sobre você</td></tr><tr><td data-label="Direito">Corrigir dados</td><td data-label="Como exercer hoje">Em Ajustes (nome e e-mail)</td></tr><tr><td data-label="Direito">Eliminar dados</td><td data-label="Como exercer hoje">"Excluir conta", em Ajustes</td></tr><tr><td data-label="Direito">Portabilidade</td><td data-label="Como exercer hoje">O mesmo arquivo, em JSON, que você pode levar para outro lugar <mark>[A CONFIRMAR: formato]</mark></td></tr><tr><td data-label="Direito">Revogar o consentimento</td><td data-label="Como exercer hoje">Desvincular o banco no aplicativo; sair da lista de espera pelo link do e-mail; excluir a conta</td></tr><tr><td data-label="Direito">Saber com quem compartilhamos</td><td data-label="Como exercer hoje">Esta política, seção 6</td></tr></tbody></table></div>
+<p>Para pedidos que não dá para fazer no aplicativo, escreva para <mark>[E-MAIL DO ENCARREGADO]</mark>. Você também pode reclamar à Autoridade Nacional de Proteção de Dados (ANPD).</p>
+<h2 id="menores-de-idade">11. Menores de idade</h2>
+<p>O Wallet é só para maiores de 18 anos. <mark>[A DEFINIR: o que acontece se descobrirmos que uma conta é de menor de idade.]</mark></p>
+<h2 id="mudancas-nesta-politica">12. Mudanças nesta política</h2>
+<p>Quando a política mudar, publicamos a nova versão nesta página, com a data de vigência no topo. <mark>[A DEFINIR: como avisamos quem já tem conta, quando a mudança for importante.]</mark></p>
+<h2 id="contato">13. Contato</h2>
+<p><mark>[NOME E E-MAIL DO ENCARREGADO]</mark></p>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p>© 2026 Wallet</p>
+      <nav aria-label="Informações legais">
+        <a href="privacidade.html">Privacidade</a>
+        <a href="termos.html">Termos</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

@@ -55,7 +55,7 @@ class PluggyFinancialDataProvider implements FinancialDataProvider {
     }
 
     @Override
-    public String createConnectToken(String clientUserId, String oauthRedirectUri) {
-        return client.createConnectToken(clientUserId, oauthRedirectUri);
+    public String createConnectToken(String clientUserId, String oauthRedirectUri, String itemId) {
+        return client.createConnectToken(clientUserId, oauthRedirectUri, itemId);
     }
 }

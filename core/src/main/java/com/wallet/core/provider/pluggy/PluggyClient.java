@@ -73,17 +73,40 @@ class PluggyClient {
     }
 
     /** Needs the apiKey, so only the backend can do it; the token itself lasts 30 minutes. */
-    String createConnectToken(String clientUserId, String oauthRedirectUri) {
+    String createConnectToken(String clientUserId, String oauthRedirectUri, String itemId) {
         PluggyDtos.ConnectTokenResponse response = withApiKey(apiKey -> restClient.post()
                 .uri("/connect_token")
                 .header(API_KEY_HEADER, apiKey)
-                .body(new PluggyDtos.ConnectTokenRequest(new PluggyDtos.ConnectTokenOptions(clientUserId, oauthRedirectUri)))
+                .body(new PluggyDtos.ConnectTokenRequest(itemId, new PluggyDtos.ConnectTokenOptions(clientUserId, oauthRedirectUri)))
                 .retrieve()
                 .body(PluggyDtos.ConnectTokenResponse.class));
         if (isNull(response) || isNull(response.accessToken())) {
             throw ProviderErrors.unavailable("empty connect token response");
         }
         return response.accessToken();
+    }
+
+    List<PluggyDtos.Webhook> getWebhooks() {
+        return getAllPages("/webhooks", Map.of(), new ParameterizedTypeReference<>() {});
+    }
+
+    void createWebhook(String event, String url, Map<String, String> headers) {
+        withApiKey(apiKey -> restClient.post()
+                .uri("/webhooks")
+                .header(API_KEY_HEADER, apiKey)
+                .body(new PluggyDtos.CreateWebhook(event, url, headers))
+                .retrieve()
+                .toBodilessEntity());
+    }
+
+    /** Points the hook at {@code url} with {@code headers} and enables it again if Pluggy had disabled it. */
+    void updateWebhook(String id, String url, Map<String, String> headers) {
+        withApiKey(apiKey -> restClient.patch()
+                .uri(builder -> builder.path("/webhooks/{id}").build(id))
+                .header(API_KEY_HEADER, apiKey)
+                .body(new PluggyDtos.UpdateWebhook(url, headers, true))
+                .retrieve()
+                .toBodilessEntity());
     }
 
     List<PluggyDtos.Account> getAccounts(String itemId) {

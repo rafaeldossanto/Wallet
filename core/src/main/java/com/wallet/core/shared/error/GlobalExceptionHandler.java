@@ -13,6 +13,8 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.sql.SQLTransientConnectionException;
@@ -28,6 +30,8 @@ import static java.util.Objects.nonNull;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final String TRACE_HEADER = "X-Trace-Id";
 
     @ExceptionHandler(DomainException.class)
     public ResponseEntity<ErrorResponse> handleDomain(DomainException ex) {
@@ -84,7 +88,7 @@ public class GlobalExceptionHandler {
         if (tooLarge.isPresent()) {
             return handleTooLarge(tooLarge.get());
         }
-        log.warn("[EXCEPTION] request.malformed: {}", ex.getMessage());
+        log.warn("[EXCEPTION] request.malformed: {}", ex.getClass().getSimpleName());
         return ResponseEntity.badRequest()
                 .body(ErrorResponse.of("request.malformed", "Request body could not be read"));
     }
@@ -100,7 +104,7 @@ public class GlobalExceptionHandler {
     /** A query parameter that does not parse ({@code ?month=setembro}) or that is missing. */
     @ExceptionHandler({MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class})
     public ResponseEntity<ErrorResponse> handleBadParameter(Exception ex) {
-        log.warn("[EXCEPTION] request.invalid_parameter: {}", ex.getMessage());
+        log.warn("[EXCEPTION] request.invalid_parameter: {}", ex.getClass().getSimpleName());
         return ResponseEntity.badRequest()
                 .body(ErrorResponse.of("request.invalid_parameter", "A request parameter is missing or invalid"));
     }
@@ -113,9 +117,21 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleUnexpected(Exception ex) {
-        log.error("[EXCEPTION] Unexpected error: {}", ex.getMessage(), ex);
+        // Class and stack only: the message of a database or parser error can hold the user's data.
+        log.error("[EXCEPTION] Unexpected error, trace {}: {}", traceId(), ExceptionLog.describe(ex));
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ErrorResponse.of("internal.error", "Unexpected error"));
+    }
+
+    /** The BFF's {@code X-Trace-Id} of the request being answered, to find its other log lines. */
+    private static String traceId() {
+        if (RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes) {
+            String header = attributes.getRequest().getHeader(TRACE_HEADER);
+            if (nonNull(header) && header.matches("[A-Za-z0-9-]{1,32}")) {
+                return header;
+            }
+        }
+        return "-";
     }
 
     private static HttpStatus statusOf(ErrorType type) {

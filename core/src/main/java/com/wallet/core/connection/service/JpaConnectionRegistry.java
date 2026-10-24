@@ -2,6 +2,7 @@ package com.wallet.core.connection.service;
 
 import com.wallet.core.connection.ConnectionRegistry;
 import com.wallet.core.connection.ConnectionStatus;
+import com.wallet.core.connection.ConnectionSummary;
 import com.wallet.core.connection.LinkedConnection;
 import com.wallet.core.connection.entity.Connection;
 import com.wallet.core.connection.mapper.ConnectionMapper;
@@ -36,6 +37,13 @@ class JpaConnectionRegistry implements ConnectionRegistry {
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<LinkedConnection> findByProviderItemId(String providerItemId) {
+        return repository.findByProviderAndProviderItemId(ConnectionMapper.PROVIDER_PLUGGY, providerItemId)
+                .map(ConnectionMapper::toLinked);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<LinkedConnection> findSchedulable() {
         return repository.findByStatusIn(EnumSet.of(ConnectionStatus.ACTIVE, ConnectionStatus.SYNCING)).stream()
                 .map(ConnectionMapper::toLinked)
@@ -46,6 +54,12 @@ class JpaConnectionRegistry implements ConnectionRegistry {
     @Transactional(readOnly = true)
     public List<LinkedConnection> findByUser(UUID userId) {
         return repository.findByUserIdOrderByCreatedAtAsc(userId).stream().map(ConnectionMapper::toLinked).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ConnectionSummary> summariesOf(UUID userId) {
+        return repository.findByUserIdOrderByCreatedAtAsc(userId).stream().map(ConnectionMapper::toSummary).toList();
     }
 
     @Override
@@ -82,6 +96,12 @@ class JpaConnectionRegistry implements ConnectionRegistry {
     @Transactional
     public void recordNeedsAttention(UUID connectionId) {
         update(connectionId, connection -> connection.setStatus(ConnectionStatus.NEEDS_ATTENTION));
+    }
+
+    @Override
+    @Transactional
+    public void recordConsentExpired(UUID connectionId) {
+        update(connectionId, connection -> connection.setStatus(ConnectionStatus.CONSENT_EXPIRED));
     }
 
     @Override

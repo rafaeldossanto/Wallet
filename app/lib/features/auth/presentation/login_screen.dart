@@ -77,6 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
       SignOutReason.expired => l10n.loginSessionExpired,
       SignOutReason.idle => l10n.loginSessionIdle,
       SignOutReason.accountDeleted => l10n.loginAccountDeleted,
+      SignOutReason.passwordChanged => l10n.loginPasswordChanged,
       SignOutReason.requested || null => null,
     };
     return AuthLayout(
@@ -133,6 +134,7 @@ class _LoginScreenState extends State<LoginScreen> {
               : Text(l10n.loginAction),
         ),
         const SizedBox(height: 12),
+        TextButton(onPressed: () => context.go('/forgot-password'), child: Text(l10n.loginForgotPassword)),
         TextButton(onPressed: () => context.go('/register'), child: Text(l10n.loginGoToRegister)),
         TextButton(
           onPressed: () => showDialog<void>(context: context, builder: (_) => const _ResendConfirmationDialog()),

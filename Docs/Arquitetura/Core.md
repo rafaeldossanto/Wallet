@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, backend, core]
-atualizado: 2026-10-22
+atualizado: 2026-10-24
 porta: 8081
 repo: Work/Wallet/core
 ---
@@ -21,14 +21,16 @@ módulo usar a parte interna de outro.
 | Módulo | Responsabilidade | Depende de |
 |---|---|---|
 | `identity` | Usuários, cadastro com confirmação por e-mail, login, bloqueio progressivo, segundo fator (TOTP), perfil, emissão e rotação de tokens | `mail`, `connection` (só para revogar ao excluir a conta), `shared` |
-| `mail` | Envio de e-mail: a porta `EmailSender` (pública, na raiz do pacote), o SMTP e o envio de desenvolvimento no log. Pronto para e-mail com link de descadastro (o `waitlist` vai usar) | `shared` |
+| `mail` | Envio de e-mail: a porta `EmailSender` (pública, na raiz do pacote), o SMTP e o envio de desenvolvimento no log. E-mail com link de descadastro (o `waitlist` usa) e envio síncrono, `sendNow` (o comunicado) | `shared` |
+| `waitlist` | Lista de espera da landing page: inscrição com confirmação por e-mail (double opt-in), descadastro em um clique, limpeza dos não confirmados e o comando do comunicado de abertura. Ver [[#Lista de espera]] | `mail`, `shared` |
 | `connection` | Conexões com bancos (items da Pluggy), vincular, desvincular | `provider`, `shared` |
 | `banking` | Contas, saldos, transações, cartões e faturas | `shared` |
 | `investment` | Posições de investimento | `shared` |
-| `sync` | Orquestra a leitura do provedor e grava nos módulos de dados | `provider`, `connection`, `banking`, `investment` |
-| `provider` | Porta `FinancialDataProvider`, o adaptador da Pluggy e a auditoria das chamadas | `shared` |
+| `sync` | Orquestra a leitura do provedor e grava nos módulos de dados e recebe os avisos (webhooks) do provedor como dicas para sincronizar logo, [[Sincronização#Webhooks (desde 2026-10-24, achado A21)]] | `provider`, `connection`, `banking`, `investment` |
+| `provider` | Porta `FinancialDataProvider`, o adaptador da Pluggy e a auditoria das chamadas e o comando que registra os webhooks no provedor | `shared` |
 | `insight` | Visão geral, patrimônio, gasto por categoria | `banking`, `investment` |
 | `planning` | Planejamento do mês: salário − faturas − gastos fixos, os gastos fixos e o salário esperado | `banking`, `shared` |
+| `privacy` | A exportação dos dados do usuário (LGPD, acesso e portabilidade): monta o arquivo só com as portas públicas dos outros módulos (`UserProfiles`, `ConnectionRegistry`, `BankingQueries`, `InvestmentQueries`, `PlanningExports`). Ver [[#Exportação dos dados (L9 e L10)]] | `identity`, `connection`, `banking`, `investment`, `planning`, `shared` |
 | `shared` | Dinheiro, erros, paginação, criptografia de coluna, relógio, chaves de texto | — |
 
 Dentro de cada módulo, o mesmo layout do Trilha: `controller`, `service`,
@@ -136,7 +138,8 @@ linha de log `[PROVIDER_CALL]`, para monitorar o uso e investigar problemas.
 
 Tudo em `/internal`, JSON em inglês, dinheiro como string (`"1234.56"`), datas
 ISO-8601. Paginação `{ items, page, pageSize, total, totalPages }`. Toda rota, menos
-login, cadastro e refresh, exige o JWT do usuário, que o BFF repassa.
+login, cadastro, refresh, os links dos e-mails e a lista de espera (`/internal/auth/**` e
+`/internal/waitlist/**`), exige o JWT do usuário, que o BFF repassa.
 
 **Chave de gateway (desde 2026-10-19):** toda requisição, inclusive login, cadastro, refresh e
 o JWKS, também precisa do header `X-Gateway-Key` com o segredo compartilhado com o BFF
@@ -152,19 +155,21 @@ sem uma `WALLET_GATEWAY_KEY` real.
 
 | Método | Rota | O que faz |
 |---|---|---|
-| POST | `/internal/auth/register` | **202 sem corpo** para qualquer e-mail: e-mail novo vira conta não confirmada e recebe o link; e-mail com conta recebe um aviso ao dono. Ver [[Autenticação#Cadastro com confirmação por e-mail (achado A16, desde 2026-10-22)]] |
+| POST | `/internal/auth/register` | Corpo com `acceptTerms: true` (sem ele, 400 `validation.failed`). **202 sem corpo** para qualquer e-mail: e-mail novo vira conta não confirmada e recebe o link; e-mail com conta recebe um aviso ao dono. Ver [[Autenticação#Cadastro com confirmação por e-mail (achado A16, desde 2026-10-22)]] |
 | POST | `/internal/auth/login` | `{email, password, code?}` → `{ accessToken, expiresIn, refreshToken }`. Lê `X-Wallet-Client-Address` (do BFF) para o bloqueio por endereço. Conta não confirmada responde como senha errada; com 2FA, sem `code` é `401 auth.two_factor_required` |
 | POST | `/internal/auth/email/confirm` | `{token}` do link: `{result: ACCOUNT_CONFIRMED}` ou `{result: EMAIL_CHANGED}`; link desconhecido, vencido, usado ou trocado por outro é `422 auth.link_invalid`; endereço tomado no meio do caminho é `409 auth.email_taken` |
 | POST | `/internal/auth/email/resend` | `{email}`: outro link para conta não confirmada (até 3 por hora); 202 para qualquer e-mail |
 | POST | `/internal/auth/refresh` | Troca o refresh por um par novo |
 | POST | `/internal/auth/logout` | Revoga a família do refresh |
-| GET | `/internal/me` | Usuário logado: `{id, email, displayName, createdAt, pendingEmail, twoFactorEnabled}` |
+| GET | `/internal/me` | Usuário logado: `{id, email, displayName, createdAt, pendingEmail, twoFactorEnabled, termsAcceptanceRequired, termsVersion, termsUrl, privacyUrl}` |
+| POST | `/internal/me/terms` | `{version}`: o aceite dos Termos de Uso e da Política de Privacidade (L15). 204; versão que não é a corrente é 409 `legal.terms_outdated` |
 | PUT | `/internal/me` | `{displayName}`: troca o nome |
 | POST | `/internal/me/email` | `{newEmail, password}`: 202; manda o link ao novo endereço e a conta só muda quando ele é aberto (o antigo recebe aviso). Senha errada é 403 `auth.wrong_password` |
 | POST | `/internal/me/two-factor/setup` | `{password}`: segredo novo, ainda desligado → `{secret, otpauthUri}` |
 | POST | `/internal/me/two-factor/enable` | `{code}`: o primeiro código liga e devolve `{recoveryCodes}` (10, mostrados uma vez); código errado é 422 `two_factor.invalid_code` |
 | DELETE | `/internal/me/two-factor` | `{password, code}` (código do app ou de recuperação): desliga (204); código errado é 403 `auth.invalid_two_factor_code` e conta para o bloqueio |
 | DELETE | `/internal/me` | Exclui a conta e tudo dela (204; com o token de uma conta já excluída, 401 como qualquer rota), com `{"password"}` no corpo: senha errada é 403 `auth.wrong_password` e conta para o bloqueio. Revoga as conexões na Pluggy antes; ver [[Modelo de Dados#Exclusão]] |
+| GET | `/internal/me/export` | Tudo o que o Wallet guarda do usuário, num JSON (módulo `privacy`; ver [[#Exportação dos dados (L9 e L10)]]) |
 | GET | `/internal/connections` | Conexões do usuário e o estado de cada uma |
 | POST | `/internal/connections` | Vincula um item (`{ "providerItemId": "..." }`). Item de outra pessoa, vinculado ou não, responde como inexistente (404 `connection.item_not_found`); só o dono ouve 409 `connection.already_linked`. Até 10 conexões por usuário (422 `connection.limit_reached`). Ver [[Fluxo de Conexão#Limites]] |
 | POST | `/internal/connections/connect-token` | Token do widget Pluggy Connect para o usuário (`{ "connectToken": "..." }`, 30 min, uma conexão) |
@@ -321,6 +326,8 @@ a cada chamada. Desde 2026-10-22:
 | `wallet.auth.lockout.*` | Bloqueio progressivo: 5 falhas por e-mail + endereço, 20 por e-mail de qualquer endereço, 15 min dobrando até 24 h, zera depois de um dia sem falhas |
 | `wallet.auth.email-links.*` | Links dos e-mails: 24 h, até 3 por hora por conta |
 | `wallet.auth.unconfirmed-account-ttl` / `notice-interval` / `cleanup-cron` | Conta não confirmada apagada em 7 dias; no máximo 1 aviso de cada tipo por hora; limpeza às 04:15 |
+| `wallet.waitlist.*` | Lista de espera: `base-url` (`WALLET_PUBLIC_URL`, a mesma dos e-mails da conta), `confirm-ttl` 24 h, `resend-interval` 1 h, `pending-ttl` 7 dias, `cleanup-cron` 04:45 |
+| `wallet.waitlist.announce.id`, `.file`, `.rate-per-second` | O comando do comunicado ([[#Comunicado de abertura]]). `id` e `file` não ficam no `application.yaml`: só existem na linha de comando da execução (ou `WALLET_WAITLIST_ANNOUNCE_ID` / `_FILE`); `rate-per-second` (`WALLET_WAITLIST_ANNOUNCE_RATE_PER_SECOND`) é 1 por padrão |
 | `wallet.jwt.audience` | `aud` de todo access token, `wallet-api`, exigida aqui e no BFF |
 | `WALLET_GATEWAY_KEY` | Segredo compartilhado com o BFF (`X-Gateway-Key`), o **mesmo** valor nos dois. Vazio = chave de desenvolvimento conhecida; com `SPRING_PROFILES_ACTIVE=prod`, vazia, curta (< 32) ou a de desenvolvimento impedem a subida |
 | `WALLET_CORE_ADDRESS` | Interface onde o core escuta (`server.address`). Padrão `127.0.0.1`, com o BFF na mesma máquina; com o BFF em outro host, `0.0.0.0` e uma `WALLET_GATEWAY_KEY` real (a chave de desenvolvimento só vale no loopback) |
@@ -328,6 +335,9 @@ a cada chamada. Desde 2026-10-22:
 | `WALLET_CONNECTION_MODE` | `wallet.provider.connection-mode`: `MEU_PLUGGY` (dev, padrão) ou `PLUGGY_CONNECT`. Com `SPRING_PROFILES_ACTIVE=prod`, qualquer coisa que não seja `PLUGGY_CONNECT` impede a subida, com a variável na mensagem (achado A6): o `MEU_PLUGGY` deixa qualquer usuário vincular item sem dono |
 | `wallet.provider.max-connections-per-user` | Teto de conexões por usuário (padrão 10). A seguinte responde 422 `connection.limit_reached` |
 | `wallet.provider.oauth-redirect-uri` | Para onde o banco devolve o usuário depois de autorizar no Pluggy Connect: o deep link do app Android (`com.wallet.wallet://pluggy-connect`) |
+| `wallet.webhooks.register`, `.secret`, `.base-url` | O comando que registra os webhooks na Pluggy ([[#Webhooks da Pluggy (desde 2026-10-24)]]): `register` só na linha de comando da execução (não está no `application.yaml`: o core que atende a API nunca registra), `secret` = `WALLET_PLUGGY_WEBHOOK_SECRET` (32+ caracteres, o mesmo do BFF) e `base-url` = `WALLET_PUBLIC_URL` |
+| `WALLET_TERMS_VERSION`, `WALLET_TERMS_URL`, `WALLET_PRIVACY_URL` | `wallet.legal.*`: a versão dos Termos de Uso e da Política de Privacidade que a pessoa aceita (padrão `2026-10-preliminar`; mudou o texto, mude a versão e todo mundo aceita de novo) e onde os dois textos são lidos (padrão `http://localhost:5181/termos.html` e `/privacidade.html`; no deploy, as páginas da landing). Em branco volta ao padrão. Ver [[Autenticação#Aceite dos Termos de Uso e da Política de Privacidade (L15, desde 2026-10-24)]] |
+| `wallet.retention.banking.*`, `wallet.retention.sync.*`, `wallet.retention.identity.*` | Prazos da limpeza noturna: transações removidas pelo provedor 90 d, sincronizações terminadas 90 d (a última de cada conexão fica), tokens de renovação 30 d, mais o `cleanup-cron` de cada uma. Ver [[#Retenção (L8, desde 2026-10-24)]] |
 | `wallet.sync.interval` | Intervalo do polling (padrão 6 h) |
 | `wallet.sync.scheduler-enabled` | Liga o agendador nesta instância (padrão `true`) |
 | `wallet.sync.manual-cooldown` | Espera entre o fim da última sincronização de uma conexão (qualquer gatilho e resultado) e o próximo "Atualizar" (padrão 15 min) |
@@ -351,10 +361,14 @@ cria container. Com `SPRING_PROFILES_ACTIVE=prod` o core também não inventa se
 - **Transporte:** `SmtpMailTransport` (`JavaMailSender` do `spring-boot-starter-mail`), genérico;
   `DevelopmentMailTransport` escreve no log fora de produção, com aviso de que é só dev (a única
   exceção à regra de não logar token). `MailConfig` escolhe na subida.
+- **Envio síncrono (desde 2026-10-23):** `EmailSender.sendNow(OutgoingEmail)` entrega na thread de
+  quem chama e **lança** `MailDeliveryException` se o servidor recusar. Existe para o comunicado da
+  lista de espera: o `send` enfileirado perderia o e-mail se o processo saísse antes, e quem manda
+  em lote precisa saber qual falhou para não o marcar como enviado. Nunca dentro de transação.
 - **Descadastro:** `OutgoingEmail.withUnsubscribeUrl(url)` põe o link no rodapé e os headers
   `List-Unsubscribe` + `List-Unsubscribe-Post: List-Unsubscribe=One-Click` (RFC 2369 e 8058, que
   Gmail e Yahoo pedem a quem manda em volume). O endpoint de descadastro fica com quem manda esse
-  tipo de e-mail (o futuro `waitlist`); e-mail de conta não tem descadastro.
+  tipo de e-mail (o `waitlist`); e-mail de conta não tem descadastro.
 - Textos em texto puro e pt-BR, sem nada digitado por estranhos. Os da conta estão em
   [[Autenticação#E-mails da conta]].
 
@@ -370,6 +384,173 @@ começa num dia fixo (01/01/2026) para os saldos não andarem sozinhos de um dia
 ids e valores se repetem a cada sincronização. Serve para ver o app inteiro funcionando
 antes da T02. `DemoPluggyCompatibilityTest` lê a demo pelo adaptador de verdade: se o
 adaptador mudar o que espera, quebra ali primeiro.
+
+## Lista de espera (módulo `waitlist`, desde 2026-10-23)
+
+A landing page tem o formulário "Quero ser avisado". O módulo guarda quem pediu, confirma o
+e-mail (double opt-in), deixa sair com um clique e manda o comunicado de abertura. Tabela
+`waitlist_entries` em [[Modelo de Dados]] (V11). Rotas internas, sem JWT (só a chave de
+gateway), liberadas no `identity/config/SecurityConfig` como as de `/internal/auth/**`:
+
+| Rota | Resposta | O que faz |
+|---|---|---|
+| `POST /internal/waitlist` `{email}` | **202** sem corpo, para qualquer e-mail | E-mail novo: grava `PENDING` e manda o link de confirmação (24 h). `PENDING` que já existe: manda um link novo (o antigo deixa de valer), no máximo **1 por hora**; dentro da hora, nada. `CONFIRMED`: nada. A inserção é `INSERT ... ON CONFLICT (email) DO NOTHING` e o reenvio é um `UPDATE` condicional, então 8 pedidos ao mesmo tempo mandam um e-mail só |
+| `POST /internal/waitlist/confirm` `{token}` | **204** | `PENDING` vira `CONFIRMED`, grava `confirmed_at`, gera o token de descadastro e manda "Você está na lista do Wallet". Link vencido, desconhecido ou trocado por um novo: **400** `waitlist.invalid_token`. Abrir de novo o link de quem já confirmou: 204, sem novo e-mail |
+| `POST /internal/waitlist/unsubscribe` `{token}` | **204** sempre | **Apaga** a linha. Token desconhecido também é 204 (ninguém descobre quais existem) |
+
+- **Consentimento:** o cliente só manda `consent: true` (checado no BFF); o servidor grava a
+  versão do texto, a constante `waitlist-v1` (`WaitlistService.CONSENT_VERSION`). Texto novo, versão nova.
+- **Links** (base `WALLET_PUBLIC_URL`, a mesma do identity, e a mesma regra: em `prod` é obrigatória e https,
+  `PublicUrl` no `shared`): confirmação `<url>/waitlist/confirm#token=…` (depois do `#`, que o navegador
+  não envia); descadastro `<url>/waitlist/unsubscribe?token=…` (na query, porque o one-click da RFC 8058
+  faz POST nessa URL exata). O descadastro vai no rodapé e nos headers `List-Unsubscribe` de todo e-mail da lista
+  (`OutgoingEmail.withUnsubscribeUrl`). As páginas são do BFF ([[BFF#Páginas dos links]]).
+- **Tokens:** o de confirmação é opaco (`OpaqueTokens`, 256 bits) e fica como SHA-256, e continua na
+  linha depois de confirmar (abrir o link duas vezes não dá erro). O de descadastro **fica em claro**
+  (`unsubscribe_token`): cada comunicado precisa reconstruir o link de cada pessoa, o que um hash não
+  permite, e o token só dá o poder de apagar a própria linha, onde o e-mail já está em claro.
+- **E-mails** (texto puro, pt-BR, `WaitlistEmails`): `waitlist-confirmation` ("Confirme seu e-mail na lista do
+  Wallet"), `waitlist-welcome` ("Você está na lista do Wallet") e `waitlist-announcement` (o arquivo do comunicado).
+  Nada digitado por quem se inscreveu entra no texto.
+- **Limpeza:** `WaitlistHousekeeping`, às 04:45 (`wallet.waitlist.cleanup-cron`), apaga `PENDING` com mais de
+  7 dias (`pending-ttl`). Igual ao `AccountHousekeeping`: `SchedulingConfigurer` com `TransactionTemplate`
+  dentro do método (o `@Transactional` não vale para o que o agendador chama), e o teste roda pelo caminho do agendador.
+- **Logs:** `[WAITLIST]`, só ids; o e-mail aparece mascarado (`EmailAddresses.mask`) e só quando um envio do comunicado falha.
+
+### Comunicado de abertura
+
+Não há tela de admin: é um comando, que sobe o core sem servidor web, manda e encerra o processo.
+
+```bash
+java -jar core.jar --spring.main.web-application-type=none \
+  --wallet.waitlist.announce.id=abertura \
+  --wallet.waitlist.announce.file=/caminho/mensagem.txt
+```
+
+- O `WaitlistAnnouncementRunner` (um `ApplicationRunner`) só existe quando `announce.id` **e** `announce.file`
+  estão definidos; no core que atende a API ele não existe. Também vale `WALLET_WAITLIST_ANNOUNCE_ID` e `_FILE`.
+  Rode com o mesmo ambiente do core (banco, `WALLET_SMTP_*`, `WALLET_MAIL_FROM`, `WALLET_PUBLIC_URL`).
+- O arquivo é UTF-8: a **primeira linha é o assunto**, o resto é o corpo (texto puro). Arquivo sem assunto ou sem corpo para antes de mandar qualquer coisa.
+- Manda para todo `CONFIRMED` cujo `last_announcement` seja diferente do id, em ordem de confirmação, a
+  `wallet.waitlist.announce.rate-per-second` e-mails por segundo (padrão 1; ajuste ao limite do SMTP), cada um com o link de descadastro da própria pessoa, por `sendNow`.
+- Depois de **cada** envio que o servidor aceitou grava `last_announcement` e `last_announced_at`: rodar de
+  novo, ou depois de uma queda, não reenvia a quem já recebeu. Falha num e-mail: loga mascarado, não marca e segue; rodar de novo tenta só esses.
+- No fim loga os totais (`enviados`, `falhas`) e sai com `SpringApplication.exit`: código **0**, ou **1** se algum envio falhou.
+- Sem servidor web, as cadeias de filtros de segurança (`identity` e `ManagementSecurityConfig`) não são criadas
+  (`@ConditionalOnWebApplication`); não há Tomcat nem porta aberta.
+
+## Webhooks da Pluggy (desde 2026-10-24)
+
+Fecham o achado A21: um aviso de "item atualizado" vira uma sincronização logo, em vez de esperar as 6 h. A Pluggy **não assina** o
+webhook, então ele é só uma **dica**: o core nunca confia no conteúdo e usa do corpo apenas `eventId`, `event` e `itemId`. O que
+cada evento faz, o cooldown e os resultados estão em [[Sincronização#Webhooks (desde 2026-10-24, achado A21)]]; o lado de fora
+(segredo, IPs, limite) em [[BFF#Webhooks da Pluggy]].
+
+- **Rota** `POST /internal/webhooks/pluggy` (módulo `sync`), liberada no `identity/config/SecurityConfig` como as de `/internal/auth/**`
+  (sem JWT; a chave do gateway continua valendo). **202** sempre, depois de gravar o evento; sem `eventId`, 400 `validation.failed`.
+- **Tabela** `provider_webhook_events` (V16, [[Modelo de Dados]]): `INSERT ... ON CONFLICT (event_id) DO NOTHING`, então um evento
+  repetido é 202 sem fazer nada. O tratamento é `WebhookProcessor`, num `@TransactionalEventListener` `@Async` (depois do commit, fora da
+  thread do pedido); a sincronização que ele pede passa por `ManualSyncService.request(..., WEBHOOK)`, as mesmas regras do botão.
+- **Registro** (módulo `provider`): `WebhookRegistration` fala com a Pluggy por uma porta nova, `ProviderWebhooks`
+  (`PluggyWebhooks`: `GET /webhooks`, `POST /webhooks`, `PATCH /webhooks/{id}`; auditado como `LIST_WEBHOOKS`, `CREATE_WEBHOOK`,
+  `UPDATE_WEBHOOK` com o motivo `WEBHOOK_SETUP`). `WebhookRegistrationRunner` é o `ApplicationRunner` do comando, que só liga com
+  `wallet.webhooks.register=true`, registra e sai:
+
+  ```bash
+  java -jar core.jar --spring.main.web-application-type=none --wallet.webhooks.register=true
+  ```
+
+  Sem `WALLET_PLUGGY_WEBHOOK_SECRET` (32+ caracteres) ou, em `prod`, sem `WALLET_PUBLIC_URL` em https, ele para antes de qualquer
+  chamada, dizendo a variável. Precisa das credenciais da Pluggy. No servidor: [[Deploy#Webhooks da Pluggy (opcional)]].
+- **Logs** `[WEBHOOK]`, só com ids (o do evento, nunca o conteúdo nem o item).
+
+## Exportação dos dados (L9 e L10)
+
+Desde 2026-10-24. O direito de acesso e a portabilidade da LGPD (art. 18, II e V): `GET /internal/me/export`
+devolve **um JSON com tudo o que o Wallet guarda do usuário**. O módulo `privacy` não lê tabela de ninguém:
+cada módulo dono expõe uma porta pública na raiz do seu pacote, e o `DataExportService` junta as partes
+numa transação só, de leitura (uma conexão, um momento).
+
+| Parte do arquivo | Porta | O que traz |
+|---|---|---|
+| `profile` | `identity.UserProfiles` | `id`, `email`, `displayName`, `createdAt`, `emailConfirmedAt`, `twoFactorEnabled` (sim ou não). **Nunca** hash de senha, segredo do segundo fator, códigos de recuperação nem token |
+| `connections` | `connection.ConnectionRegistry.summariesOf` | Instituição, status, quando vinculou, última sincronização, validade do consentimento. Sem o id do item na Pluggy |
+| `banking` | `banking.BankingQueries.export` | `accounts`, `balances` (saldo por dia), `transactions` (**descrição decifrada**; as que o provedor deixou de informar ficam de fora, como no app) e `bills` |
+| `investments` | `investment.InvestmentQueries.export` | `positions` (as encerradas também, com `closedAt`) e `balances` por dia |
+| `planning` | `planning.PlanningExports` | `expectedSalary` e `fixedExpenses` |
+
+- **`schemaVersion: 1`** e `exportedAt` no alto. Os nomes dos campos dos registros de exportação (`BankingExport`,
+  `InvestmentExport`, `PlanningExport`, `ConnectionSummary`, `UserProfile`) **são o esquema do arquivo**: acrescentar
+  campo mantém a versão; renomear ou tirar um sobe para 2.
+- Dinheiro como string (`"123.45"`), como no resto da API. Os ids são os do próprio Wallet, para o usuário ligar
+  conta, transação e fatura.
+- O arquivo é montado em memória. O BFF limita a 3 por dia por usuário ([[BFF]]), porque cada um lê tudo.
+- Testes: `DataExportIT` (dados de todas as áreas, descrição decifrada, nada que autentique, isolamento entre
+  usuários, usuário sem nada, sem token).
+
+## Logs sem dado pessoal (L12)
+
+Desde 2026-10-24. Dado pessoal não entra em log. No erro **inesperado**, o `GlobalExceptionHandler` grava só o trace id
+(o `X-Trace-Id` que o BFF manda) e a **classe e a pilha** de cada exceção da cadeia, **sem nenhuma mensagem**
+(`ExceptionLog.describe`): o driver do Postgres põe `Key (email)=(...)` na mensagem, e o leitor de JSON cita o corpo.
+Os avisos de corpo ilegível e de parâmetro inválido também logam só a classe. Teste:
+`GlobalExceptionHandlerTest#anUnexpectedErrorIsLoggedWithoutAnyMessage`, com uma exceção cuja mensagem tem um e-mail.
+
+## Registros de acesso (L13)
+
+Desde 2026-10-24. O Marco Civil da Internet (art. 15) manda a aplicação guardar, em sigilo, os registros de acesso por **6 meses**.
+O módulo `identity` grava **uma linha em `access_records`** a cada **login com sucesso** (`LOGIN`) e a cada **refresh** (`REFRESH`),
+com o `user_id`, a hora e o **IP cifrado** (o mesmo `DataCipher` da descrição das transações). O IP é o que o BFF mandou em
+`X-Wallet-Client-Address` (o mesmo que o rate limit conta, com os proxies de confiança); sem o cabeçalho, grava `unknown`.
+Login recusado e refresh recusado não gravam nada.
+
+- **Sem chave estrangeira em `user_id`:** excluir a conta não apaga os registros, que valem 6 meses (obrigação legal, LGPD art. 16, I).
+- **Nenhuma rota de leitura.** Nem a API, nem o app, nem a exportação dos dados: o acesso só acontece por **ordem judicial, direto no banco**
+  (quem abre a tabela decifra o IP com a `WALLET_DATA_KEY`).
+- **Limpeza:** a tarefa noturna do `AccountHousekeeping` apaga o que passou de `wallet.retention.identity.access-records-after` (**185 dias**: cobre
+  qualquer 6 meses de calendário). Log `[RETENTION]` com a contagem.
+- Testes: `AccessRecordsIT` (login e refresh gravam, IP cifrado, recusa não grava, exclusão da conta não apaga, limpeza pelo agendador).
+
+## Nome dos gastos fixos cifrado (L7)
+
+Desde 2026-10-24. O nome de um gasto fixo é texto livre ("Psicólogo") e passou a ser cifrado em `fixed_expenses.name`, como a descrição das
+transações. Detalhes e o preenchimento das linhas antigas em [[Modelo de Dados#Criptografia de coluna]]. Efeito no código: o banco não ordena
+mais por nome: o SQL ordena por dia e id, e o desempate pelo nome acontece em memória, depois de decifrar, num lugar só
+(`FixedExpenseOrder`, regra pura; a lista, o plano do mês, as sugestões e a exportação leem por
+`FixedExpenseRepository.findOrderedByDayThenName`). Compara com um `Collator` pt-BR (letras, depois acentos, depois
+maiúsculas), o critério do Postgres, para a ordem visível não mudar. Testes: `FixedExpenseOrderTest` (a regra),
+`FixedExpenseOrderIT` (pergunta ao próprio Postgres, com a collation do banco, e exige a mesma ordem para 32 nomes com acento, caixa,
+número, espaço e hífen) e `FixedExpenseEncryptionIT`.
+
+## Retenção (L8, desde 2026-10-24)
+
+LGPD: dado pessoal só enquanto serve. **Cada módulo limpa o que é dele**, toda noite, com uma tarefa agendada no mesmo
+padrão do `AccountHousekeeping`: um `SchedulingConfigurer` que registra um `CronTask` e abre a transação **dentro** do método
+(`TransactionTemplate`), porque o agendador chama o objeto e não o proxy do Spring, e um `@Transactional` seria ignorado
+(a limpeza falharia toda noite por falta de transação). Roda em todas as instâncias: dois deletes das mesmas linhas não fazem mal. O log
+`[RETENTION]` só traz contagens.
+
+| Módulo | Tarefa | O que apaga | Propriedade (padrão) | Cron (hora de São Paulo) |
+|---|---|---|---|---|
+| `banking` | `BankingHousekeeping` | Transações com `deleted_at` (as que o provedor deixou de informar) há mais de 90 dias | `wallet.retention.banking.deleted-transactions-after` (90d) | `.cleanup-cron` (`0 50 4 * * *`) |
+| `sync` | `SyncRunHousekeeping` | `sync_runs` terminadas há mais de 90 dias, **menos a mais recente de cada conexão** (o cooldown do "Atualizar" conta dela); uma em andamento nunca | `wallet.retention.sync.finished-runs-after` (90d) | `.cleanup-cron` (`0 55 4 * * *`) |
+| `identity` | `AccountHousekeeping` (a tarefa que já existe, às 04:15) | `refresh_tokens` vencidos ou revogados há mais de 30 dias, e `access_records` com mais de 185 dias ([[#Registros de acesso (L13)]]). Os links de e-mail, as contas não confirmadas e os contadores de login já eram limpos ali | `wallet.retention.identity.refresh-tokens-after` (30d) e `.access-records-after` (185d) | o de `wallet.auth.cleanup-cron` |
+| `sync` | `WebhookEventHousekeeping` | `provider_webhook_events` recebidos há mais de 30 dias (o registro só serve para ignorar um aviso repetido e ver o que foi feito dele) | `wallet.retention.webhooks.events-after` (30d) | `.cleanup-cron` (`0 5 5 * * *`) |
+
+Já tinham limpeza própria: a auditoria das chamadas à Pluggy (180 dias, [[#Auditoria das chamadas à Pluggy (desde 2026-10-18)]]) e a lista
+de espera não confirmada (7 dias, [[#Lista de espera (módulo `waitlist`, desde 2026-10-23)]]).
+
+**O que NÃO se apaga sozinho, de propósito:** o histórico de saldos (`balance_snapshots`), os snapshots de investimentos
+(`investment_snapshots`), os investimentos fechados e as faturas. São o histórico que o produto mostra (patrimônio dia a dia,
+evolução dos investimentos), e ficam enquanto a conta existir; a exclusão da conta apaga tudo. As transações que seguem no banco
+do usuário também ficam.
+
+**Conta inativa:** não há exclusão automática. [A DEFINIR: prazo de conta inativa]: depende de uma decisão do Rafael (e do jurídico), e
+precisa avisar o dono antes de apagar.
+
+Testes: `BankingHousekeepingIT`, `SyncRunHousekeepingIT` e `RefreshTokenRetentionIT`, todos pelo caminho do agendador (a tarefa que o
+`configureTasks` registra), com o relógio nas mãos do teste: o que passou do prazo some, o que não passou fica, e a última `sync_run` de
+cada conexão sempre fica.
 
 ## Calendário de gastos (desde 2026-10-03)
 
@@ -470,6 +651,17 @@ criar o gasto fixo normalmente (o app abre o formulário preenchido); `DELETE ..
   com autenticação; nos ITs, `TestMailConfiguration` troca o transporte por um que guarda os
   e-mails, e o teste lê o link como o dono leria.
 - Contrato HTTP das rotas (quem acessa o quê, códigos de erro).
+- Lista de espera (desde 2026-10-23): `WaitlistFlowIT` (inscrição manda o link; repetida dentro de 1 h não
+  reenvia e depois de 1 h reenvia, com o relógio na mão; oito pedidos ao mesmo tempo mandam um e-mail; confirmar
+  com link válido, vencido, desconhecido, trocado e duas vezes; `CONFIRMED` não recebe nada; descadastro apaga e
+  token desconhecido é 204; limpeza dos `PENDING` com mais de 7 dias pelo caminho do agendador; comunicado só
+  para `CONFIRMED` sem aquele id, marcação, segunda rodada sem reenvio e falha de envio sem marca),
+  `AnnouncementFilesTest`, `WaitlistEmailsTest`, `QueuedEmailSenderTest` (`sendNow`) e `PublicUrlTest`.
+- Webhooks (desde 2026-10-24): `WebhookFlowIT` (evento novo pede a sincronização `WEBHOOK`; repetido não faz nada; dentro do
+  cooldown `SKIPPED_COOLDOWN`; sem vaga no bulkhead ou com uma já rodando `SKIPPED_BUSY`; item desconhecido; item apagado vira
+  `NEEDS_ATTENTION`; autorização vencida não sincroniza; o resto do corpo nunca é usado; corpo sem `eventId` é 400; sem a chave do
+  gateway é 403; limpeza pelo caminho do agendador), `WebhookRegistrationTest` (WireMock: cria os seis, atualiza e reativa, não mexe
+  em hook de outro endereço, rodar de novo não cria nada, segredo e endereço inválidos) e `WebhookOutcomesTest`.
 - Disponibilidade (desde 2026-10-22): `BulkheadTest` (parte do usuário, total, vaga devolvida uma
   vez, 20 requisições simultâneas de um usuário nunca passam de 2), `ReadApiIT` (busca paginada
   com total exato, janela de 93 dias, bulkheads `search` e `screens` nas rotas, histórico de

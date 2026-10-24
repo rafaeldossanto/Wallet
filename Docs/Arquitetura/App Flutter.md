@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, flutter, app]
-atualizado: 2026-10-22
+atualizado: 2026-10-23
 ---
 
 # App Flutter
@@ -401,6 +401,54 @@ Detalhes em [[Autenticação]].
   "Copiar os códigos", mostrados só ali); desligar pede senha e um código.
 - O `errorMessage` ganhou `auth.two_factor_required`, `auth.invalid_two_factor_code`, `auth.busy`,
   `auth.email_unchanged`, `auth.link_invalid` e os `two_factor.*`.
+- **Esqueci minha senha (desde 2026-10-23):** na entrada, o botão "Esqueci minha senha" abre a tela
+  `/forgot-password` (pública) com o campo de e-mail e "Enviar o link". A resposta é a mesma para
+  qualquer e-mail: "Se houver uma conta com esse e-mail, enviamos um link para criar uma senha nova."
+  O link abre uma página do BFF (`/password/reset`), não o app ([[Autenticação#Esqueci minha senha e trocar a senha (desde 2026-10-23)]]).
+- **Ajustes → Segurança → Trocar senha:** diálogo com "Senha atual", "Nova senha" e "Repita a nova senha".
+  O app confere antes de enviar o que o servidor recusaria (8 caracteres ou mais, repetição igual,
+  diferente da atual); senha atual errada aparece no campo. No 204 o servidor já derrubou todas as
+  sessões, então o app **não faz logout**: apaga a sessão local (`SignOutReason.passwordChanged`) e
+  abre a entrada com "Senha trocada. Entre de novo com a senha nova."
+- **Ajustes → Segurança → Gerar códigos novos** (só com a verificação em duas etapas ligada): senha + código
+  (do app ou de recuperação) e, em seguida, os 10 códigos novos como na ativação, com "Copiar os códigos";
+  os antigos deixam de valer.
+- **Servidor ocupado:** `service.busy` e `auth.busy` dizem a mesma frase, "O Wallet está com muito movimento
+  agora. Tente de novo em alguns segundos." (antes caíam na genérica e no "Muita gente entrando agora").
+
+## Seus dados (desde 2026-10-24)
+
+Ajustes → **Seus dados** → **Baixar meus dados** (`DownloadDataTile`): o direito de acesso e a portabilidade da LGPD. Chama
+`GET /api/me/export` (`DataExportApi`, um minuto de espera) e grava o JSON onde a pessoa acha. A mensagem de sucesso traz
+o nome do arquivo e, no Windows, a pasta.
+
+| Plataforma | Onde o arquivo vai |
+|---|---|
+| Navegador | Download do navegador (um Blob atrás de um link que se clica; `dart:js_interop`, sem dependência nova) |
+| Windows | A pasta Downloads (`path_provider`); se já existe um com o nome, o novo ganha ` (2)`, ` (3)`... |
+| Android | O "Salvar como" do próprio Android (Storage Access Framework, `ACTION_CREATE_DOCUMENT` com `application/json`), por um canal de plataforma no padrão do instalador: `wallet/document_saver`, `DocumentSaver.kt` e `core/android/document_saver.dart`. A pessoa escolhe a pasta (Downloads, Drive...); os bytes vão direto, **sem cópia em cache nem em pasta temporária**, e o arquivo não passa pela folha de compartilhar |
+
+- **Cancelou o "Salvar como":** "Download cancelado." e nada é gravado. Falha ao gravar: "Não foi possível salvar o arquivo neste aparelho."
+- **Limite:** o BFF dá 3 por dia; passou, a mensagem é "Você já baixou seus dados várias vezes hoje. Tente de novo amanhã." (a frase geral
+  "Espere um minuto" seria o conselho errado).
+- **Nome:** o do `Content-Disposition` quando o app o lê; num navegador em outro endereço o CORS esconde o cabeçalho, e o app faz o mesmo
+  nome com a data de hoje. Um nome que não seja letras, números, ponto e traço nunca é usado.
+- Quem grava é um `FileSaver` que o `AppDependencies` entrega (nos testes, um em memória). O lado Dart do canal é testado com o canal
+  simulado (`android_document_saver_test.dart`); o Kotlin só compila, ninguém o executou num aparelho.
+
+## Aceite dos Termos de Uso e da Política de Privacidade (L15, desde 2026-10-24)
+
+- **Cadastro:** uma caixa **desmarcada**, "Li e aceito os Termos de Uso e a Política de Privacidade" (`AcceptTermsLabel`), com os dois nomes como links
+  que abrem no navegador (`url_launcher`, pelo `OpenOutside` do `PluggyConnectHost`). Sem marcar, o botão "Criar conta" fica desligado e nada é
+  enviado; marcada, o pedido leva `acceptTerms: true`. O endereço dos textos vem de `AppConfig.termsUrl` e `privacyUrl`: `WALLET_SITE_URL` (define),
+  ou, sem ele, o do BFF sem o `app.` (`https://app.exemplo.com` leva a `https://exemplo.com`), ou os de desenvolvimento (`localhost:5181`; no emulador
+  Android, `10.0.2.2:5181`). Com o endereço do BFF no padrão do deploy, nada a configurar.
+- **Aviso que não fecha** (`TermsGate`, por cima do app, na raiz do `MaterialApp`): enquanto `GET /api/me` traz `termsAcceptanceRequired`, o app mostra
+  "Atualizamos os Termos de Uso e a Política de Privacidade", os links (os do servidor, no `/me`), a caixa desmarcada e o botão
+  "Aceitar e continuar". Não tem como fechar sem aceitar; sob ele, nada recebe toque, foco nem leitura de tela. Aceitar chama
+  `POST /api/me/terms` com a `termsVersion` do `/me` e recarrega o perfil; o aviso some. `legal.terms_outdated` (os textos mudaram de novo)
+  recarrega o perfil, desmarca a caixa e diz "Os textos mudaram de novo. Leia a versão atual e aceite de novo."
+- Só o app obriga, por enquanto: o servidor não bloqueia rotas (ver [[Autenticação#Aceite dos Termos de Uso e da Política de Privacidade (L15, desde 2026-10-24)]]).
 
 ## Excluir conta (desde 2026-10-19)
 
@@ -461,6 +509,19 @@ sozinhas. O BFF usa a mesma consulta para descartar o cache das telas daquele us
   Pluggy de demonstração (`demo-nubank`, `demo-itau`, `demo-xp` e os básicos `demo-banco` e
   `demo-corretora`).
 
+- **Antes de conectar (desde 2026-10-23, LGPD L3):** "Conectar banco", o Item ID e "Renovar" começam na tela
+  `ConsentScreen`: finalidade, dados lidos, "O Wallet só lê: não movimenta dinheiro.", validade e como revogar. A caixa
+  "Autorizo o Wallet a ler esses dados para essa finalidade." nasce desmarcada e "Continuar" só liga com ela
+  marcada; fechar a tela não conecta nada. O app manda `consentVersion: "open-finance-v1"` no vínculo e no connect
+  token, e o core exige.
+- **Autorização que vence (L5):** o cartão da conexão mostra "A autorização deste banco venceu. Renove para voltar
+  a atualizar." (com a data passada ou o status `CONSENT_EXPIRED`) e esconde o "Atualizar"; faltando 7 dias ou menos,
+  "A autorização vence em N dias." (ou "vence hoje"). O botão **Renovar** (só no Android) passa pela tela de finalidade
+  e abre o Pluggy Connect em modo atualização (`connectionId` no connect token); com o item de volta, o app chama
+  `POST /api/connections/{id}/renew` e diz "Autorização renovada." (se a Pluggy ainda mostra a data velha:
+  "A renovação ainda não apareceu no banco. Tente de novo em instantes."). Fora do Android o cartão diz "Renove
+  pelo app no celular.". O status ganhou o chip "Autorização vencida".
+
 Ver [[Fluxo de Conexão]].
 
 ## Limites conhecidos
@@ -471,7 +532,7 @@ Ver [[Fluxo de Conexão]].
 
 ## Testes
 
-198 testes com um BFF em memória (`test/support/fake_bff.dart`):
+223 testes com um BFF em memória (`test/support/fake_bff.dart`):
 
 - Unitários: `Money` (inclusive o valor digitado num formulário, `1.234,56`), sessão (restaurar, recusar, servidor fora), interceptor (duas chamadas
   com 401 geram **um** refresh), bloqueio por biometria, inatividade no navegador,
@@ -504,7 +565,16 @@ Ver [[Fluxo de Conexão]].
   (`test/features/account_test.dart`, desde 2026-10-22): cadastro esperando o link e reenvio, o
   código do segundo fator no login (certo e errado), reenvio pelo login, o logo novo no login e no
   trilho, trocar nome e e-mail em Ajustes, ligar o 2FA (QR, chave, código, códigos de recuperação),
-  código que não confere e desligar.
+  código que não confere e desligar; e `test/features/password_test.dart` (desde 2026-10-23): "Esqueci minha
+  senha" (envio com a mesma frase para qualquer e-mail, e-mail sem @ que não sai do app, servidor ocupado),
+  "Trocar senha" (diálogo, sessão local apagada sem logout e aviso na entrada, senha atual errada no campo,
+  validações locais), "Gerar códigos novos" (só com o 2FA ligado, mostra os 10 códigos, código errado) e a
+  frase única do `service.busy`/`auth.busy`; e `test/features/consent_test.dart` (desde 2026-10-23): a tela
+  "Antes de conectar" (o que diz, "Continuar" desligado até a caixa, fechar não conecta, o Item ID passando por
+  ela, a versão no vínculo e no connect token), o fim da autorização (vencida marcada ou só pela data, Renovar
+  no Android e "Renove pelo app no celular." fora dele, aviso com 7 dias e nenhum com 8, a renovação ponta a ponta
+  com o Pluggy Connect em modo atualização, fechar sem terminar, renovação ainda não vista, atualização recusada
+  por autorização vencida) e as regras puras de data.
 
 Além disso, verificado à mão em 2026-10-02 no Chrome (build release) e no emulador
 `trilha_pixel`, contra o core e o BFF reais com a Pluggy de demonstração.

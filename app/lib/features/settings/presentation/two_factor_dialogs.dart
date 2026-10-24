@@ -251,3 +251,115 @@ class _DisableTwoFactorDialogState extends State<_DisableTwoFactorDialog> {
     );
   }
 }
+
+Future<void> showNewRecoveryCodesDialog(BuildContext context) =>
+    showDialog<void>(context: context, barrierDismissible: false, builder: (_) => const _NewRecoveryCodesDialog());
+
+/// New recovery codes in place of the old ones: the password and a code (or a recovery code) first,
+/// like turning the factor off, and then the ten codes, shown this once like at turn-on.
+class _NewRecoveryCodesDialog extends StatefulWidget {
+  const _NewRecoveryCodesDialog();
+
+  @override
+  State<_NewRecoveryCodesDialog> createState() => _NewRecoveryCodesDialogState();
+}
+
+class _NewRecoveryCodesDialogState extends State<_NewRecoveryCodesDialog> {
+  final _password = TextEditingController();
+  final _code = TextEditingController();
+  List<String>? _recoveryCodes;
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _password.dispose();
+    _code.dispose();
+    super.dispose();
+  }
+
+  Future<void> _generate() async {
+    if (_password.text.isEmpty || _code.text.trim().isEmpty) {
+      setState(() => _error = context.l10n.validationRequired);
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final codes = await context.read<SessionController>().renewRecoveryCodes(_password.text, _code.text);
+      if (mounted) {
+        setState(() => _recoveryCodes = codes);
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        _code.clear();
+        setState(() => _error = context.l10n.errorMessage(error));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  Future<void> _copyCodes() async {
+    await Clipboard.setData(ClipboardData(text: _recoveryCodes!.join('\n')));
+    if (mounted) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(context.l10n.twoFactorCopied)));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    if (_recoveryCodes case final codes?) {
+      return AlertDialog(
+        title: Text(l10n.twoFactorRecoveryTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(l10n.twoFactorRecoveryHelp),
+            const SizedBox(height: 16),
+            SelectableText(codes.join('\n'),
+                textAlign: TextAlign.center, style: const TextStyle(fontFamily: 'monospace', fontSize: 16, height: 1.6)),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: _copyCodes, child: Text(l10n.twoFactorCopyCodes)),
+          FilledButton(onPressed: () => Navigator.of(context).pop(), child: Text(l10n.twoFactorDone)),
+        ],
+      );
+    }
+    return AlertDialog(
+      title: Text(l10n.newRecoveryCodesTitle),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(l10n.newRecoveryCodesHelp),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _password,
+            autofocus: true,
+            obscureText: true,
+            decoration: InputDecoration(labelText: l10n.fieldYourPassword),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _code,
+            autofillHints: const [AutofillHints.oneTimeCode],
+            decoration: InputDecoration(labelText: l10n.fieldTwoFactorCode, errorText: _error, errorMaxLines: 3),
+            onSubmitted: (_) => _generate(),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: _busy ? null : () => Navigator.of(context).pop(), child: Text(l10n.actionCancel)),
+        FilledButton(onPressed: _busy ? null : _generate, child: Text(l10n.newRecoveryCodesAction)),
+      ],
+    );
+  }
+}

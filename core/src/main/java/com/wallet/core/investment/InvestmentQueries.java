@@ -15,4 +15,7 @@ public interface InvestmentQueries {
 
     /** Total invested per day; a day without a snapshot repeats the last known value of each position. */
     Map<LocalDate, Money> totalHistory(UUID userId, DateRange period);
+
+    /** Every position of the user, closed ones included, with the balance history of each. */
+    InvestmentExport export(UUID userId);
 }

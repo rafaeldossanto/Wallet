@@ -69,7 +69,7 @@ class RequestBodyLimitIT {
     @Test
     void aSmallChunkedBodyGoesThrough() throws Exception {
         byte[] body = """
-                {"email":"chunked+%s@example.com","password":"password123","displayName":"Chunked"}
+                {"email":"chunked+%s@example.com","password":"password123","displayName":"Chunked","acceptTerms":true}
                 """.formatted(System.nanoTime()).getBytes(StandardCharsets.UTF_8);
 
         HttpResponse<String> response = http.send(register()

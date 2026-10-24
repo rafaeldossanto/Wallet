@@ -27,6 +27,9 @@ class PluggyOperations {
     static final String LIST_TRANSACTIONS = "LIST_TRANSACTIONS";
     static final String LIST_BILLS = "LIST_BILLS";
     static final String LIST_INVESTMENTS = "LIST_INVESTMENTS";
+    static final String LIST_WEBHOOKS = "LIST_WEBHOOKS";
+    static final String CREATE_WEBHOOK = "CREATE_WEBHOOK";
+    static final String UPDATE_WEBHOOK = "UPDATE_WEBHOOK";
 
     /** Resource names and API versions; any other segment is an id (UUIDs, numbers, {@code demo-nubank}). */
     private static final Pattern FIXED_SEGMENT = Pattern.compile("[a-z_]+|v\\d+");
@@ -45,6 +48,9 @@ class PluggyOperations {
             case "GET /transactions", "GET /v2/transactions" -> LIST_TRANSACTIONS;
             case "GET /bills" -> LIST_BILLS;
             case "GET /investments" -> LIST_INVESTMENTS;
+            case "GET /webhooks" -> LIST_WEBHOOKS;
+            case "POST /webhooks" -> CREATE_WEBHOOK;
+            case "PATCH /webhooks/{id}" -> UPDATE_WEBHOOK;
             default -> unnamed(method, segments);
         };
     }
