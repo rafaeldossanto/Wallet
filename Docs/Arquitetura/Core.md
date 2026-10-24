@@ -468,6 +468,28 @@ Desde 2026-10-24. Dado pessoal não entra em log. No erro **inesperado**, o `Glo
 Os avisos de corpo ilegível e de parâmetro inválido também logam só a classe. Teste:
 `GlobalExceptionHandlerTest#anUnexpectedErrorIsLoggedWithoutAnyMessage`, com uma exceção cuja mensagem tem um e-mail.
 
+## Registros de acesso (L13)
+
+Desde 2026-10-24. O Marco Civil da Internet (art. 15) manda a aplicação guardar, em sigilo, os registros de acesso por **6 meses**.
+O módulo `identity` grava **uma linha em `access_records`** a cada **login com sucesso** (`LOGIN`) e a cada **refresh** (`REFRESH`),
+com o `user_id`, a hora e o **IP cifrado** (o mesmo `DataCipher` da descrição das transações). O IP é o que o BFF mandou em
+`X-Wallet-Client-Address` (o mesmo que o rate limit conta, com os proxies de confiança); sem o cabeçalho, grava `unknown`.
+Login recusado e refresh recusado não gravam nada.
+
+- **Sem chave estrangeira em `user_id`:** excluir a conta não apaga os registros, que valem 6 meses (obrigação legal, LGPD art. 16, I).
+- **Nenhuma rota de leitura.** Nem a API, nem o app, nem a exportação dos dados: o acesso só acontece por **ordem judicial, direto no banco**
+  (quem abre a tabela decifra o IP com a `WALLET_DATA_KEY`).
+- **Limpeza:** a tarefa noturna do `AccountHousekeeping` apaga o que passou de `wallet.retention.identity.access-records-after` (**185 dias**: cobre
+  qualquer 6 meses de calendário). Log `[RETENTION]` com a contagem.
+- Testes: `AccessRecordsIT` (login e refresh gravam, IP cifrado, recusa não grava, exclusão da conta não apaga, limpeza pelo agendador).
+
+## Nome dos gastos fixos cifrado (L7)
+
+Desde 2026-10-24. O nome de um gasto fixo é texto livre ("Psicólogo") e passou a ser cifrado em `fixed_expenses.name`, como a descrição das
+transações. Detalhes e o preenchimento das linhas antigas em [[Modelo de Dados#Criptografia de coluna]]. Efeito no código: o banco não ordena
+mais por nome, então `FixedExpenseRepository.findOrderedByDayThenName` ordena por dia no SQL e desempata pelo nome em memória (collator
+pt-BR, sem diferenciar maiúscula nem acento no desempate). Teste: `FixedExpenseEncryptionIT`.
+
 ## Retenção (L8, desde 2026-10-24)
 
 LGPD: dado pessoal só enquanto serve. **Cada módulo limpa o que é dele**, toda noite, com uma tarefa agendada no mesmo
@@ -480,7 +502,7 @@ padrão do `AccountHousekeeping`: um `SchedulingConfigurer` que registra um `Cro
 |---|---|---|---|---|
 | `banking` | `BankingHousekeeping` | Transações com `deleted_at` (as que o provedor deixou de informar) há mais de 90 dias | `wallet.retention.banking.deleted-transactions-after` (90d) | `.cleanup-cron` (`0 50 4 * * *`) |
 | `sync` | `SyncRunHousekeeping` | `sync_runs` terminadas há mais de 90 dias, **menos a mais recente de cada conexão** (o cooldown do "Atualizar" conta dela); uma em andamento nunca | `wallet.retention.sync.finished-runs-after` (90d) | `.cleanup-cron` (`0 55 4 * * *`) |
-| `identity` | `AccountHousekeeping` (a tarefa que já existe, às 04:15) | `refresh_tokens` vencidos ou revogados há mais de 30 dias. Os links de e-mail, as contas não confirmadas e os contadores de login já eram limpos ali | `wallet.retention.identity.refresh-tokens-after` (30d) | o de `wallet.auth.cleanup-cron` |
+| `identity` | `AccountHousekeeping` (a tarefa que já existe, às 04:15) | `refresh_tokens` vencidos ou revogados há mais de 30 dias, e `access_records` com mais de 185 dias ([[#Registros de acesso (L13)]]). Os links de e-mail, as contas não confirmadas e os contadores de login já eram limpos ali | `wallet.retention.identity.refresh-tokens-after` (30d) e `.access-records-after` (185d) | o de `wallet.auth.cleanup-cron` |
 
 Já tinham limpeza própria: a auditoria das chamadas à Pluggy (180 dias, [[#Auditoria das chamadas à Pluggy (desde 2026-10-18)]]) e a lista
 de espera não confirmada (7 dias, [[#Lista de espera (módulo `waitlist`, desde 2026-10-23)]]).

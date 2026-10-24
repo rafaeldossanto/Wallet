@@ -41,9 +41,10 @@ O Wallet é uma carteira financeira pessoal **somente de leitura**. Ele junta sa
 | Segundo fator | Segredo do segundo fator (TOTP) e códigos de recuperação | O segredo é guardado cifrado; os códigos de recuperação, só como hash |
 | Proteção do login | Contadores de tentativas de entrada, por e-mail (em hash) e por endereço IP | Servem para bloquear quem tenta adivinhar senhas |
 | Sessões | Chaves de renovação do login (refresh tokens) | Guardadas só como hash |
+| Registros de acesso | Data, hora e endereço IP de cada entrada e de cada renovação do login | O IP é guardado cifrado. É uma obrigação legal (Marco Civil da Internet, art. 15) e ninguém lê esses registros, a não ser por ordem judicial |
 | Conexões com bancos | Identificador da conexão no provedor, situação e validade do seu consentimento | Não guardamos usuário nem senha do banco |
 | Dados financeiros | Contas (instituição, tipo e últimos 4 dígitos), saldos e histórico de saldos, transações (valor, data, categoria, parcelas e descrição), cartões e faturas, investimentos e histórico | A descrição de cada transação é guardada cifrada (AES-256-GCM) |
-| Planejamento | Gastos fixos (nome) e salário esperado | O nome dos gastos fixos ainda é guardado sem cifra (cifragem pendente) |
+| Planejamento | Gastos fixos (nome) e salário esperado | O nome dos gastos fixos é guardado cifrado |
 | Auditoria do provedor | Registro das chamadas que o Wallet faz ao provedor de Open Finance | Pseudônimo, sem valores, por 180 dias |
 | Lista de espera | E-mail, situação da inscrição, versão do consentimento e datas | Só para avisar quando o Wallet abrir |
 | Registros técnicos | Identificadores internos; o IP aparece nos registros do limite de tentativas | Veja a seção 8 |
@@ -100,7 +101,7 @@ Se os dados forem tratados fora do Brasil, isso só pode acontecer com as garant
 | Registro das sincronizações com o banco | 90 dias (a mais recente de cada conexão fica) |
 | Chaves de renovação do login (sessões) | Até 30 dias depois de vencerem ou de serem revogadas |
 | Cópias de segurança | Diárias, guardadas por 14 dias. Um dado excluído pode permanecer nelas até esse prazo |
-| Registros de acesso à aplicação (Marco Civil, art. 15) | 6 meses. **Ainda não implementado** |
+| Registros de acesso à aplicação (Marco Civil, art. 15) | 6 meses, em sigilo. Ficam mesmo que você exclua a conta, porque a lei manda guardar |
 | Registros técnicos do servidor | [A DEFINIR] |
 
 ## 9. Como protegemos seus dados

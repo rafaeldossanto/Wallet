@@ -116,7 +116,9 @@ o texto cifrado em base64 ocupa mais que o original.
 
 **investments** — `id`, `connection_id`, `provider_investment_id` (único), `kind`
 (`FIXED_INCOME`, `TREASURY`, `FUND`, `EQUITY`, `OTHER`), `name`, `balance`,
-`amount_invested`, `due_date`, `closed_at`, `updated_at`.
+`amount_invested`, `due_date`, `closed_at`, `updated_at`. Índices: único em (`connection_id`, `provider_investment_id`), o parcial das
+posições abertas (`user_id` onde `closed_at` é nulo) e, desde a V14, `ix_investments_user_id`, que cobre também as fechadas (a
+exportação e o histórico leem todas).
 
 **investment_snapshots** — `investment_id`, `snapshot_date`, `balance`. Chave
 (`investment_id`, `snapshot_date`). Mesmo papel dos `balance_snapshots`, para o gráfico
@@ -139,7 +141,7 @@ o registro precisa sobreviver ao desvínculo e à exclusão do usuário. Nenhum 
 token ou credencial. Apagado depois de 180 dias. Ver [[Core#Auditoria das chamadas à Pluggy (desde 2026-10-18)]].
 
 **fixed_expenses** — os gastos fixos do planejamento (o que não passa no cartão): `id`,
-`user_id` (FK `users`, cascata), `name`, `amount` (maior que zero), `day_of_month` (1 a 31; nos
+`user_id` (FK `users`, cascata), `name` (**cifrado**, `VARCHAR(512)` desde a V14; ver [[#Criptografia de coluna]]), `amount` (maior que zero), `day_of_month` (1 a 31; nos
 meses mais curtos cai no último dia), `category` (uma categoria da Pluggy, opcional),
 `created_at`, `updated_at`. Repetem em todo mês. Ver [[Core#Planejamento do mês (desde 2026-10-18)]].
 
@@ -154,6 +156,11 @@ cobre 3 dias para cada lado), `created_at`. Único por (`user_id`, `description_
 `day_of_month`). As sugestões em si não são gravadas: saem das transações a cada leitura. Ver
 [[Core#Gastos fixos sugeridos pelo extrato (desde 2026-10-18)]].
 
+**access_records** (V14) — os registros de acesso do Marco Civil da Internet (art. 15): `id`, `user_id`
+(**sem FK**, de propósito), `event` (`LOGIN` ou `REFRESH`), `ip` (**cifrado**), `occurred_at`. Uma linha a cada login com sucesso e a cada
+refresh. Sem FK porque o registro tem de sobreviver à exclusão da conta pelos 6 meses (obrigação legal, LGPD art. 16, I). Nenhuma rota lê esta
+tabela: o acesso só acontece por ordem judicial, direto no banco. Apagada toda noite a partir de 185 dias ([[Core#Registros de acesso (L13)]]).
+
 > [!warning] Validação do Hibernate
 > `ddl-auto: validate` recusa `CHAR(n)` e `TEXT` onde a entidade tem `String`, porque
 > espera `VARCHAR`. Por isso o schema usa `VARCHAR` em tudo, até em `currency_code`.
@@ -163,6 +170,12 @@ cobre 3 dias para cada lado), `created_at`. Único por (`user_id`, `description_
 - `transactions.description` passa por um `AttributeConverter` com **AES-256-GCM**;
   a chave vem de `WALLET_DATA_KEY`. O valor gravado leva um prefixo de versão da chave
   (`v1:`) para permitir rotação.
+- `fixed_expenses.name` (L7, desde 2026-10-24) também é cifrado, por um conversor próprio
+  (`LegacyAwareEncryptedStringConverter`) que aceita o valor **legado**: sem o prefixo `v1:` volta como está. O
+  `FixedExpenseNameBackfill` cifra em lotes, na subida, as linhas que ainda estão em claro (idempotente: o que já tem
+  prefixo não é tocado, e rodar de novo não muda nada). Como o texto cifrado não ordena, o desempate por nome dentro do
+  mesmo dia é feito em memória, depois de decifrar.
+- `access_records.ip` (L13) é cifrado do mesmo jeito que a descrição.
 - Sem chave configurada, o core usa uma temporária e avisa no log; com o perfil `prod`, não
   sobe. Um valor que não
   decifra (gravado com outra chave) volta como `null` em vez de derrubar a leitura.
@@ -197,7 +210,8 @@ cobre 3 dias para cada lado), `created_at`. Único por (`user_id`, `description_
      `credit_card_bills`, `investments`, `investment_snapshots`, `sync_runs`, `fixed_expenses`,
      `planning_settings`, `dismissed_fixed_expense_suggestions`, `refresh_tokens`, `email_tokens`,
      `recovery_codes` e `email_notices`. (`login_throttles` não tem FK: as linhas somem sozinhas em
-     um dia.)
+     um dia. `access_records` também não tem, de propósito: os registros de acesso ficam 6 meses depois da
+     exclusão, como a lei manda.)
   4. No BFF, o cookie `wallet_refresh` é apagado e o cache de telas do usuário, descartado. O BFF
      espera o core por até 2 min nessa rota (`wallet.core.slow-read-timeout`), e não os 5 s de
      sempre: cada revogação na Pluggy pode levar até 10 s.

@@ -37,7 +37,7 @@ Sobre dados sensíveis (art. 5º, II): o Wallet não coleta dado sensível de pr
 | 8 | Lista de espera | Consentimento (art. 7º, I) | Pendente: 7 dias; confirmada: [A DEFINIR] |
 | 9 | E-mails da conta | Contrato (art. 7º, V) | Não guardamos o conteúdo [CONFIRMAR] |
 | 10 | Distribuição do app e checagem de versão | [A DEFINIR] | Fora do controle do Wallet (GitHub) |
-| 11 | Registros de acesso (Marco Civil) | Obrigação legal (art. 7º, II) | 6 meses. **Pendente: não implementado** |
+| 11 | Registros de acesso (Marco Civil) | Obrigação legal (art. 7º, II) | 6 meses, em sigilo; sobrevivem à exclusão da conta (art. 16, I) |
 | 12 | Cópias de segurança | Contrato (art. 7º, V) | 14 dias |
 | 13 | Exclusão da conta | Contrato (art. 7º, V); pedido do titular (art. 18, VI) | Imediata; permanece em cópias de segurança por até 14 dias |
 
@@ -111,13 +111,13 @@ Sobre dados sensíveis (art. 5º, II): o Wallet não coleta dado sensível de pr
 | Campo | Descrição |
 |---|---|
 | Finalidade | Gastos fixos e salário esperado, para calcular o que sobra no mês |
-| Dados | Nome dos gastos fixos (ainda sem cifra: cifragem pendente), salário esperado |
+| Dados | Nome dos gastos fixos (cifrado), salário esperado |
 | Titulares | Usuários |
 | Base legal | Execução de contrato (art. 7º, V) |
 | Retenção | Até excluir a conta |
 | Compartilhamento / operador | AWS (guarda) |
 | Transferência internacional | [A CONFIRMAR] |
-| Medidas de segurança | HTTPS; rede interna. **Pendente:** cifrar o nome dos gastos fixos |
+| Medidas de segurança | HTTPS; rede interna; o nome dos gastos fixos é cifrado com AES-256-GCM |
 
 ## 7. Auditoria das chamadas ao provedor
 
@@ -176,13 +176,13 @@ Sobre dados sensíveis (art. 5º, II): o Wallet não coleta dado sensível de pr
 | Campo | Descrição |
 |---|---|
 | Finalidade | Cumprir o art. 15 do Marco Civil da Internet |
-| Dados | Data, hora e IP dos acessos |
+| Dados | Data, hora, identificador do usuário e IP de cada login e de cada renovação do login (o IP, cifrado) |
 | Titulares | Usuários |
 | Base legal | Obrigação legal (art. 7º, II) |
 | Retenção | 6 meses, em sigilo |
 | Compartilhamento / operador | AWS (guarda) |
 | Transferência internacional | [A CONFIRMAR] |
-| Medidas de segurança | **Pendente: ainda não implementado.** Hoje os registros do servidor só trazem identificadores, e o IP aparece nos do limite de tentativas |
+| Medidas de segurança | IP cifrado (AES-256-GCM); nenhuma rota lê a tabela, só ordem judicial, direto no banco; apagada toda noite depois de 185 dias; sem chave estrangeira, para não sumir com a conta. Os registros do servidor (logs) seguem só com identificadores, e o IP aparece nos do limite de tentativas em forma de pseudônimo |
 
 ## 12. Cópias de segurança
 
@@ -215,6 +215,4 @@ Sobre dados sensíveis (art. 5º, II): o Wallet não coleta dado sensível de pr
 - Preencher os dados da empresa e do encarregado.
 - Confirmar a região da AWS e onde a Pluggy hospeda os dados (transferência internacional, art. 33).
 - Definir as retenções marcadas [A DEFINIR].
-- Implementar os registros de acesso do Marco Civil.
-- Cifrar o nome dos gastos fixos.
 - Confirmar com o jurídico as bases legais marcadas [CONFIRMAR].
