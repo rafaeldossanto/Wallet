@@ -327,3 +327,10 @@ atualizado: 2026-10-19
   (fecha o A21). O registro é feito por um comando.
 - **Aceite versionado dos termos** (V17): caixa no cadastro e aviso para quem tem versão antiga.
 - Com isso, a auditoria de segurança de 2026-10-19 fica sem achado aberto.
+- A revisão de código do PR #5 encontrou três bloqueadores, corrigidos na `dev`:
+  - **"Esqueci minha senha" não abria em produção:** o Caddy não repassava `/password/*` ao BFF, e
+    a página caía no app. Agora o `CaddyRoutesTest` do BFF confere que toda página pública do
+    BFF está no Caddyfile. Ver [[Deploy]].
+  - Os dois `ExceptionLog` passaram a usar `nonNull`.
+  - O registro de acesso passou a ser montado no `AccessRecordMapper`, seguindo as convenções da
+    casa.
