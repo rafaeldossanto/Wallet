@@ -140,7 +140,7 @@ em (`connection_id`, `called_at`). **Sem chave estrangeira**, por isso fica fora
 o registro precisa sobreviver ao desvínculo e à exclusão do usuário. Nenhum dado financeiro,
 token ou credencial. Apagado depois de 180 dias. Ver [[Core#Auditoria das chamadas à Pluggy (desde 2026-10-18)]].
 
-**provider_webhook_events** (V15) — os avisos (webhooks) que a Pluggy mandou, uma linha por evento: `id`, `event_id`
+**provider_webhook_events** (V16) — os avisos (webhooks) que a Pluggy mandou, uma linha por evento: `id`, `event_id`
 (`VARCHAR(100)`, **único**: um aviso repetido é ignorado com `INSERT ... ON CONFLICT DO NOTHING`), `event` (`item/updated`,
 `transactions/created`...), `provider_item_id`, `received_at`, `processed_at` e `outcome` (`SYNC_REQUESTED`, `SKIPPED_COOLDOWN`,
 `SKIPPED_BUSY`, `UNKNOWN_ITEM`, `ITEM_DELETED`, `CONSENT_EXPIRED` ou `FAILED`). **Sem chave estrangeira e sem usuário**, por isso fora do
