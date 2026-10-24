@@ -1,6 +1,6 @@
 ---
 tags: [legal, lgpd, privacidade]
-atualizado: 2026-10-23
+atualizado: 2026-10-24
 status: rascunho
 ---
 
@@ -95,7 +95,10 @@ Se os dados forem tratados fora do Brasil, isso só pode acontecer com as garant
 | Inscrição na lista de espera ainda não confirmada | 7 dias |
 | Inscrição confirmada na lista de espera | [A DEFINIR] |
 | Auditoria das chamadas ao provedor | 180 dias |
-| Dados financeiros antigos (de contas ainda ativas) | [A DEFINIR] |
+| Histórico de saldos, de investimentos e transações que seguem no seu banco | Ficam enquanto a conta existir: é o histórico que o Wallet mostra. [A DEFINIR: prazo de conta inativa] |
+| Transações que o banco deixou de informar | 90 dias, depois são apagadas de vez |
+| Registro das sincronizações com o banco | 90 dias (a mais recente de cada conexão fica) |
+| Chaves de renovação do login (sessões) | Até 30 dias depois de vencerem ou de serem revogadas |
 | Cópias de segurança | Diárias, guardadas por 14 dias. Um dado excluído pode permanecer nelas até esse prazo |
 | Registros de acesso à aplicação (Marco Civil, art. 15) | 6 meses. **Ainda não implementado** |
 | Registros técnicos do servidor | [A DEFINIR] |

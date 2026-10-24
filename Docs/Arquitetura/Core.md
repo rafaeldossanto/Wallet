@@ -334,6 +334,7 @@ a cada chamada. Desde 2026-10-22:
 | `WALLET_CONNECTION_MODE` | `wallet.provider.connection-mode`: `MEU_PLUGGY` (dev, padrão) ou `PLUGGY_CONNECT`. Com `SPRING_PROFILES_ACTIVE=prod`, qualquer coisa que não seja `PLUGGY_CONNECT` impede a subida, com a variável na mensagem (achado A6): o `MEU_PLUGGY` deixa qualquer usuário vincular item sem dono |
 | `wallet.provider.max-connections-per-user` | Teto de conexões por usuário (padrão 10). A seguinte responde 422 `connection.limit_reached` |
 | `wallet.provider.oauth-redirect-uri` | Para onde o banco devolve o usuário depois de autorizar no Pluggy Connect: o deep link do app Android (`com.wallet.wallet://pluggy-connect`) |
+| `wallet.retention.banking.*`, `wallet.retention.sync.*`, `wallet.retention.identity.*` | Prazos da limpeza noturna: transações removidas pelo provedor 90 d, sincronizações terminadas 90 d (a última de cada conexão fica), tokens de renovação 30 d, mais o `cleanup-cron` de cada uma. Ver [[#Retenção (L8, desde 2026-10-24)]] |
 | `wallet.sync.interval` | Intervalo do polling (padrão 6 h) |
 | `wallet.sync.scheduler-enabled` | Liga o agendador nesta instância (padrão `true`) |
 | `wallet.sync.manual-cooldown` | Espera entre o fim da última sincronização de uma conexão (qualquer gatilho e resultado) e o próximo "Atualizar" (padrão 15 min) |
@@ -466,6 +467,35 @@ Desde 2026-10-24. Dado pessoal não entra em log. No erro **inesperado**, o `Glo
 (`ExceptionLog.describe`): o driver do Postgres põe `Key (email)=(...)` na mensagem, e o leitor de JSON cita o corpo.
 Os avisos de corpo ilegível e de parâmetro inválido também logam só a classe. Teste:
 `GlobalExceptionHandlerTest#anUnexpectedErrorIsLoggedWithoutAnyMessage`, com uma exceção cuja mensagem tem um e-mail.
+
+## Retenção (L8, desde 2026-10-24)
+
+LGPD: dado pessoal só enquanto serve. **Cada módulo limpa o que é dele**, toda noite, com uma tarefa agendada no mesmo
+padrão do `AccountHousekeeping`: um `SchedulingConfigurer` que registra um `CronTask` e abre a transação **dentro** do método
+(`TransactionTemplate`), porque o agendador chama o objeto e não o proxy do Spring, e um `@Transactional` seria ignorado
+(a limpeza falharia toda noite por falta de transação). Roda em todas as instâncias: dois deletes das mesmas linhas não fazem mal. O log
+`[RETENTION]` só traz contagens.
+
+| Módulo | Tarefa | O que apaga | Propriedade (padrão) | Cron (hora de São Paulo) |
+|---|---|---|---|---|
+| `banking` | `BankingHousekeeping` | Transações com `deleted_at` (as que o provedor deixou de informar) há mais de 90 dias | `wallet.retention.banking.deleted-transactions-after` (90d) | `.cleanup-cron` (`0 50 4 * * *`) |
+| `sync` | `SyncRunHousekeeping` | `sync_runs` terminadas há mais de 90 dias, **menos a mais recente de cada conexão** (o cooldown do "Atualizar" conta dela); uma em andamento nunca | `wallet.retention.sync.finished-runs-after` (90d) | `.cleanup-cron` (`0 55 4 * * *`) |
+| `identity` | `AccountHousekeeping` (a tarefa que já existe, às 04:15) | `refresh_tokens` vencidos ou revogados há mais de 30 dias. Os links de e-mail, as contas não confirmadas e os contadores de login já eram limpos ali | `wallet.retention.identity.refresh-tokens-after` (30d) | o de `wallet.auth.cleanup-cron` |
+
+Já tinham limpeza própria: a auditoria das chamadas à Pluggy (180 dias, [[#Auditoria das chamadas à Pluggy (desde 2026-10-18)]]) e a lista
+de espera não confirmada (7 dias, [[#Lista de espera (módulo `waitlist`, desde 2026-10-23)]]).
+
+**O que NÃO se apaga sozinho, de propósito:** o histórico de saldos (`balance_snapshots`), os snapshots de investimentos
+(`investment_snapshots`), os investimentos fechados e as faturas. São o histórico que o produto mostra (patrimônio dia a dia,
+evolução dos investimentos), e ficam enquanto a conta existir; a exclusão da conta apaga tudo. As transações que seguem no banco
+do usuário também ficam.
+
+**Conta inativa:** não há exclusão automática. [A DEFINIR: prazo de conta inativa]: depende de uma decisão do Rafael (e do jurídico), e
+precisa avisar o dono antes de apagar.
+
+Testes: `BankingHousekeepingIT`, `SyncRunHousekeepingIT` e `RefreshTokenRetentionIT`, todos pelo caminho do agendador (a tarefa que o
+`configureTasks` registra), com o relógio nas mãos do teste: o que passou do prazo some, o que não passou fica, e a última `sync_run` de
+cada conexão sempre fica.
 
 ## Calendário de gastos (desde 2026-10-03)
 

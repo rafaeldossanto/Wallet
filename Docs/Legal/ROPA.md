@@ -1,6 +1,6 @@
 ---
 tags: [legal, lgpd, ropa]
-atualizado: 2026-10-23
+atualizado: 2026-10-24
 status: rascunho
 ---
 
@@ -28,10 +28,10 @@ Sobre dados sensíveis (art. 5º, II): o Wallet não coleta dado sensível de pr
 | # | Operação | Base legal | Retenção |
 |---|---|---|---|
 | 1 | Cadastro e confirmação do e-mail | Contrato (art. 7º, V) | Até excluir a conta; não confirmada, 7 dias |
-| 2 | Login, sessões e segundo fator | Contrato (art. 7º, V) | Até excluir a conta |
+| 2 | Login, sessões e segundo fator | Contrato (art. 7º, V) | Até excluir a conta; tokens vencidos ou revogados, 30 dias |
 | 3 | Proteção contra tentativas de invasão | Contrato (art. 7º, V) | [A DEFINIR] |
 | 4 | Conexão com bancos pelo Open Finance | Consentimento (art. 7º, I) | Até desvincular ou excluir a conta |
-| 5 | Sincronização e exibição dos dados financeiros | Consentimento (art. 7º, I) | Até excluir a conta; antigos: [A DEFINIR] |
+| 5 | Sincronização e exibição dos dados financeiros | Consentimento (art. 7º, I) | Enquanto a conta existir; removidas pelo banco: 90 dias; registro das sincronizações: 90 dias; [A DEFINIR: prazo de conta inativa] |
 | 6 | Planejamento do mês | Contrato (art. 7º, V) | Até excluir a conta |
 | 7 | Auditoria das chamadas ao provedor | Contrato (art. 7º, V) [CONFIRMAR: ou legítimo interesse] | 180 dias |
 | 8 | Lista de espera | Consentimento (art. 7º, I) | Pendente: 7 dias; confirmada: [A DEFINIR] |
@@ -62,7 +62,7 @@ Sobre dados sensíveis (art. 5º, II): o Wallet não coleta dado sensível de pr
 | Dados | Refresh tokens (só hash); segredo TOTP (cifrado); códigos de recuperação (hash) |
 | Titulares | Usuários |
 | Base legal | Execução de contrato (art. 7º, V) |
-| Retenção | Até excluir a conta (tokens expiram antes: o de renovação vale 30 dias) |
+| Retenção | Até excluir a conta. O token de renovação vale 30 dias e é apagado 30 dias depois de vencer ou de ser revogado |
 | Compartilhamento / operador | AWS (servidor) |
 | Transferência internacional | [A CONFIRMAR] |
 | Medidas de segurança | Tokens e códigos só como hash; segredo TOTP cifrado; segundo fator opcional; chave de assinatura do login fora do código; no aplicativo, tokens no armazenamento seguro do aparelho |
@@ -101,7 +101,7 @@ Sobre dados sensíveis (art. 5º, II): o Wallet não coleta dado sensível de pr
 | Dados | Contas (instituição, tipo, últimos 4 dígitos); saldos e histórico; transações (valor, data, categoria, parcelas, descrição cifrada); cartões e faturas; investimentos e histórico |
 | Titulares | Usuários (e, indiretamente, quem aparece nas descrições das transações) |
 | Base legal | Consentimento (art. 7º, I); sigilo bancário (LC 105/2001) |
-| Retenção | Até excluir a conta. Prazo para dados financeiros antigos: [A DEFINIR] |
+| Retenção | Enquanto a conta existir: saldos, histórico de saldos, transações, faturas, investimentos e o histórico deles (é o que o produto mostra). Apagado sozinho: transação que o provedor deixou de informar, 90 dias depois; registro de cada sincronização, 90 dias depois de terminar (a mais recente de cada conexão fica). [A DEFINIR: prazo de conta inativa] |
 | Compartilhamento / operador | Pluggy (origem dos dados); AWS (guarda) |
 | Transferência internacional | [A CONFIRMAR] |
 | Medidas de segurança | Descrições cifradas com AES-256-GCM; HTTPS; core e banco em rede interna; cópias de segurança com retenção de 14 dias; só os dados pertinentes são lidos |

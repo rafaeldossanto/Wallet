@@ -1,6 +1,6 @@
 ---
 tags: [legal, lgpd, ripd]
-atualizado: 2026-10-23
+atualizado: 2026-10-24
 status: rascunho
 ---
 
@@ -49,7 +49,7 @@ Escala: probabilidade e impacto em **baixa**, **média** ou **alta**. O nível �
 | R3 | Perda ou exposição da chave de cifra das descrições (ou das chaves do login) | Baixa | Alta | Médio | Chaves fora do código e do repositório, só no ambiente do servidor | Guardar cópia da chave fora do servidor; plano de rotação de chaves |
 | R4 | Incidente ou uso indevido no operador (Pluggy, AWS) | Baixa | Alta | Médio | Contratos e certificações dos operadores [CONFIRMAR]; o Wallet só pede os dados pertinentes | Formalizar o contrato de operador com cláusulas de LGPD e de comunicação de incidente [A DEFINIR] |
 | R5 | Transferência internacional sem garantia (art. 33) | Média | Média | Médio | Nenhuma ainda | Confirmar a região da AWS e onde a Pluggy hospeda; escolher região no Brasil se possível; cláusulas-padrão (Res. CD/ANPD nº 19/2024) se houver envio para fora |
-| R6 | Guardar dado demais por tempo demais | Média | Média | Médio | Exclusão da conta apaga tudo; conta não confirmada some em 7 dias; auditoria do provedor apagada em 180 dias; cópias guardadas 14 dias | Definir o prazo dos dados financeiros antigos, dos registros do servidor e da lista de espera confirmada |
+| R6 | Guardar dado demais por tempo demais | Média | Média | Médio | Exclusão da conta apaga tudo; conta não confirmada some em 7 dias; auditoria do provedor apagada em 180 dias; transações removidas pelo banco e registro de sincronizações apagados em 90 dias; tokens de sessão vencidos em 30 dias; cópias guardadas 14 dias | Definir o prazo de conta inativa, dos registros do servidor e da lista de espera confirmada |
 | R7 | Dados continuarem chegando depois de o usuário revogar ou o consentimento vencer | Baixa | Média | Baixo | Desvincular o banco revoga a autorização na Pluggy; excluir a conta também; o Wallet guarda a validade do consentimento | Avisar antes de o consentimento vencer e renovar dentro do aplicativo |
 | R8 | Nome dos gastos fixos exposto em claro | Média | Baixa | Médio | Banco em rede interna | Cifrar o nome dos gastos fixos (já anotado como pendente) |
 | R9 | Dado sensível revelado indiretamente pelas descrições ou nomes (farmácia, igreja, sindicato, plano de saúde) | Média | Média | Médio | Descrições cifradas; nada de publicidade nem análise de perfil de terceiros | Decidir se haverá regra especial para esse tipo de dado; refletir isso na política |
