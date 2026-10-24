@@ -19,5 +19,7 @@ public enum ProviderCallReason {
     /** The "Atualizar" button. */
     MANUAL_SYNC,
     /** A provider webhook (production). */
-    WEBHOOK_SYNC
+    WEBHOOK_SYNC,
+    /** The command that registers the Wallet's webhooks at the provider. */
+    WEBHOOK_SETUP
 }

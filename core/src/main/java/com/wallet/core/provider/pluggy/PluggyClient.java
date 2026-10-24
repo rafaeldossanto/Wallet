@@ -86,6 +86,29 @@ class PluggyClient {
         return response.accessToken();
     }
 
+    List<PluggyDtos.Webhook> getWebhooks() {
+        return getAllPages("/webhooks", Map.of(), new ParameterizedTypeReference<>() {});
+    }
+
+    void createWebhook(String event, String url, Map<String, String> headers) {
+        withApiKey(apiKey -> restClient.post()
+                .uri("/webhooks")
+                .header(API_KEY_HEADER, apiKey)
+                .body(new PluggyDtos.CreateWebhook(event, url, headers))
+                .retrieve()
+                .toBodilessEntity());
+    }
+
+    /** Points the hook at {@code url} with {@code headers} and enables it again if Pluggy had disabled it. */
+    void updateWebhook(String id, String url, Map<String, String> headers) {
+        withApiKey(apiKey -> restClient.patch()
+                .uri(builder -> builder.path("/webhooks/{id}").build(id))
+                .header(API_KEY_HEADER, apiKey)
+                .body(new PluggyDtos.UpdateWebhook(url, headers, true))
+                .retrieve()
+                .toBodilessEntity());
+    }
+
     List<PluggyDtos.Account> getAccounts(String itemId) {
         return getAllPages("/accounts", Map.of("itemId", itemId), new ParameterizedTypeReference<>() {});
     }

@@ -165,6 +165,20 @@ wallet:
       # Records of access (Marco Civil, art. 15) are kept 6 months and then deleted; 185 days cover any
       # 6 calendar months. They are read only by a court order, in the database.
       access-records-after: 185d
+    webhooks:
+      # A webhook event (the provider's hint that an item changed) is deleted this long after it arrived.
+      events-after: 30d
+      cleanup-cron: "0 5 5 * * *"
+  webhooks:
+    # The provider's webhooks are hints, never trusted: see the BFF (POST /api/webhooks/pluggy checks
+    # the secret) and the sync module. Registering them at the provider is a command run once on the
+    # server, with the same environment as the core:
+    #   java -jar core.jar --spring.main.web-application-type=none --wallet.webhooks.register=true
+    # (register is deliberately not set here: the core that serves the API never registers.)
+    # The value the provider sends in X-Wallet-Webhook-Secret, the same as the BFF's; 32+ characters.
+    secret: ${WALLET_PLUGGY_WEBHOOK_SECRET:}
+    # The BFF's public address: the hooks post to <base-url>/api/webhooks/pluggy.
+    base-url: ${WALLET_PUBLIC_URL:}
   sync:
     interval: 6h
     initial-delay: 1m

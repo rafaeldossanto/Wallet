@@ -35,7 +35,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/internal/auth/**", "/internal/waitlist/**", "/internal/.well-known/jwks.json", "/error").permitAll()
+                        .requestMatchers("/internal/auth/**", "/internal/waitlist/**", "/internal/webhooks/**", "/internal/.well-known/jwks.json", "/error").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(resourceServer -> resourceServer
                         .jwt(Customizer.withDefaults())

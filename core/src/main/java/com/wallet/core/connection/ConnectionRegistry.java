@@ -13,6 +13,9 @@ public interface ConnectionRegistry {
 
     Optional<LinkedConnection> find(UUID connectionId);
 
+    /** The connection of this provider item, if anybody linked it. */
+    Optional<LinkedConnection> findByProviderItemId(String providerItemId);
+
     /** Connections the scheduler should look at: everything not waiting on the user. */
     List<LinkedConnection> findSchedulable();
 

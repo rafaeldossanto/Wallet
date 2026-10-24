@@ -37,6 +37,13 @@ class JpaConnectionRegistry implements ConnectionRegistry {
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<LinkedConnection> findByProviderItemId(String providerItemId) {
+        return repository.findByProviderAndProviderItemId(ConnectionMapper.PROVIDER_PLUGGY, providerItemId)
+                .map(ConnectionMapper::toLinked);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<LinkedConnection> findSchedulable() {
         return repository.findByStatusIn(EnumSet.of(ConnectionStatus.ACTIVE, ConnectionStatus.SYNCING)).stream()
                 .map(ConnectionMapper::toLinked)

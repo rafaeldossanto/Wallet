@@ -37,6 +37,19 @@ final class PluggyDtos {
     record ConnectTokenResponse(String accessToken) {
     }
 
+    /** A webhook as Pluggy lists it (the headers are never shown back). */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Webhook(String id, String event, String url, String disabledAt) {
+    }
+
+    /** {@code POST /webhooks}: one event, where to post, and the headers Pluggy adds. */
+    record CreateWebhook(String event, String url, java.util.Map<String, String> headers) {
+    }
+
+    /** {@code PATCH /webhooks/{id}}. */
+    record UpdateWebhook(String url, java.util.Map<String, String> headers, boolean enabled) {
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Page<T>(List<T> results, Integer page, Integer total, Integer totalPages) {
     }
