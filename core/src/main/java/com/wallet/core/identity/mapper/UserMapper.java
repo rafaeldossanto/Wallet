@@ -1,5 +1,6 @@
 package com.wallet.core.identity.mapper;
 
+import com.wallet.core.identity.UserProfile;
 import com.wallet.core.identity.dto.UserResponse;
 import com.wallet.core.identity.entity.User;
 import lombok.experimental.UtilityClass;
@@ -19,6 +20,12 @@ public class UserMapper {
                 .displayName(displayName.strip())
                 .createdAt(now)
                 .build();
+    }
+
+    /** What other modules may know of the user: no hash, no secret. */
+    public UserProfile toProfile(User user) {
+        return new UserProfile(user.getId(), user.getEmail(), user.getDisplayName(), user.getCreatedAt(),
+                user.getEmailConfirmedAt(), user.isTwoFactorEnabled());
     }
 
     /** @param pendingEmail the address the account is moving to, while its link is open; {@code null} otherwise */

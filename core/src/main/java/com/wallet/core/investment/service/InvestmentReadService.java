@@ -1,5 +1,6 @@
 package com.wallet.core.investment.service;
 
+import com.wallet.core.investment.InvestmentExport;
 import com.wallet.core.investment.InvestmentQueries;
 import com.wallet.core.investment.PositionSummary;
 import com.wallet.core.investment.dto.PortfolioResponse;
@@ -7,6 +8,7 @@ import com.wallet.core.investment.entity.Investment;
 import com.wallet.core.investment.mapper.InvestmentReadMapper;
 import com.wallet.core.investment.repository.InvestmentAggregates;
 import com.wallet.core.investment.repository.InvestmentRepository;
+import com.wallet.core.investment.repository.InvestmentSnapshotRepository;
 import com.wallet.core.shared.finance.InvestmentKind;
 import com.wallet.core.shared.money.Money;
 import com.wallet.core.shared.time.DateRange;
@@ -28,6 +30,7 @@ import java.util.UUID;
 public class InvestmentReadService implements InvestmentQueries {
 
     private final InvestmentRepository repository;
+    private final InvestmentSnapshotRepository snapshots;
     private final InvestmentAggregates aggregates;
 
     @Transactional(readOnly = true)
@@ -52,6 +55,14 @@ public class InvestmentReadService implements InvestmentQueries {
         return repository.findByUserIdAndClosedAtIsNullOrderByKindAscNameAsc(userId).stream()
                 .map(InvestmentReadMapper::toSummary)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public InvestmentExport export(UUID userId) {
+        List<Investment> owned = repository.findByUserIdOrderByCreatedAtAscIdAsc(userId);
+        List<UUID> ids = owned.stream().map(Investment::getId).toList();
+        return InvestmentReadMapper.toExport(owned, snapshots.findByInvestmentIdInOrderBySnapshotDateAscInvestmentIdAsc(ids));
     }
 
     @Override

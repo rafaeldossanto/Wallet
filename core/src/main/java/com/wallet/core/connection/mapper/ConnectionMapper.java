@@ -1,6 +1,7 @@
 package com.wallet.core.connection.mapper;
 
 import com.wallet.core.connection.ConnectionStatus;
+import com.wallet.core.connection.ConnectionSummary;
 import com.wallet.core.connection.LinkedConnection;
 import com.wallet.core.connection.dto.ConnectionResponse;
 import com.wallet.core.connection.entity.Connection;
@@ -40,6 +41,11 @@ public class ConnectionMapper {
                 connection.getLastSyncedAt(),
                 connection.getConsentExpiresAt(),
                 connection.getCreatedAt());
+    }
+
+    public ConnectionSummary toSummary(Connection connection) {
+        return new ConnectionSummary(connection.getId(), connection.getInstitutionName(), connection.getStatus(),
+                connection.getCreatedAt(), connection.getLastSyncedAt(), connection.getConsentExpiresAt());
     }
 
     public LinkedConnection toLinked(Connection connection) {

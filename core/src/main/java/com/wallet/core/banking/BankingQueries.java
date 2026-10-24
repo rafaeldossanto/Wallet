@@ -46,4 +46,7 @@ public interface BankingQueries {
      * bill. By day of the month.
      */
     List<RecurringDebit> recurringDebits(UUID userId, DateRange period, int minMonths);
+
+    /** Every account, balance, transaction (description decrypted) and bill of the user, oldest first. */
+    BankingExport export(UUID userId);
 }

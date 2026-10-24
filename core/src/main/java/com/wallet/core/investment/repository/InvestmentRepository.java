@@ -11,4 +11,6 @@ public interface InvestmentRepository extends JpaRepository<Investment, UUID> {
     List<Investment> findByConnectionId(UUID connectionId);
 
     List<Investment> findByUserIdAndClosedAtIsNullOrderByKindAscNameAsc(UUID userId);
+
+    List<Investment> findByUserIdOrderByCreatedAtAscIdAsc(UUID userId);
 }

@@ -18,6 +18,9 @@ public interface ConnectionRegistry {
 
     List<LinkedConnection> findByUser(UUID userId);
 
+    /** The user's connections, oldest first, as the export of their data shows them. */
+    List<ConnectionSummary> summariesOf(UUID userId);
+
     /** False when the connection was unlinked in the meantime. */
     boolean markSyncing(UUID connectionId);
 

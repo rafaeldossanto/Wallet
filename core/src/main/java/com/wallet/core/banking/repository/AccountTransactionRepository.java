@@ -23,6 +23,8 @@ public interface AccountTransactionRepository
 
     List<AccountTransaction> findByAccountIdAndDeletedAtIsNullAndProviderBillId(UUID accountId, String providerBillId);
 
+    List<AccountTransaction> findByUserIdAndDeletedAtIsNullOrderByBookedOnAscCreatedAtAscIdAsc(UUID userId);
+
     @Query("select max(t.bookedOn) from AccountTransaction t where t.accountId = :accountId and t.deletedAt is null")
     Optional<LocalDate> findLatestBookedOn(@Param("accountId") UUID accountId);
 }

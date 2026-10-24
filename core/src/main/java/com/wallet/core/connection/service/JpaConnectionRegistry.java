@@ -2,6 +2,7 @@ package com.wallet.core.connection.service;
 
 import com.wallet.core.connection.ConnectionRegistry;
 import com.wallet.core.connection.ConnectionStatus;
+import com.wallet.core.connection.ConnectionSummary;
 import com.wallet.core.connection.LinkedConnection;
 import com.wallet.core.connection.entity.Connection;
 import com.wallet.core.connection.mapper.ConnectionMapper;
@@ -46,6 +47,12 @@ class JpaConnectionRegistry implements ConnectionRegistry {
     @Transactional(readOnly = true)
     public List<LinkedConnection> findByUser(UUID userId) {
         return repository.findByUserIdOrderByCreatedAtAsc(userId).stream().map(ConnectionMapper::toLinked).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ConnectionSummary> summariesOf(UUID userId) {
+        return repository.findByUserIdOrderByCreatedAtAsc(userId).stream().map(ConnectionMapper::toSummary).toList();
     }
 
     @Override
