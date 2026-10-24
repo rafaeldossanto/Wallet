@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, banco]
-atualizado: 2026-10-22
+atualizado: 2026-10-23
 ---
 
 # Modelo de Dados
@@ -53,6 +53,18 @@ dia somem na limpeza noturna. Ver [[Autenticação#Bloqueio progressivo (achado 
 
 **email_notices** (V10) — quando cada aviso foi a cada conta (`user_id` + `kind`, chave composta;
 `sent_at`), para limitar a 1 por hora o aviso de tentativa de cadastro e o de conta travada.
+
+**waitlist_entries** (V11) — a lista de espera da landing page, **sem FK** com `users` (quem se
+inscreve ainda não tem conta), por isso fora do diagrama: `id`, `email` (`VARCHAR(320)`, único,
+sem espaços e em minúsculo, **em claro** como `users.email`: o comunicado vai para ele), `status`
+(`PENDING` ou `CONFIRMED`), `consent_version` (a versão do texto aceito, `waitlist-v1`, gravada pelo
+servidor), `created_at`, `confirmed_at`, `confirm_token_hash` (SHA-256, único; continua depois de
+confirmar, para abrir o link duas vezes não dar erro) com `confirm_token_expires_at` (24 h) e
+`confirm_sent_at` (no máximo um e-mail por hora), `unsubscribe_token` (único, nasce na
+confirmação, **em claro** de propósito: cada comunicado refaz o link de cada pessoa, e o token só
+apaga a própria linha), `last_announcement` e `last_announced_at` (o último comunicado que a pessoa
+recebeu, para rodar o comando de novo não reenviar). Descadastrar **apaga a linha**. `PENDING` com
+mais de 7 dias é apagado à noite (índice parcial em `created_at`). Ver [[Core#Lista de espera (módulo `waitlist`, desde 2026-10-23)]].
 
 **refresh_tokens** — `id`, `user_id`, `token_hash` (SHA-256, nunca o token puro),
 `family_id`, `expires_at`, `rotated_at`, `revoked_at`, `created_at`. Ver

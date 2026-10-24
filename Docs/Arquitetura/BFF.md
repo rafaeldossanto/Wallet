@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, backend, bff]
-atualizado: 2026-10-22
+atualizado: 2026-10-23
 porta: 8080
 repo: Work/Wallet/bff
 ---
@@ -21,7 +21,7 @@ do BFF do Trilha. Construído em 2026-10-01 (T10 e T11 do [[Plano de Implementa�
 | **Sessão por plataforma** | Recebe os tokens do core e decide a entrega: no celular, no corpo; no navegador, refresh em cookie `HttpOnly`. Ver [[Autenticação]] |
 | **Rotas por tela** | Monta a resposta de uma tela juntando várias chamadas ao core em paralelo. O celular faz 1 requisição em vez de 5 |
 | **Cache curto** | Caffeine por usuário, 60 s nas telas agregadas. Limpa na hora quando o usuário pede sincronização, mexe em conexões ou quando uma sincronização termina no fundo (ver abaixo) |
-| **Proteção** | CORS só para a origem do app web, limite de requisições por IP (auth), por usuário (resto) e limites baixos próprios para vincular banco, pedir token do widget e buscar texto no extrato |
+| **Proteção** | CORS só para a origem do app web, limite de requisições por IP (auth e lista de espera), por usuário (resto) e limites baixos próprios para vincular banco, pedir token do widget e buscar texto no extrato |
 | **Resiliência** | Timeout de 5 s para o core; circuit breaker e bulkhead **por grupo de rotas** (ver [[#Grupos de rotas]]). Core fora do ar vira `503 bff.core_unavailable`; grupo cheio, `503 service.busy` |
 
 O BFF **não guarda dado** de negócio, **não fala com a Pluggy**, **não tem banco** e
@@ -38,7 +38,7 @@ bff/src/main/java/com/wallet/bff/
                 CoreRouteGroup, CoreCallGuards (circuito + bulkhead por grupo)
   config/       RestClientConfig, interceptors de Bearer e trace, RequestContextExecutor
   controller/   Auth, Me, Home, Screen (extrato, cartões, investimentos, insights),
-                Calendar, Connection, Planning
+                Calendar, Connection, Planning, Waitlist
   exception/    GlobalExceptionHandler (repassa o erro do core byte a byte)
   model/dto/    request/ e response/ (os contratos do app)
   ratelimit/    janela fixa por IP (auth) e por usuário
@@ -56,6 +56,10 @@ bff/src/main/java/com/wallet/bff/
 | POST | `/api/auth/email/confirm` | `/internal/auth/email/confirm` com `{token}`: chamada pela página `/email/confirm`; responde `{result: ACCOUNT_CONFIRMED \| EMAIL_CHANGED}` ou `422 auth.link_invalid` |
 | POST | `/api/auth/email/resend` | `/internal/auth/email/resend` com `{email}`: 202 para qualquer e-mail |
 | GET | `/email/confirm` | Página estática do próprio BFF (`static/email`) que os links dos e-mails abrem: lê o token depois do `#` e confirma ao tocar no botão |
+| POST | `/api/waitlist` | `/internal/waitlist` com `{email}`: **202 sem corpo** para qualquer e-mail. Pública, sem token. O corpo é `{email, consent}`; `consent` tem de ser `true` e `email` válido (`@NotBlank @Email @Size(max=320)`), senão **400 `validation.failed`** (a única validação que o BFF faz sozinho: o consentimento é dele) |
+| POST | `/api/waitlist/confirm` | `/internal/waitlist/confirm` com `{token}`: **204**; link vencido, desconhecido ou trocado: 400 `waitlist.invalid_token`. Chamada pela página `/waitlist/confirm` |
+| POST | `/api/waitlist/unsubscribe` | `/internal/waitlist/unsubscribe`: **204**, o token no corpo JSON `{token}` **ou** na query `?token=`. O botão de um clique dos provedores de e-mail (RFC 8058) manda `application/x-www-form-urlencoded` com `List-Unsubscribe=One-Click` e o token na query |
+| GET | `/waitlist/confirm`, `/waitlist/unsubscribe` | Páginas estáticas do BFF (`static/waitlist`) que os links da lista de espera abrem ([[#Páginas dos links]]) |
 | POST | `/api/auth/refresh` | `/internal/auth/refresh` (web: lê o cookie) |
 | POST | `/api/auth/logout` | `/internal/auth/logout` e apaga o cookie |
 | GET | `/api/me` | `/internal/me`: `{id, email, displayName, createdAt, pendingEmail, twoFactorEnabled}` |
@@ -85,6 +89,25 @@ bff/src/main/java/com/wallet/bff/
 | PUT, DELETE | `/api/planning/expected-salary` | `/internal/planning/expected-salary`; limpam o planejamento em cache |
 | GET | `/api/planning/fixed-expense-suggestions` | `/internal/planning/fixed-expense-suggestions`, sem cache |
 | DELETE | `/api/planning/fixed-expense-suggestions/{id}` | `/internal/planning/fixed-expense-suggestions/{id}`; o planejamento em cache fica |
+
+### Páginas dos links
+
+O BFF serve três páginas estáticas, as únicas em HTML, abertas pelos links dos e-mails; todas com o
+mesmo visual (`/email/confirm.css`), a CSP `script-src 'self'` e `Referrer-Policy: no-referrer`. Nenhuma
+age no GET: scanners de e-mail abrem todo link, então só o **botão** faz o POST.
+
+| Página | Link | Botão | Depois |
+|---|---|---|---|
+| `/email/confirm` | `…/email/confirm#token=…` | Confirmar e-mail | Conta confirmada ou e-mail trocado |
+| `/waitlist/confirm` | `…/waitlist/confirm#token=…` | Confirmar meu e-mail | "Pronto! Você está na lista do Wallet." ou "Este link venceu ou já foi usado." |
+| `/waitlist/unsubscribe` | `…/waitlist/unsubscribe?token=…` | Sair da lista | "Pronto, você saiu da lista. Não vamos mais te mandar e-mails." |
+
+O token de confirmação vem depois do `#` (o navegador não o envia) e sai da barra de endereço assim
+que é lido. O de descadastro vai na **query**, porque o botão de um clique dos provedores faz POST
+nessa URL exata (RFC 8058); a página também o tira da barra e posta em `/api/waitlist/unsubscribe?token=…`.
+A landing page (`site/`) chama `POST /api/waitlist` de **outra origem**, sem credenciais: a origem dela
+tem de estar em `WALLET_WEB_ALLOWED_ORIGINS` (lista separada por vírgula), senão o navegador bloqueia o
+formulário (CORS).
 
 ### A home
 
@@ -139,7 +162,7 @@ respondia 503 por 10 s. Desde 2026-10-22 cada chamada do `CoreApi` diz o seu gru
 
 | Grupo | Rotas do core | Bulkhead (chamadas em voo) |
 |---|---|---|
-| `AUTH` | cadastro, login, refresh, logout (cada login é um BCrypt) | 16 |
+| `AUTH` | cadastro, login, refresh, logout (cada login é um BCrypt), os links dos e-mails e a lista de espera | 16 |
 | `READS` | `me`, conexões (lista), contas, cartões, faturas, investimentos, extrato sem `q`, gastos fixos e salário esperado | 64 |
 | `SCREENS` | overview, gasto por categoria e por dia, patrimônio, planejamento do mês, sugestões | 32 |
 | `SEARCH` | extrato com `q` | 16 |
@@ -225,7 +248,7 @@ Achado A18, desde 2026-10-22: `/actuator/health` era público e ficava fora do r
 |---|---|
 | `WALLET_CORE_URL` | Endereço do core (`http://localhost:8081` no dev) |
 | `WALLET_GATEWAY_KEY` | Segredo enviado ao core em `X-Gateway-Key`, o **mesmo** valor do core. Vazio = chave de desenvolvimento; com `SPRING_PROFILES_ACTIVE=prod`, vazia, curta (< 32) ou a de desenvolvimento impedem a subida |
-| `WALLET_WEB_ALLOWED_ORIGINS` | Origem do Flutter Web (`http://localhost:5000` no dev) |
+| `WALLET_WEB_ALLOWED_ORIGINS` | Origens permitidas no CORS, separadas por vírgula: o Flutter Web (`http://localhost:5000` no dev) **e a landing page**, que chama `/api/waitlist` de outra origem, sem credenciais (ex.: `https://wallet.example.com,https://site.example.com`) |
 | `wallet.web.cookie-secure` | Flag `Secure` do cookie; ligada também no dev, porque o navegador aceita em `localhost` |
 | `wallet.cache.screen-ttl` | TTL do cache das telas (padrão 60 s) |
 | `wallet.rate-limit.*` | Janela (1 min), 20 por IP em `/api/auth/**`, 20 por usuário nas rotas que pedem senha ou código de novo (`/api/me/email`, `/api/me/two-factor/**`, `DELETE /api/me`), 300 por usuário no resto |
@@ -233,6 +256,7 @@ Achado A18, desde 2026-10-22: `/actuator/health` era público e ficava fora do r
 | `wallet.rate-limit.link-limit` / `link-window` | `POST /api/connections` por usuário, além do geral: 10 por hora (cada vínculo faz o core ler até um ano do banco na Pluggy). Passou: 429 `rate_limit.connections` |
 | `wallet.rate-limit.connect-token-limit` / `connect-token-window` | `POST /api/connections/connect-token` por usuário, além do geral: 10 por hora (cada token é uma chamada à Pluggy). Passou: 429 `rate_limit.connections` |
 | `wallet.rate-limit.search-limit` | Busca por texto (`GET /api/transactions` com `q`) por usuário e janela, além do geral: 30 por minuto (cada busca faz o core decifrar o mês). Passou: 429 `rate_limit.exceeded` |
+| `wallet.rate-limit.waitlist-limit` / `waitlist-window` | `/api/waitlist/**` (inscrição, confirmação e descadastro, **juntos**) por **IP**, em vez do geral: 5 por hora. Rotas públicas, e cada inscrição manda um e-mail ao endereço digitado. Passou: 429 `rate_limit.exceeded` (o mesmo do auth), `Retry-After: 3600` |
 | `wallet.core.max-concurrent-calls.*` | Bulkhead de cada grupo de rotas (`auth` 16, `reads` 64, `screens` 32, `search` 16, `provider` 16). Ver [[#Grupos de rotas]] |
 | `WALLET_BFF_MANAGEMENT_PORT` | `management.server.port`, padrão 9080, sempre em `127.0.0.1`: detalhes da saúde e readiness. Igual à porta pública impede a subida |
 | `WALLET_MAX_BODY_SIZE` | `wallet.http.max-body-size`, padrão `256KB`, o mesmo filtro do core: `Content-Length` maior recebe 413 `request.too_large` antes da segurança; corpo chunked é cortado durante a leitura |
@@ -294,6 +318,11 @@ entrava no cache e ficava vazia por um minuto. Desde 2026-10-02:
 - `RateLimitTest`: orçamento por usuário, login por IP e os limites próprios de vincular e do
   token do widget (caminho com `%63` não escapa: o filtro compara o caminho decodificado, como o
   Spring MVC roteia).
+- `WaitlistTest` (desde 2026-10-23): consentimento ausente ou `false` e e-mail inválido dão 400
+  `validation.failed` sem chegar ao core; inscrição, confirmação e erro do core repassados; descadastro
+  com o token no corpo, na query e no POST de formulário do botão de um clique; 5 por hora por IP
+  (o sexto dá 429 e outro IP passa); as duas páginas servidas (CSP, sem descadastrar no GET) e o CORS
+  da origem permitida.
 - `CoreKeyRotationTest`: chave nova no core é aceita sem reiniciar o BFF.
 - `CoreRouteGroupsTest`: um grupo falhando abre só o próprio circuito (desvincular com a conexão
   caindo abre `PROVIDER`, `/api/me` continua), grupo cheio responde `service.busy` só para as suas

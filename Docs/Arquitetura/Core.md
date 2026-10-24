@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, backend, core]
-atualizado: 2026-10-22
+atualizado: 2026-10-23
 porta: 8081
 repo: Work/Wallet/core
 ---
@@ -21,7 +21,8 @@ módulo usar a parte interna de outro.
 | Módulo | Responsabilidade | Depende de |
 |---|---|---|
 | `identity` | Usuários, cadastro com confirmação por e-mail, login, bloqueio progressivo, segundo fator (TOTP), perfil, emissão e rotação de tokens | `mail`, `connection` (só para revogar ao excluir a conta), `shared` |
-| `mail` | Envio de e-mail: a porta `EmailSender` (pública, na raiz do pacote), o SMTP e o envio de desenvolvimento no log. Pronto para e-mail com link de descadastro (o `waitlist` vai usar) | `shared` |
+| `mail` | Envio de e-mail: a porta `EmailSender` (pública, na raiz do pacote), o SMTP e o envio de desenvolvimento no log. E-mail com link de descadastro (o `waitlist` usa) e envio síncrono, `sendNow` (o comunicado) | `shared` |
+| `waitlist` | Lista de espera da landing page: inscrição com confirmação por e-mail (double opt-in), descadastro em um clique, limpeza dos não confirmados e o comando do comunicado de abertura. Ver [[#Lista de espera]] | `mail`, `shared` |
 | `connection` | Conexões com bancos (items da Pluggy), vincular, desvincular | `provider`, `shared` |
 | `banking` | Contas, saldos, transações, cartões e faturas | `shared` |
 | `investment` | Posições de investimento | `shared` |
@@ -136,7 +137,8 @@ linha de log `[PROVIDER_CALL]`, para monitorar o uso e investigar problemas.
 
 Tudo em `/internal`, JSON em inglês, dinheiro como string (`"1234.56"`), datas
 ISO-8601. Paginação `{ items, page, pageSize, total, totalPages }`. Toda rota, menos
-login, cadastro e refresh, exige o JWT do usuário, que o BFF repassa.
+login, cadastro, refresh, os links dos e-mails e a lista de espera (`/internal/auth/**` e
+`/internal/waitlist/**`), exige o JWT do usuário, que o BFF repassa.
 
 **Chave de gateway (desde 2026-10-19):** toda requisição, inclusive login, cadastro, refresh e
 o JWKS, também precisa do header `X-Gateway-Key` com o segredo compartilhado com o BFF
@@ -321,6 +323,8 @@ a cada chamada. Desde 2026-10-22:
 | `wallet.auth.lockout.*` | Bloqueio progressivo: 5 falhas por e-mail + endereço, 20 por e-mail de qualquer endereço, 15 min dobrando até 24 h, zera depois de um dia sem falhas |
 | `wallet.auth.email-links.*` | Links dos e-mails: 24 h, até 3 por hora por conta |
 | `wallet.auth.unconfirmed-account-ttl` / `notice-interval` / `cleanup-cron` | Conta não confirmada apagada em 7 dias; no máximo 1 aviso de cada tipo por hora; limpeza às 04:15 |
+| `wallet.waitlist.*` | Lista de espera: `base-url` (`WALLET_PUBLIC_URL`, a mesma dos e-mails da conta), `confirm-ttl` 24 h, `resend-interval` 1 h, `pending-ttl` 7 dias, `cleanup-cron` 04:45 |
+| `wallet.waitlist.announce.id`, `.file`, `.rate-per-second` | O comando do comunicado ([[#Comunicado de abertura]]). `id` e `file` não ficam no `application.yaml`: só existem na linha de comando da execução (ou `WALLET_WAITLIST_ANNOUNCE_ID` / `_FILE`); `rate-per-second` (`WALLET_WAITLIST_ANNOUNCE_RATE_PER_SECOND`) é 1 por padrão |
 | `wallet.jwt.audience` | `aud` de todo access token, `wallet-api`, exigida aqui e no BFF |
 | `WALLET_GATEWAY_KEY` | Segredo compartilhado com o BFF (`X-Gateway-Key`), o **mesmo** valor nos dois. Vazio = chave de desenvolvimento conhecida; com `SPRING_PROFILES_ACTIVE=prod`, vazia, curta (< 32) ou a de desenvolvimento impedem a subida |
 | `WALLET_CORE_ADDRESS` | Interface onde o core escuta (`server.address`). Padrão `127.0.0.1`, com o BFF na mesma máquina; com o BFF em outro host, `0.0.0.0` e uma `WALLET_GATEWAY_KEY` real (a chave de desenvolvimento só vale no loopback) |
@@ -351,10 +355,14 @@ cria container. Com `SPRING_PROFILES_ACTIVE=prod` o core também não inventa se
 - **Transporte:** `SmtpMailTransport` (`JavaMailSender` do `spring-boot-starter-mail`), genérico;
   `DevelopmentMailTransport` escreve no log fora de produção, com aviso de que é só dev (a única
   exceção à regra de não logar token). `MailConfig` escolhe na subida.
+- **Envio síncrono (desde 2026-10-23):** `EmailSender.sendNow(OutgoingEmail)` entrega na thread de
+  quem chama e **lança** `MailDeliveryException` se o servidor recusar. Existe para o comunicado da
+  lista de espera: o `send` enfileirado perderia o e-mail se o processo saísse antes, e quem manda
+  em lote precisa saber qual falhou para não o marcar como enviado. Nunca dentro de transação.
 - **Descadastro:** `OutgoingEmail.withUnsubscribeUrl(url)` põe o link no rodapé e os headers
   `List-Unsubscribe` + `List-Unsubscribe-Post: List-Unsubscribe=One-Click` (RFC 2369 e 8058, que
   Gmail e Yahoo pedem a quem manda em volume). O endpoint de descadastro fica com quem manda esse
-  tipo de e-mail (o futuro `waitlist`); e-mail de conta não tem descadastro.
+  tipo de e-mail (o `waitlist`); e-mail de conta não tem descadastro.
 - Textos em texto puro e pt-BR, sem nada digitado por estranhos. Os da conta estão em
   [[Autenticação#E-mails da conta]].
 
@@ -370,6 +378,60 @@ começa num dia fixo (01/01/2026) para os saldos não andarem sozinhos de um dia
 ids e valores se repetem a cada sincronização. Serve para ver o app inteiro funcionando
 antes da T02. `DemoPluggyCompatibilityTest` lê a demo pelo adaptador de verdade: se o
 adaptador mudar o que espera, quebra ali primeiro.
+
+## Lista de espera (módulo `waitlist`, desde 2026-10-23)
+
+A landing page tem o formulário "Quero ser avisado". O módulo guarda quem pediu, confirma o
+e-mail (double opt-in), deixa sair com um clique e manda o comunicado de abertura. Tabela
+`waitlist_entries` em [[Modelo de Dados]] (V11). Rotas internas, sem JWT (só a chave de
+gateway), liberadas no `identity/config/SecurityConfig` como as de `/internal/auth/**`:
+
+| Rota | Resposta | O que faz |
+|---|---|---|
+| `POST /internal/waitlist` `{email}` | **202** sem corpo, para qualquer e-mail | E-mail novo: grava `PENDING` e manda o link de confirmação (24 h). `PENDING` que já existe: manda um link novo (o antigo deixa de valer), no máximo **1 por hora**; dentro da hora, nada. `CONFIRMED`: nada. A inserção é `INSERT ... ON CONFLICT (email) DO NOTHING` e o reenvio é um `UPDATE` condicional, então 8 pedidos ao mesmo tempo mandam um e-mail só |
+| `POST /internal/waitlist/confirm` `{token}` | **204** | `PENDING` vira `CONFIRMED`, grava `confirmed_at`, gera o token de descadastro e manda "Você está na lista do Wallet". Link vencido, desconhecido ou trocado por um novo: **400** `waitlist.invalid_token`. Abrir de novo o link de quem já confirmou: 204, sem novo e-mail |
+| `POST /internal/waitlist/unsubscribe` `{token}` | **204** sempre | **Apaga** a linha. Token desconhecido também é 204 (ninguém descobre quais existem) |
+
+- **Consentimento:** o cliente só manda `consent: true` (checado no BFF); o servidor grava a
+  versão do texto, a constante `waitlist-v1` (`WaitlistService.CONSENT_VERSION`). Texto novo, versão nova.
+- **Links** (base `WALLET_PUBLIC_URL`, a mesma do identity, e a mesma regra: em `prod` é obrigatória e https,
+  `PublicUrl` no `shared`): confirmação `<url>/waitlist/confirm#token=…` (depois do `#`, que o navegador
+  não envia); descadastro `<url>/waitlist/unsubscribe?token=…` (na query, porque o one-click da RFC 8058
+  faz POST nessa URL exata). O descadastro vai no rodapé e nos headers `List-Unsubscribe` de todo e-mail da lista
+  (`OutgoingEmail.withUnsubscribeUrl`). As páginas são do BFF ([[BFF#Páginas dos links]]).
+- **Tokens:** o de confirmação é opaco (`OpaqueTokens`, 256 bits) e fica como SHA-256, e continua na
+  linha depois de confirmar (abrir o link duas vezes não dá erro). O de descadastro **fica em claro**
+  (`unsubscribe_token`): cada comunicado precisa reconstruir o link de cada pessoa, o que um hash não
+  permite, e o token só dá o poder de apagar a própria linha, onde o e-mail já está em claro.
+- **E-mails** (texto puro, pt-BR, `WaitlistEmails`): `waitlist-confirmation` ("Confirme seu e-mail na lista do
+  Wallet"), `waitlist-welcome` ("Você está na lista do Wallet") e `waitlist-announcement` (o arquivo do comunicado).
+  Nada digitado por quem se inscreveu entra no texto.
+- **Limpeza:** `WaitlistHousekeeping`, às 04:45 (`wallet.waitlist.cleanup-cron`), apaga `PENDING` com mais de
+  7 dias (`pending-ttl`). Igual ao `AccountHousekeeping`: `SchedulingConfigurer` com `TransactionTemplate`
+  dentro do método (o `@Transactional` não vale para o que o agendador chama), e o teste roda pelo caminho do agendador.
+- **Logs:** `[WAITLIST]`, só ids; o e-mail aparece mascarado (`EmailAddresses.mask`) e só quando um envio do comunicado falha.
+
+### Comunicado de abertura
+
+Não há tela de admin: é um comando, que sobe o core sem servidor web, manda e encerra o processo.
+
+```bash
+java -jar core.jar --spring.main.web-application-type=none \
+  --wallet.waitlist.announce.id=abertura \
+  --wallet.waitlist.announce.file=/caminho/mensagem.txt
+```
+
+- O `WaitlistAnnouncementRunner` (um `ApplicationRunner`) só existe quando `announce.id` **e** `announce.file`
+  estão definidos; no core que atende a API ele não existe. Também vale `WALLET_WAITLIST_ANNOUNCE_ID` e `_FILE`.
+  Rode com o mesmo ambiente do core (banco, `WALLET_SMTP_*`, `WALLET_MAIL_FROM`, `WALLET_PUBLIC_URL`).
+- O arquivo é UTF-8: a **primeira linha é o assunto**, o resto é o corpo (texto puro). Arquivo sem assunto ou sem corpo para antes de mandar qualquer coisa.
+- Manda para todo `CONFIRMED` cujo `last_announcement` seja diferente do id, em ordem de confirmação, a
+  `wallet.waitlist.announce.rate-per-second` e-mails por segundo (padrão 1; ajuste ao limite do SMTP), cada um com o link de descadastro da própria pessoa, por `sendNow`.
+- Depois de **cada** envio que o servidor aceitou grava `last_announcement` e `last_announced_at`: rodar de
+  novo, ou depois de uma queda, não reenvia a quem já recebeu. Falha num e-mail: loga mascarado, não marca e segue; rodar de novo tenta só esses.
+- No fim loga os totais (`enviados`, `falhas`) e sai com `SpringApplication.exit`: código **0**, ou **1** se algum envio falhou.
+- Sem servidor web, as cadeias de filtros de segurança (`identity` e `ManagementSecurityConfig`) não são criadas
+  (`@ConditionalOnWebApplication`); não há Tomcat nem porta aberta.
 
 ## Calendário de gastos (desde 2026-10-03)
 
@@ -470,6 +532,12 @@ criar o gasto fixo normalmente (o app abre o formulário preenchido); `DELETE ..
   com autenticação; nos ITs, `TestMailConfiguration` troca o transporte por um que guarda os
   e-mails, e o teste lê o link como o dono leria.
 - Contrato HTTP das rotas (quem acessa o quê, códigos de erro).
+- Lista de espera (desde 2026-10-23): `WaitlistFlowIT` (inscrição manda o link; repetida dentro de 1 h não
+  reenvia e depois de 1 h reenvia, com o relógio na mão; oito pedidos ao mesmo tempo mandam um e-mail; confirmar
+  com link válido, vencido, desconhecido, trocado e duas vezes; `CONFIRMED` não recebe nada; descadastro apaga e
+  token desconhecido é 204; limpeza dos `PENDING` com mais de 7 dias pelo caminho do agendador; comunicado só
+  para `CONFIRMED` sem aquele id, marcação, segunda rodada sem reenvio e falha de envio sem marca),
+  `AnnouncementFilesTest`, `WaitlistEmailsTest`, `QueuedEmailSenderTest` (`sendNow`) e `PublicUrlTest`.
 - Disponibilidade (desde 2026-10-22): `BulkheadTest` (parte do usuário, total, vaga devolvida uma
   vez, 20 requisições simultâneas de um usuário nunca passam de 2), `ReadApiIT` (busca paginada
   com total exato, janela de 93 dias, bulkheads `search` e `screens` nas rotas, histórico de
