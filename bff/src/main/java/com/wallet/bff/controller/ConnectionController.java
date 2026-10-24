@@ -1,7 +1,9 @@
 package com.wallet.bff.controller;
 
 import com.wallet.bff.auth.CurrentUserId;
+import com.wallet.bff.model.dto.request.ConnectTokenRequest;
 import com.wallet.bff.model.dto.request.LinkConnectionRequest;
+import com.wallet.bff.model.dto.request.RenewConnectionRequest;
 import com.wallet.bff.model.dto.response.ConnectTokenResponse;
 import com.wallet.bff.model.dto.response.ConnectionResponse;
 import com.wallet.bff.model.dto.response.SyncStartedResponse;
@@ -38,10 +40,20 @@ public class ConnectionController {
         return connectionService.link(userId, request);
     }
 
-    /** For the Pluggy Connect widget on Android; the item it creates comes back through {@link #link}. */
+    /**
+     * For the Pluggy Connect widget on Android; the item it creates comes back through {@link #link}.
+     * With a {@code connectionId} the token is for renewing that connection (the widget in update mode).
+     */
     @PostMapping("/connect-token")
-    public ConnectTokenResponse connectToken() {
-        return connectionService.connectToken();
+    public ConnectTokenResponse connectToken(@RequestBody ConnectTokenRequest request) {
+        return connectionService.connectToken(request);
+    }
+
+    /** After the widget renewed the authorization: the core records it and brings the connection back. */
+    @PostMapping("/{connectionId}/renew")
+    public ConnectionResponse renew(@CurrentUserId UUID userId, @PathVariable UUID connectionId,
+                                    @RequestBody RenewConnectionRequest request) {
+        return connectionService.renew(userId, connectionId, request);
     }
 
     @DeleteMapping("/{connectionId}")

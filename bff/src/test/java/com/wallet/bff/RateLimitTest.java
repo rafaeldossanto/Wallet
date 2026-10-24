@@ -112,6 +112,31 @@ class RateLimitTest extends BffTestSupport {
         CORE.verify(3, postRequestedFor(urlEqualTo("/internal/connections")));
     }
 
+    /** Renewing reads the item at Pluggy and starts an update: the same budget as linking, shared with it. */
+    @Test
+    void renewingSharesTheBudgetOfLinking() throws Exception {
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/connections")).willReturn(aResponse().withStatus(201)
+                .withHeader("Content-Type", "application/json").withBody(CONNECTION)));
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/connections/6f1c9a52-3b7e-4d1a-9c2f-8e5d4b3a2f10/renew"))
+                .willReturn(okJson(CONNECTION)));
+        String rafael = bearer(UUID.randomUUID());
+
+        link(rafael, "/api/connections").andExpect(status().isCreated());
+        renew(rafael, "/api/connections/6f1c9a52-3b7e-4d1a-9c2f-8e5d4b3a2f10/renew").andExpect(status().isOk());
+        renew(rafael, "/api/connections/6f1c9a52-3b7e-4d1a-9c2f-8e5d4b3a2f10/%72enew")
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string(HttpHeaders.RETRY_AFTER, "3600"))
+                .andExpect(jsonPath("$.code").value("rate_limit.connections"));
+        renew(bearer(UUID.randomUUID()), "/api/connections/6f1c9a52-3b7e-4d1a-9c2f-8e5d4b3a2f10/renew").andExpect(status().isOk());
+
+        CORE.verify(2, postRequestedFor(urlEqualTo("/internal/connections/6f1c9a52-3b7e-4d1a-9c2f-8e5d4b3a2f10/renew")));
+    }
+
+    private ResultActions renew(String bearer, String path) throws Exception {
+        return mockMvc.perform(post(URI.create(path)).header(HttpHeaders.AUTHORIZATION, bearer)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"consentVersion\":\"open-finance-v1\"}"));
+    }
+
     /** Every widget token is a call to Pluggy; spending them does not block the rest of the app. */
     @Test
     void connectTokensHaveABudgetOfTheirOwn() throws Exception {
@@ -217,7 +242,8 @@ class RateLimitTest extends BffTestSupport {
     }
 
     private ResultActions connectToken(String bearer) throws Exception {
-        return mockMvc.perform(post("/api/connections/connect-token").header(HttpHeaders.AUTHORIZATION, bearer));
+        return mockMvc.perform(post("/api/connections/connect-token").header(HttpHeaders.AUTHORIZATION, bearer)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"consentVersion\":\"open-finance-v1\"}"));
     }
 
     private ResultActions twoFactorSetUp(String bearer) throws Exception {

@@ -67,12 +67,12 @@ class PasswordRoutesTest extends BffTestSupport {
 
     @Test
     void aGoneLinkIsTheCoresAnswer() throws Exception {
-        CORE.stubFor(WireMock.post(urlEqualTo("/internal/auth/password/reset")).willReturn(aResponse().withStatus(400)
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/auth/password/reset")).willReturn(aResponse().withStatus(422)
                 .withHeader("Content-Type", "application/json")
                 .withBody("{\"code\":\"auth.link_invalid\",\"message\":\"gone\"}")));
 
         perform(post("/api/auth/password/reset"), "{\"token\":\"old\",\"newPassword\":\"a brand new password\"}")
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.code").value("auth.link_invalid"));
     }
 

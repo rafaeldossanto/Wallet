@@ -1,6 +1,7 @@
 package com.wallet.bff.client;
 
 import com.wallet.bff.model.dto.request.AccountDeletionRequest;
+import com.wallet.bff.model.dto.request.ConnectTokenRequest;
 import com.wallet.bff.model.dto.request.EmailChangeRequest;
 import com.wallet.bff.model.dto.request.EmailTokenRequest;
 import com.wallet.bff.model.dto.request.NewRecoveryCodesRequest;
@@ -14,6 +15,7 @@ import com.wallet.bff.model.dto.request.LoginRequest;
 import com.wallet.bff.model.dto.request.ProfileRequest;
 import com.wallet.bff.model.dto.request.RefreshRequest;
 import com.wallet.bff.model.dto.request.RegisterRequest;
+import com.wallet.bff.model.dto.request.RenewConnectionRequest;
 import com.wallet.bff.model.dto.request.ResendConfirmationRequest;
 import com.wallet.bff.model.dto.request.TwoFactorCodeRequest;
 import com.wallet.bff.model.dto.request.TwoFactorDisableRequest;
@@ -158,8 +160,13 @@ public class CoreApi {
         return client.post(CoreRouteGroup.PROVIDER, "/internal/connections", request, new ParameterizedTypeReference<>() {});
     }
 
-    public ConnectTokenResponse connectToken() {
-        return client.post(CoreRouteGroup.PROVIDER, "/internal/connections/connect-token", null, new ParameterizedTypeReference<>() {});
+    public ConnectTokenResponse connectToken(ConnectTokenRequest request) {
+        return client.post(CoreRouteGroup.PROVIDER, "/internal/connections/connect-token", request, new ParameterizedTypeReference<>() {});
+    }
+
+    /** The core reads the item at the provider, so it is in the PROVIDER group like linking. */
+    public ConnectionResponse renewConnection(UUID connectionId, RenewConnectionRequest request) {
+        return client.post(CoreRouteGroup.PROVIDER, "/internal/connections/" + connectionId + "/renew", request, new ParameterizedTypeReference<>() {});
     }
 
     public void unlink(UUID connectionId) {

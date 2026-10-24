@@ -17,6 +17,7 @@ import org.springframework.web.util.UrlPathHelper;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 import static org.springframework.util.StringUtils.hasText;
 
@@ -48,6 +49,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final String GENERAL = "{\"code\":\"rate_limit.exceeded\",\"message\":\"Too many requests; try again shortly\"}";
     private static final String CONNECTIONS =
             "{\"code\":\"rate_limit.connections\",\"message\":\"Too many attempts to connect a bank; try again later\"}";
+
+    private static final Pattern RENEW = Pattern.compile("/api/connections/[^/]+/renew");
 
     private final RateLimiter rateLimiter;
     private final RateLimitProperties properties;
@@ -113,7 +116,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
                     Optional.of(new RouteLimit("link", properties.linkLimit(), properties.linkWindow(), CONNECTIONS));
             case "/api/connections/connect-token" -> Optional.of(new RouteLimit("connect-token",
                     properties.connectTokenLimit(), properties.connectTokenWindow(), CONNECTIONS));
-            default -> Optional.empty();
+            // Renewing reads the item at Pluggy and starts an update: it spends the budget of linking.
+            default -> RENEW.matcher(path).matches()
+                    ? Optional.of(new RouteLimit("link", properties.linkLimit(), properties.linkWindow(), CONNECTIONS))
+                    : Optional.empty();
         };
     }
 
