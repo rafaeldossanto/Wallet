@@ -37,7 +37,8 @@ saiu daqui (`failed_login_count` e `locked_until` foram removidos) e foi para `l
 Conta não confirmada é apagada depois de 7 dias.
 
 **email_tokens** (V10) — os links mandados por e-mail: `id`, `user_id` (FK `users`, cascata),
-`purpose` (`CONFIRM_ACCOUNT` ou `CHANGE_EMAIL`), `token_hash` (SHA-256, único; nunca o token),
+`purpose` (`CONFIRM_ACCOUNT`, `CHANGE_EMAIL` ou, desde a V12, `PASSWORD_RESET`: o link de "Esqueci minha
+senha", que vale 1 h; a V12 só refez o `CHECK` da coluna), `token_hash` (SHA-256, único; nunca o token),
 `new_email` (só na troca de e-mail), `expires_at` (24 h), `used_at` (aberto, ou trocado por um link
 mais novo da mesma finalidade), `created_at`. Os vencidos há mais de um dia são apagados à noite.
 

@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, flutter, app]
-atualizado: 2026-10-22
+atualizado: 2026-10-23
 ---
 
 # App Flutter
@@ -401,6 +401,20 @@ Detalhes em [[Autenticação]].
   "Copiar os códigos", mostrados só ali); desligar pede senha e um código.
 - O `errorMessage` ganhou `auth.two_factor_required`, `auth.invalid_two_factor_code`, `auth.busy`,
   `auth.email_unchanged`, `auth.link_invalid` e os `two_factor.*`.
+- **Esqueci minha senha (desde 2026-10-23):** na entrada, o botão "Esqueci minha senha" abre a tela
+  `/forgot-password` (pública) com o campo de e-mail e "Enviar o link". A resposta é a mesma para
+  qualquer e-mail: "Se houver uma conta com esse e-mail, enviamos um link para criar uma senha nova."
+  O link abre uma página do BFF (`/password/reset`), não o app ([[Autenticação#Esqueci minha senha e trocar a senha (desde 2026-10-23)]]).
+- **Ajustes → Segurança → Trocar senha:** diálogo com "Senha atual", "Nova senha" e "Repita a nova senha".
+  O app confere antes de enviar o que o servidor recusaria (8 caracteres ou mais, repetição igual,
+  diferente da atual); senha atual errada aparece no campo. No 204 o servidor já derrubou todas as
+  sessões, então o app **não faz logout**: apaga a sessão local (`SignOutReason.passwordChanged`) e
+  abre a entrada com "Senha trocada. Entre de novo com a senha nova."
+- **Ajustes → Segurança → Gerar códigos novos** (só com a verificação em duas etapas ligada): senha + código
+  (do app ou de recuperação) e, em seguida, os 10 códigos novos como na ativação, com "Copiar os códigos";
+  os antigos deixam de valer.
+- **Servidor ocupado:** `service.busy` e `auth.busy` dizem a mesma frase, "O Wallet está com muito movimento
+  agora. Tente de novo em alguns segundos." (antes caíam na genérica e no "Muita gente entrando agora").
 
 ## Excluir conta (desde 2026-10-19)
 
@@ -471,7 +485,7 @@ Ver [[Fluxo de Conexão]].
 
 ## Testes
 
-198 testes com um BFF em memória (`test/support/fake_bff.dart`):
+208 testes com um BFF em memória (`test/support/fake_bff.dart`):
 
 - Unitários: `Money` (inclusive o valor digitado num formulário, `1.234,56`), sessão (restaurar, recusar, servidor fora), interceptor (duas chamadas
   com 401 geram **um** refresh), bloqueio por biometria, inatividade no navegador,
@@ -504,7 +518,11 @@ Ver [[Fluxo de Conexão]].
   (`test/features/account_test.dart`, desde 2026-10-22): cadastro esperando o link e reenvio, o
   código do segundo fator no login (certo e errado), reenvio pelo login, o logo novo no login e no
   trilho, trocar nome e e-mail em Ajustes, ligar o 2FA (QR, chave, código, códigos de recuperação),
-  código que não confere e desligar.
+  código que não confere e desligar; e `test/features/password_test.dart` (desde 2026-10-23): "Esqueci minha
+  senha" (envio com a mesma frase para qualquer e-mail, e-mail sem @ que não sai do app, servidor ocupado),
+  "Trocar senha" (diálogo, sessão local apagada sem logout e aviso na entrada, senha atual errada no campo,
+  validações locais), "Gerar códigos novos" (só com o 2FA ligado, mostra os 10 códigos, código errado) e a
+  frase única do `service.busy`/`auth.busy`.
 
 Além disso, verificado à mão em 2026-10-02 no Chrome (build release) e no emulador
 `trilha_pixel`, contra o core e o BFF reais com a Pluggy de demonstração.

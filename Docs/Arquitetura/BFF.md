@@ -55,6 +55,11 @@ bff/src/main/java/com/wallet/bff/
 | POST | `/api/auth/login` | `/internal/auth/login` e entrega por plataforma. Corpo `{email, password, code?}`: `code` só depois de `401 auth.two_factor_required` |
 | POST | `/api/auth/email/confirm` | `/internal/auth/email/confirm` com `{token}`: chamada pela página `/email/confirm`; responde `{result: ACCOUNT_CONFIRMED \| EMAIL_CHANGED}` ou `422 auth.link_invalid` |
 | POST | `/api/auth/email/resend` | `/internal/auth/email/resend` com `{email}`: 202 para qualquer e-mail |
+| POST | `/api/auth/password/forgot` | `/internal/auth/password/forgot` com `{email}`: **202 sem corpo** para qualquer e-mail (o core manda o link só para conta confirmada) |
+| POST | `/api/auth/password/reset` | `/internal/auth/password/reset` com `{token, newPassword}`: **204**; link inválido, vencido ou usado é **400 `auth.link_invalid`**. Chamada pela página `/password/reset`; derruba todas as sessões da conta |
+| GET | `/password/reset` | Página estática do BFF (`static/password`) que o link de "Esqueci minha senha" abre: lê o token depois do `#`, pede a senha nova duas vezes e troca ao tocar no botão |
+| PUT | `/api/me/password` | `/internal/me/password` com `{currentPassword, newPassword}`: **204** e todas as sessões caem (a atual também). Senha atual errada: 403 `auth.wrong_password`; nova igual à atual: 400 `validation.failed`. Conta no limite das rotas que pedem a senha de novo |
+| POST | `/api/me/two-factor/recovery-codes` | `/internal/me/two-factor/recovery-codes` com `{password, code}`: **200** `{recoveryCodes}` (10 novos, trocam os antigos, mostrados uma vez). 2FA desligado: 409 `two_factor.not_enabled`. Conta no limite das rotas que pedem a senha de novo |
 | GET | `/email/confirm` | Página estática do próprio BFF (`static/email`) que os links dos e-mails abrem: lê o token depois do `#` e confirma ao tocar no botão |
 | POST | `/api/waitlist` | `/internal/waitlist` com `{email}`: **202 sem corpo** para qualquer e-mail. Pública, sem token. O corpo é `{email, consent}`; `consent` tem de ser `true` e `email` válido (`@NotBlank @Email @Size(max=320)`), senão **400 `validation.failed`** (a única validação que o BFF faz sozinho: o consentimento é dele) |
 | POST | `/api/waitlist/confirm` | `/internal/waitlist/confirm` com `{token}`: **204**; link vencido, desconhecido ou trocado: 400 `waitlist.invalid_token`. Chamada pela página `/waitlist/confirm` |
@@ -92,7 +97,7 @@ bff/src/main/java/com/wallet/bff/
 
 ### Páginas dos links
 
-O BFF serve três páginas estáticas, as únicas em HTML, abertas pelos links dos e-mails; todas com o
+O BFF serve quatro páginas estáticas, as únicas em HTML, abertas pelos links dos e-mails; todas com o
 mesmo visual (`/email/confirm.css`), a CSP `script-src 'self'` e `Referrer-Policy: no-referrer`. Nenhuma
 age no GET: scanners de e-mail abrem todo link, então só o **botão** faz o POST.
 
@@ -101,6 +106,7 @@ age no GET: scanners de e-mail abrem todo link, então só o **botão** faz o PO
 | `/email/confirm` | `…/email/confirm#token=…` | Confirmar e-mail | Conta confirmada ou e-mail trocado |
 | `/waitlist/confirm` | `…/waitlist/confirm#token=…` | Confirmar meu e-mail | "Pronto! Você está na lista do Wallet." ou "Este link venceu ou já foi usado." |
 | `/waitlist/unsubscribe` | `…/waitlist/unsubscribe?token=…` | Sair da lista | "Pronto, você saiu da lista. Não vamos mais te mandar e-mails." |
+| `/password/reset` | `…/password/reset#token=…` | Trocar senha (depois de "Nova senha" e "Repita a nova senha") | "Senha trocada! Agora é só entrar no app do Wallet com a senha nova." ou "Este link venceu ou já foi usado..." |
 
 O token de confirmação vem depois do `#` (o navegador não o envia) e sai da barra de endereço assim
 que é lido. O de descadastro vai na **query**, porque o botão de um clique dos provedores faz POST
@@ -251,7 +257,7 @@ Achado A18, desde 2026-10-22: `/actuator/health` era público e ficava fora do r
 | `WALLET_WEB_ALLOWED_ORIGINS` | Origens permitidas no CORS, separadas por vírgula: o Flutter Web (`http://localhost:5000` no dev) **e a landing page**, que chama `/api/waitlist` de outra origem, sem credenciais (ex.: `https://wallet.example.com,https://site.example.com`) |
 | `wallet.web.cookie-secure` | Flag `Secure` do cookie; ligada também no dev, porque o navegador aceita em `localhost` |
 | `wallet.cache.screen-ttl` | TTL do cache das telas (padrão 60 s) |
-| `wallet.rate-limit.*` | Janela (1 min), 20 por IP em `/api/auth/**`, 20 por usuário nas rotas que pedem senha ou código de novo (`/api/me/email`, `/api/me/two-factor/**`, `DELETE /api/me`), 300 por usuário no resto |
+| `wallet.rate-limit.*` | Janela (1 min), 20 por IP em `/api/auth/**` (a recuperação de senha incluída), 20 por usuário nas rotas que pedem senha ou código de novo (`/api/me/email`, `PUT /api/me/password`, `/api/me/two-factor/**` com os códigos novos, `DELETE /api/me`), 300 por usuário no resto |
 | `wallet.jwt.audience` | `aud` exigida nos tokens, `wallet-api` (a mesma do core) |
 | `wallet.rate-limit.link-limit` / `link-window` | `POST /api/connections` por usuário, além do geral: 10 por hora (cada vínculo faz o core ler até um ano do banco na Pluggy). Passou: 429 `rate_limit.connections` |
 | `wallet.rate-limit.connect-token-limit` / `connect-token-window` | `POST /api/connections/connect-token` por usuário, além do geral: 10 por hora (cada token é uma chamada à Pluggy). Passou: 429 `rate_limit.connections` |
@@ -318,6 +324,10 @@ entrava no cache e ficava vazia por um minuto. Desde 2026-10-02:
 - `RateLimitTest`: orçamento por usuário, login por IP e os limites próprios de vincular e do
   token do widget (caminho com `%63` não escapa: o filtro compara o caminho decodificado, como o
   Spring MVC roteia).
+- `PasswordRoutesTest` (desde 2026-10-23): "esqueci" sem sessão e com 202 sem corpo, a troca repassada com o token,
+  a nova senha e o endereço de onde veio, o link vencido do core repassado, a página servida com CSP e sem
+  referrer, a troca de senha e os códigos novos com o Bearer do usuário (e 401 sem sessão), a recusa 403
+  do core repassada; no `RateLimitTest`, a troca de senha e os códigos novos contando como as rotas que pedem a senha de novo.
 - `WaitlistTest` (desde 2026-10-23): consentimento ausente ou `false` e e-mail inválido dão 400
   `validation.failed` sem chegar ao core; inscrição, confirmação e erro do core repassados; descadastro
   com o token no corpo, na query e no POST de formulário do botão de um clique; 5 por hora por IP
