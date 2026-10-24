@@ -589,8 +589,9 @@ dos boletos, e se a tolerância de 3 dias e do dobro do valor bastam.
 - Plano Dados da Pluggy. (~~Widget Pluggy Connect e `connect_token`~~ feitos no Android em
   2026-10-18, ver [[Fluxo de Conexão]]; faltam o iOS e o `webhookUrl` no token, junto com os
   webhooks.)
-- Webhooks no core com header secreto, lista de IPs e fila de eventos idempotente. O
-  BFF encaminha a rota pública do webhook para o core.
+- ~~Webhooks no core com header secreto, lista de IPs e fila de eventos idempotente~~ feitos em
+  2026-10-24 (V16). O registro na Pluggy é global, por comando, porque o `webhookUrl` do connect
+  token não leva header ([[Sincronização]]).
 - ~~Segundo fator no login web (passkey ou TOTP)~~ feito em 2026-10-22: TOTP com códigos de
   recuperação, em qualquer plataforma, ligado em Ajustes ([[Autenticação]]).
 - Achados da auditoria de segurança de 2026-10-19:
@@ -601,11 +602,17 @@ dos boletos, e se a tolerância de 3 dias e do dobro do valor bastam.
   - ~~A4, A5, A14 e A16~~ e, da LGPD, ~~L1-c e L11~~ feitos em 2026-10-22: limite antes do
     BCrypt, bloqueio progressivo, `aud`, cadastro neutro com confirmação por e-mail, 401 para
     conta excluída, editar perfil;
-  - falta o A21, junto com os webhooks.
-- LGPD: excluir conta, exportar dados, política de privacidade, termos, tela de
-  consentimento com a finalidade ([[Consentimento]]).
-- Deploy: VPS, HTTPS no BFF, core e Postgres só na rede interna, backups, logs sem
-  dado sensível.
+  - ~~A21~~ feito em 2026-10-24, com os webhooks. Nenhum achado aberto.
+- LGPD:
+  - ~~excluir conta, exportar dados, tela de consentimento com a finalidade, registro e
+    vencimento do consentimento, retenção técnica, gastos fixos cifrados, registros de acesso,
+    logs sem dado pessoal, aceite versionado dos termos~~ feitos entre 2026-10-19 e 2026-10-24;
+  - política, termos, ROPA, RIPD e incidentes estão em rascunho em `Docs/Legal/`, para revisão
+    jurídica;
+  - falta o prazo de conta inativa e a transferência internacional (região da AWS e hospedagem
+    da Pluggy), que dependem do Rafael.
+- Deploy: ~~preparação~~ feita em 2026-10-23 (`deploy/`, [[Deploy]]). Falta o que depende do
+  Rafael: domínio, conta AWS, SES fora do sandbox.
 - ~~CI~~ feito em 2026-10-03: GitHub Actions com um workflow por parte (core, BFF, app), ver o
   README. Falta o build de iOS (Codemagic ou runner macOS).
 - CNPJ, contas de desenvolvedor nas lojas e nome definitivo
