@@ -20,7 +20,9 @@ import static java.util.Objects.isNull;
  * @param connectTokenLimit  {@code POST /api/connections/connect-token} per user and {@code connectTokenWindow}
  * @param searchLimit        text searches ({@code GET /api/transactions} with {@code q}) per user and
  *                           {@code window}: each one makes the core decrypt the period's descriptions
- * @param trustedProxies     the reverse proxies whose {@code X-Forwarded-For} is believed, as IPs or
+ * @param waitlistLimit      requests to {@code /api/waitlist/**} (sign-up, confirmation, unsubscribe
+ *                           together) per IP and {@code waitlistWindow}
+ * @param trustedProxies    the reverse proxies whose {@code X-Forwarded-For} is believed, as IPs or
  *                           CIDR ranges ({@link ClientAddress}). Empty = the connection's own address,
  *                           whatever the header says
  */
@@ -35,6 +37,8 @@ public record RateLimitProperties(
         @DefaultValue("10") int connectTokenLimit,
         @DefaultValue("1h") Duration connectTokenWindow,
         @DefaultValue("30") int searchLimit,
+        @DefaultValue("5") int waitlistLimit,
+        @DefaultValue("1h") Duration waitlistWindow,
         @DefaultValue List<String> trustedProxies) {
 
     public RateLimitProperties {

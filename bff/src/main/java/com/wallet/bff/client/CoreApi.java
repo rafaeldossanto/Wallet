@@ -14,6 +14,8 @@ import com.wallet.bff.model.dto.request.ResendConfirmationRequest;
 import com.wallet.bff.model.dto.request.TwoFactorCodeRequest;
 import com.wallet.bff.model.dto.request.TwoFactorDisableRequest;
 import com.wallet.bff.model.dto.request.TwoFactorSetupRequest;
+import com.wallet.bff.model.dto.request.WaitlistEmailRequest;
+import com.wallet.bff.model.dto.request.WaitlistTokenRequest;
 import com.wallet.bff.model.dto.response.AccountResponse;
 import com.wallet.bff.model.dto.response.BillResponse;
 import com.wallet.bff.model.dto.response.CalendarResponse;
@@ -66,6 +68,19 @@ public class CoreApi {
 
     public void resendConfirmation(ResendConfirmationRequest request) {
         client.post(CoreRouteGroup.AUTH, "/internal/auth/email/resend", request);
+    }
+
+    /** 202 and no body, whatever the e-mail: the core never tells whether it was already on the list. */
+    public void subscribeToWaitlist(WaitlistEmailRequest request) {
+        client.post(CoreRouteGroup.AUTH, "/internal/waitlist", request);
+    }
+
+    public void confirmWaitlist(WaitlistTokenRequest request) {
+        client.post(CoreRouteGroup.AUTH, "/internal/waitlist/confirm", request);
+    }
+
+    public void unsubscribeFromWaitlist(WaitlistTokenRequest request) {
+        client.post(CoreRouteGroup.AUTH, "/internal/waitlist/unsubscribe", request);
     }
 
     public CoreTokens login(LoginRequest request) {

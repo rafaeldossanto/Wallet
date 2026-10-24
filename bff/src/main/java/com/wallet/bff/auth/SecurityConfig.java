@@ -49,8 +49,12 @@ public class SecurityConfig {
     /** The page the e-mailed links open ({@code ConfirmationPageConfig}), with its script and style. */
     private static final String EMAIL_PAGES = "/email/**";
 
+    /** The waitlist's routes, and the pages its e-mailed links open ({@code WaitlistPageConfig}). */
+    private static final String WAITLIST_ROUTES = "/api/waitlist/**";
+    private static final String WAITLIST_PAGES = "/waitlist/**";
+
     /**
-     * For the confirmation page, the only HTML the BFF serves, and harmless on the JSON routes:
+     * For the pages of the e-mailed links, the only HTML the BFF serves, and harmless on the JSON routes:
      * nothing but its own script, style and calls, never inside a frame.
      */
     private static final String CONTENT_SECURITY_POLICY = "default-src 'none'; script-src 'self'; style-src 'self'; "
@@ -64,7 +68,7 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(AUTH_ROUTES, EMAIL_PAGES, "/error").permitAll()
+                        .requestMatchers(AUTH_ROUTES, EMAIL_PAGES, WAITLIST_ROUTES, WAITLIST_PAGES, "/error").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(resourceServer -> resourceServer
                         .bearerTokenResolver(ignoringAuthRoutes())
