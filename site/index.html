@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wallet — todo o seu dinheiro num lugar só</title>
+  <meta name="description" content="Veja saldos, extratos, cartões, faturas e investimentos de todos os seus bancos num lugar só, pelo Open Finance. Entre na lista de espera do Wallet.">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0B0B0C" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#EEF0F4" media="(prefers-color-scheme: light)">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:site_name" content="Wallet">
+  <meta property="og:title" content="Wallet — todo o seu dinheiro num lugar só">
+  <meta property="og:description" content="Saldos, extratos, cartões, faturas e investimentos de todos os seus bancos juntos, pelo Open Finance. Entre na lista de espera.">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/favicon.png" type="image/png">
+  <link rel="stylesheet" href="styles.css">
+  <script src="config.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#conteudo">Ir para o conteúdo</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#topo" aria-label="Wallet, início da página">
+        <img src="assets/logo.svg" alt="" width="36" height="36">
+        <span>Wallet</span>
+      </a>
+      <nav class="site-nav" aria-label="Seções da página">
+        <a href="#como-funciona">Como funciona</a>
+        <a href="#recursos">Recursos</a>
+        <a href="#seguranca">Segurança</a>
+        <a href="#perguntas">Perguntas</a>
+      </nav>
+      <a class="button button-small" href="#lista">Lista de espera</a>
+    </div>
+  </header>
+
+  <main id="conteudo">
+    <section class="hero" id="topo">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <p class="badge">Lista de espera</p>
+          <h1>Todo o seu dinheiro, de todos os bancos, <mark>num lugar só</mark></h1>
+          <p class="lead">Saldos, extratos, cartões, faturas e investimentos juntos, pelo Open Finance. Você só consulta: o Wallet não mexe no seu dinheiro.</p>
+
+          <form class="waitlist" id="lista" novalidate data-waitlist>
+            <div class="field">
+              <label for="email-hero">Seu e-mail</label>
+              <input id="email-hero" name="email" type="email" inputmode="email" autocomplete="email" required maxlength="254" data-email>
+            </div>
+            <div class="consent">
+              <input id="consent-hero" name="consent" type="checkbox" aria-describedby="consent-hint-hero" data-consent>
+              <label for="consent-hero">Quero receber um e-mail quando o Wallet abrir. Meu e-mail só é usado para isso, e posso sair da lista quando quiser.</label>
+            </div>
+            <p class="consent-hint" id="consent-hint-hero" data-hint hidden>Marque a caixa para entrar na lista.</p>
+            <button class="button" type="submit" data-submit>Quero ser avisado</button>
+            <div class="form-status" aria-live="polite" data-status></div>
+          </form>
+        </div>
+
+        <figure class="mock" aria-hidden="true">
+          <div class="mock-frame">
+            <div class="mock-stats">
+              <div class="mock-card">
+                <span class="mock-label">Patrimônio</span>
+                <strong class="mock-value">R$ 48.320,15</strong>
+                <span class="mock-note">+ R$ 1.250,00 no mês</span>
+              </div>
+              <div class="mock-card">
+                <span class="mock-label">Sobra do mês</span>
+                <strong class="mock-value">R$ 2.140,00</strong>
+                <span class="mock-note">depois de faturas e fixos</span>
+              </div>
+            </div>
+
+            <div class="mock-calendar">
+              <div class="mock-calendar-head">
+                <span>Gastos do mês</span>
+                <strong>R$ 3.870,40</strong>
+              </div>
+              <div class="mock-days">
+                <span class="mock-weekday">D</span><span class="mock-weekday">S</span><span class="mock-weekday">T</span><span class="mock-weekday">Q</span><span class="mock-weekday">Q</span><span class="mock-weekday">S</span><span class="mock-weekday">S</span>
+                <span class="l1">1</span><span>2</span><span class="l2">3</span><span>4</span><span class="l1">5</span><span class="l3">6</span><span>7</span>
+                <span class="l1">8</span><span>9</span><span class="l2">10</span><span class="l1">11</span><span class="is-selected">12</span><span class="l1">13</span><span>14</span>
+                <span>15</span><span class="l2">16</span><span class="l1">17</span><span>18</span><span class="l3">19</span><span class="l1">20</span><span>21</span>
+                <span class="l1">22</span><span>23</span><span class="l2">24</span><span class="l1">25</span><span>26</span><span class="l2">27</span><span>28</span>
+              </div>
+            </div>
+
+            <ul class="mock-moves">
+              <li><span>Mercado</span><strong>− R$ 186,90</strong></li>
+              <li><span>Salário</span><strong>+ R$ 5.200,00</strong></li>
+              <li><span>Assinatura</span><strong>− R$ 39,90</strong></li>
+            </ul>
+          </div>
+          <figcaption>Ilustração</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="section" id="como-funciona" aria-labelledby="como-funciona-titulo">
+      <div class="container">
+        <p class="eyebrow">Como funciona</p>
+        <h2 id="como-funciona-titulo">Três passos, nenhuma senha</h2>
+        <ol class="steps">
+          <li class="card step">
+            <span class="step-number" aria-hidden="true">1</span>
+            <h3>Você autoriza no app do seu banco</h3>
+            <p>A conexão é feita pelo Open Finance. Você confirma no aplicativo do próprio banco e não passa a senha para o Wallet.</p>
+          </li>
+          <li class="card step">
+            <span class="step-number" aria-hidden="true">2</span>
+            <h3>O Wallet junta e organiza</h3>
+            <p>Saldos, extratos, faturas e investimentos de bancos diferentes passam a aparecer num painel só.</p>
+          </li>
+          <li class="card step">
+            <span class="step-number" aria-hidden="true">3</span>
+            <h3>Você vê tudo e planeja o mês</h3>
+            <p>Veja quanto você tem, para onde o dinheiro foi e quanto sobra depois das faturas e dos gastos fixos.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section" id="recursos" aria-labelledby="recursos-titulo">
+      <div class="container">
+        <p class="eyebrow">Recursos</p>
+        <h2 id="recursos-titulo">O que você encontra no Wallet</h2>
+        <div class="features">
+          <article class="card feature">
+            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 20v-7M12 20V5M19 20v-10"/></svg></span>
+            <h3>Patrimônio</h3>
+            <p>O que você tem em todas as contas e investimentos, somado num número só.</p>
+          </article>
+          <article class="card feature feature-lead">
+            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>
+            <h3>Calendário de gastos</h3>
+            <p>Veja o mês dia a dia. Toque num dia e o Wallet mostra só os gastos dele.</p>
+          </article>
+          <article class="card feature">
+            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 9h14M5 15h14"/></svg></span>
+            <h3>Plano do mês</h3>
+            <p>Salário menos faturas e gastos fixos: o que sobra para o resto do mês.</p>
+          </article>
+          <article class="card feature">
+            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20M6 15h4"/></svg></span>
+            <h3>Cartões e faturas</h3>
+            <p>As faturas dos seus cartões, com as parcelas à vista, como “3/10”.</p>
+          </article>
+          <article class="card feature">
+            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5l2 2M20 4v5h-5M20 12a8 8 0 0 1-14 5l-2-2M4 20v-5h5"/></svg></span>
+            <h3>Gastos fixos sugeridos</h3>
+            <p>O Wallet olha o seu extrato e sugere quais gastos se repetem todo mês.</p>
+          </article>
+          <article class="card feature">
+            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 17 6-6 4 4 8-9M15 6h6v6"/></svg></span>
+            <h3>Investimentos</h3>
+            <p>A evolução do que você investiu e a divisão por tipo de investimento.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="seguranca" aria-labelledby="seguranca-titulo">
+      <div class="container security">
+        <div class="security-intro">
+          <p class="eyebrow">Segurança e privacidade</p>
+          <h2 id="seguranca-titulo">Feito para olhar, não para mexer</h2>
+          <p class="lead">O Wallet só consulta as suas informações. E você pode excluir a sua conta e tudo o que ele guardou quando quiser.</p>
+        </div>
+        <ul class="security-list">
+          <li class="card">
+            <span class="check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg></span>
+            <div>
+              <h3>Somente leitura</h3>
+              <p>O Wallet não movimenta dinheiro: não faz pagamentos, transferências nem Pix.</p>
+            </div>
+          </li>
+          <li class="card">
+            <span class="check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg></span>
+            <div>
+              <h3>Open Finance regulado</h3>
+              <p>A conexão passa por uma instituição autorizada pelo Banco Central, e você autoriza no app do seu banco.</p>
+            </div>
+          </li>
+          <li class="card">
+            <span class="check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg></span>
+            <div>
+              <h3>Descrições cifradas</h3>
+              <p>As descrições das suas transações são guardadas cifradas.</p>
+            </div>
+          </li>
+          <li class="card">
+            <span class="check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg></span>
+            <div>
+              <h3>Segundo fator no login</h3>
+              <p>O login conta com um segundo fator de verificação, para que só você entre na sua conta.</p>
+            </div>
+          </li>
+          <li class="card">
+            <span class="check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg></span>
+            <div>
+              <h3>Seus dados, sua decisão</h3>
+              <p>Você exclui a conta e tudo some, conforme a LGPD.</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" id="onde-usar" aria-labelledby="onde-usar-titulo">
+      <div class="container">
+        <p class="eyebrow">Onde usar</p>
+        <h2 id="onde-usar-titulo">No celular, no computador ou no navegador</h2>
+        <ul class="platforms">
+          <li class="card">
+            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="3"/><path d="M11 18h2"/></svg></span>
+            <h3>Android</h3>
+            <p>No seu celular.</p>
+          </li>
+          <li class="card">
+            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
+            <h3>Windows</h3>
+            <p>No seu computador.</p>
+          </li>
+          <li class="card">
+            <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span>
+            <h3>Navegador</h3>
+            <p>Sem instalar nada.</p>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" id="perguntas" aria-labelledby="perguntas-titulo">
+      <div class="container faq-wrap">
+        <p class="eyebrow">Perguntas frequentes</p>
+        <h2 id="perguntas-titulo">Antes de entrar na lista</h2>
+        <div class="faq">
+          <details class="card">
+            <summary>O Wallet pode mexer no meu dinheiro?</summary>
+            <p>Não. O Wallet é somente leitura: ele mostra o que já existe nas suas contas, mas não faz pagamentos, transferências nem Pix.</p>
+          </details>
+          <details class="card">
+            <summary>Preciso dar a senha do banco?</summary>
+            <p>Não. Você autoriza no aplicativo do próprio banco, pelo Open Finance, e a senha não passa pelo Wallet.</p>
+          </details>
+          <details class="card">
+            <summary>Quais bancos?</summary>
+            <p>Os que participam do Open Finance no Brasil.</p>
+          </details>
+          <details class="card">
+            <summary>Quanto custa?</summary>
+            <p>Ainda estamos definindo; quem está na lista fica sabendo primeiro.</p>
+          </details>
+          <details class="card">
+            <summary>Quando abre?</summary>
+            <p>Em breve; avisamos por e-mail.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="chamada-final" aria-labelledby="chamada-titulo">
+      <div class="container">
+        <div class="card cta">
+          <h2 id="chamada-titulo">Entre na lista e seja avisado quando o Wallet abrir</h2>
+          <p class="lead">Deixe seu e-mail e a gente avisa. É só isso.</p>
+
+          <form class="waitlist" novalidate data-waitlist>
+            <div class="field">
+              <label for="email-final">Seu e-mail</label>
+              <input id="email-final" name="email" type="email" inputmode="email" autocomplete="email" required maxlength="254" data-email>
+            </div>
+            <div class="consent">
+              <input id="consent-final" name="consent" type="checkbox" aria-describedby="consent-hint-final" data-consent>
+              <label for="consent-final">Quero receber um e-mail quando o Wallet abrir. Meu e-mail só é usado para isso, e posso sair da lista quando quiser.</label>
+            </div>
+            <p class="consent-hint" id="consent-hint-final" data-hint hidden>Marque a caixa para entrar na lista.</p>
+            <button class="button" type="submit" data-submit>Quero ser avisado</button>
+            <div class="form-status" aria-live="polite" data-status></div>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p>© 2026 Wallet</p>
+      <nav aria-label="Informações legais">
+        <a href="privacidade.html">Privacidade</a>
+        <a href="termos.html">Termos</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>
