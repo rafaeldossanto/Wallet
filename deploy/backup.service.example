@@ -1,0 +1,17 @@
+# Unidade do systemd que roda o backup do Wallet uma vez. Instalação (no servidor):
+#   sudo cp deploy/backup.service.example /etc/systemd/system/wallet-backup.service
+#   sudo cp deploy/backup.timer.example   /etc/systemd/system/wallet-backup.timer
+#   (ajuste User e os caminhos abaixo para onde o repositório está)
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now wallet-backup.timer
+[Unit]
+Description=Backup do Postgres do Wallet
+Wants=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+# O usuário que roda o Docker (no Ubuntu da AWS, "ubuntu", que está no grupo docker).
+User=ubuntu
+WorkingDirectory=/opt/wallet/deploy
+ExecStart=/opt/wallet/deploy/backup.sh

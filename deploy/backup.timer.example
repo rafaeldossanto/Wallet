@@ -1,0 +1,12 @@
+# Agenda o backup do Wallet (ver backup.service.example): todo dia às 03:30, hora do servidor
+# (UTC no Ubuntu da AWS). Persistent: se a máquina estava desligada na hora, roda ao ligar.
+[Unit]
+Description=Backup diário do Postgres do Wallet
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
