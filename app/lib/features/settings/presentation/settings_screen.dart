@@ -13,6 +13,7 @@ import '../../../core/updates/updater.dart';
 import '../../../core/widgets/common.dart';
 import 'change_password_dialog.dart';
 import 'delete_account_dialog.dart';
+import 'download_data_tile.dart';
 import 'profile_dialogs.dart';
 import 'two_factor_dialogs.dart';
 
@@ -144,6 +145,8 @@ class SettingsScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   SectionCard(title: l10n.settingsUpdates, flush: true, child: const UpdateTile()),
                 ],
+                const SizedBox(height: 16),
+                SectionCard(title: l10n.settingsYourData, flush: true, child: const DownloadDataTile()),
                 const SizedBox(height: 16),
                 SectionCard(
                   title: l10n.settingsDangerZone,

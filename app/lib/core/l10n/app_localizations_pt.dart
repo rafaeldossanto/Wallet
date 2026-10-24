@@ -1004,6 +1004,40 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsSignOut => 'Sair';
 
   @override
+  String get settingsYourData => 'Seus dados';
+
+  @override
+  String get settingsDownloadData => 'Baixar meus dados';
+
+  @override
+  String get settingsDownloadDataHelp =>
+      'Um arquivo com tudo o que o Wallet guarda sobre você: perfil, bancos, contas, transações, cartões, investimentos e planejamento.';
+
+  @override
+  String get settingsDownloadDataBusy => 'Preparando o arquivo…';
+
+  @override
+  String settingsDownloadDataDone(String fileName) {
+    return 'Pronto: $fileName';
+  }
+
+  @override
+  String settingsDownloadDataDoneIn(String fileName, String folder) {
+    return 'Pronto: $fileName, salvo em $folder';
+  }
+
+  @override
+  String get settingsDownloadDataLimit =>
+      'Você já baixou seus dados várias vezes hoje. Tente de novo amanhã.';
+
+  @override
+  String get settingsDownloadDataCancelled => 'Download cancelado.';
+
+  @override
+  String get settingsDownloadDataFailed =>
+      'Não foi possível salvar o arquivo neste aparelho.';
+
+  @override
   String get settingsDangerZone => 'Zona de perigo';
 
   @override

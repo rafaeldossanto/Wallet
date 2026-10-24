@@ -8,13 +8,18 @@ class MainActivity : FlutterFragmentActivity() {
     // Updates downloaded from the Releases, handed to Android's installer.
     private val updates = UpdateInstaller(this)
 
+    // Files the app builds (the user's data), saved where the user picks, through Android's "Save as".
+    private val documents = DocumentSaver(this)
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         updates.attach(flutterEngine.dartExecutor.binaryMessenger)
+        documents.attach(flutterEngine.dartExecutor.binaryMessenger)
     }
 
     override fun onDestroy() {
         updates.detach()
+        documents.detach()
         super.onDestroy()
     }
 }

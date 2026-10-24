@@ -1768,6 +1768,60 @@ abstract class AppLocalizations {
   /// **'Sair'**
   String get settingsSignOut;
 
+  /// No description provided for @settingsYourData.
+  ///
+  /// In pt, this message translates to:
+  /// **'Seus dados'**
+  String get settingsYourData;
+
+  /// No description provided for @settingsDownloadData.
+  ///
+  /// In pt, this message translates to:
+  /// **'Baixar meus dados'**
+  String get settingsDownloadData;
+
+  /// No description provided for @settingsDownloadDataHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Um arquivo com tudo o que o Wallet guarda sobre você: perfil, bancos, contas, transações, cartões, investimentos e planejamento.'**
+  String get settingsDownloadDataHelp;
+
+  /// No description provided for @settingsDownloadDataBusy.
+  ///
+  /// In pt, this message translates to:
+  /// **'Preparando o arquivo…'**
+  String get settingsDownloadDataBusy;
+
+  /// No description provided for @settingsDownloadDataDone.
+  ///
+  /// In pt, this message translates to:
+  /// **'Pronto: {fileName}'**
+  String settingsDownloadDataDone(String fileName);
+
+  /// No description provided for @settingsDownloadDataDoneIn.
+  ///
+  /// In pt, this message translates to:
+  /// **'Pronto: {fileName}, salvo em {folder}'**
+  String settingsDownloadDataDoneIn(String fileName, String folder);
+
+  /// No description provided for @settingsDownloadDataLimit.
+  ///
+  /// In pt, this message translates to:
+  /// **'Você já baixou seus dados várias vezes hoje. Tente de novo amanhã.'**
+  String get settingsDownloadDataLimit;
+
+  /// No description provided for @settingsDownloadDataCancelled.
+  ///
+  /// In pt, this message translates to:
+  /// **'Download cancelado.'**
+  String get settingsDownloadDataCancelled;
+
+  /// No description provided for @settingsDownloadDataFailed.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível salvar o arquivo neste aparelho.'**
+  String get settingsDownloadDataFailed;
+
   /// No description provided for @settingsDangerZone.
   ///
   /// In pt, this message translates to:
