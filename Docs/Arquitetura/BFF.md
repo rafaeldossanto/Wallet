@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, backend, bff]
-atualizado: 2026-10-23
+atualizado: 2026-10-24
 porta: 8080
 repo: Work/Wallet/bff
 ---
@@ -66,6 +66,7 @@ bff/src/main/java/com/wallet/bff/
 | POST | `/api/waitlist/confirm` | `/internal/waitlist/confirm` com `{token}`: **204**; link vencido, desconhecido ou trocado: 400 `waitlist.invalid_token`. Chamada pela página `/waitlist/confirm` |
 | POST | `/api/waitlist/unsubscribe` | `/internal/waitlist/unsubscribe`: **204**, o token no corpo JSON `{token}` **ou** na query `?token=`. O botão de um clique dos provedores de e-mail (RFC 8058) manda `application/x-www-form-urlencoded` com `List-Unsubscribe=One-Click` e o token na query |
 | GET | `/waitlist/confirm`, `/waitlist/unsubscribe` | Páginas estáticas do BFF (`static/waitlist`) que os links da lista de espera abrem ([[#Páginas dos links]]) |
+| POST | `/api/webhooks/pluggy` | `/internal/webhooks/pluggy` com o corpo cru: **202** sem corpo. Pública, sem token, só com `wallet.webhooks.enabled` (senão 404) e o segredo em `X-Wallet-Webhook-Secret` (senão 401); lista de IPs opcional (403); 60 por minuto por IP. Ver [[#Webhooks da Pluggy]] |
 | POST | `/api/auth/refresh` | `/internal/auth/refresh` (web: lê o cookie) |
 | POST | `/api/auth/logout` | `/internal/auth/logout` e apaga o cookie |
 | GET | `/api/me` | `/internal/me`: `{id, email, displayName, createdAt, pendingEmail, twoFactorEnabled}` |
@@ -115,6 +116,24 @@ nessa URL exata (RFC 8058); a página também o tira da barra e posta em `/api/w
 A landing page (`site/`) chama `POST /api/waitlist` de **outra origem**, sem credenciais: a origem dela
 tem de estar em `WALLET_WEB_ALLOWED_ORIGINS` (lista separada por vírgula), senão o navegador bloqueia o
 formulário (CORS).
+
+### Webhooks da Pluggy
+
+`POST /api/webhooks/pluggy`: pública (sem JWT) e **não assinada** pela Pluggy, então é uma porta para dicas, fechada por um
+segredo. A rota só existe com `wallet.webhooks.enabled=true`; desligado (o padrão), responde **404**.
+
+1. **Limite por IP**, antes de tudo: `wallet.rate-limit.webhook-limit`, 60 por minuto, 429 `rate_limit.exceeded`.
+2. **Lista de IPs** (opcional, `WALLET_PLUGGY_WEBHOOK_IPS`: IPs ou CIDR; vazia = não confere), pelo mesmo `ClientAddress` do rate
+   limit (proxies confiáveis incluídos). Fora dela: **403** `webhook.forbidden`.
+3. **Segredo** no header `X-Wallet-Webhook-Secret` contra `WALLET_PLUGGY_WEBHOOK_SECRET`, em **tempo constante** (SHA-256 dos dois
+   lados e `MessageDigest.isEqual`, como o core faz com a chave do gateway). Sem ele ou errado: **401** `webhook.unauthorized`, e o
+   core não é chamado.
+4. Repassa o **corpo cru** a `POST /internal/webhooks/pluggy` (grupo `READS`), sem interpretar, e responde **202** sem corpo. Tudo
+   o que o core faz com o aviso está em [[Sincronização#Webhooks (desde 2026-10-24, achado A21)]].
+
+Com `SPRING_PROFILES_ACTIVE=prod` e os webhooks ligados, o segredo é obrigatório e precisa de 32 caracteres ou mais: sem ele o BFF
+não sobe, e a mensagem cita `WALLET_PLUGGY_WEBHOOK_SECRET`. Fora de produção, ligado e sem segredo, ele sobe e recusa todo aviso
+com 401. A rota ignora um `Authorization` que venha junto.
 
 ### A home
 
@@ -265,6 +284,10 @@ Achado A18, desde 2026-10-22: `/actuator/health` era público e ficava fora do r
 | `wallet.rate-limit.export-limit`, `.export-window` | A exportação dos dados (`GET /api/me/export`) por usuário, além do geral: 3 por 24 h (cada uma faz o core ler tudo o que o usuário tem). Passou: 429 `rate_limit.exceeded` |
 | `wallet.rate-limit.search-limit` | Busca por texto (`GET /api/transactions` com `q`) por usuário e janela, além do geral: 30 por minuto (cada busca faz o core decifrar o mês). Passou: 429 `rate_limit.exceeded` |
 | `wallet.rate-limit.waitlist-limit` / `waitlist-window` | `/api/waitlist/**` (inscrição, confirmação e descadastro, **juntos**) por **IP**, em vez do geral: 5 por hora. Rotas públicas, e cada inscrição manda um e-mail ao endereço digitado. Passou: 429 `rate_limit.exceeded` (o mesmo do auth), `Retry-After: 3600` |
+| `WALLET_PLUGGY_WEBHOOKS_ENABLED` | `wallet.webhooks.enabled`, padrão `false`: liga `POST /api/webhooks/pluggy` (desligado, 404). Ver [[#Webhooks da Pluggy]] |
+| `WALLET_PLUGGY_WEBHOOK_SECRET` | `wallet.webhooks.secret`: o que a Pluggy manda em `X-Wallet-Webhook-Secret`; o mesmo valor do core (que registra os webhooks). Com `prod` e webhooks ligados, obrigatório e com 32+ caracteres |
+| `WALLET_PLUGGY_WEBHOOK_IPS` | `wallet.webhooks.allowed-ips`: IPs ou CIDR de onde a Pluggy chama, separados por vírgula; vazio = não confere |
+| `wallet.rate-limit.webhook-limit` | `/api/webhooks/**` por **IP**, na janela geral (1 min): 60. Passou: 429 `rate_limit.exceeded` |
 | `wallet.core.max-concurrent-calls.*` | Bulkhead de cada grupo de rotas (`auth` 16, `reads` 64, `screens` 32, `search` 16, `provider` 16). Ver [[#Grupos de rotas]] |
 | `WALLET_BFF_MANAGEMENT_PORT` | `management.server.port`, padrão 9080, sempre em `127.0.0.1`: detalhes da saúde e readiness. Igual à porta pública impede a subida |
 | `WALLET_MAX_BODY_SIZE` | `wallet.http.max-body-size`, padrão `256KB`, o mesmo filtro do core: `Content-Length` maior recebe 413 `request.too_large` antes da segurança; corpo chunked é cortado durante a leitura |
@@ -343,6 +366,10 @@ Desde 2026-10-24. Um IP é dado pessoal, e a mensagem de uma exceção pode cita
   a nova senha e o endereço de onde veio, o link vencido do core repassado, a página servida com CSP e sem
   referrer, a troca de senha e os códigos novos com o Bearer do usuário (e 401 sem sessão), a recusa 403
   do core repassada; no `RateLimitTest`, a troca de senha e os códigos novos contando como as rotas que pedem a senha de novo.
+- `WebhookTest`, `WebhookDisabledTest` e `WebhookSecretTest` (desde 2026-10-24): segredo certo (o corpo vai ao core como veio, sem
+  `Authorization`), errado e ausente (401, o core não é chamado), IP fora da lista (403), desligado (404), recusa do core repassada,
+  limite por IP (errar o segredo conta) e um Bearer qualquer que não atrapalha; a regra do segredo (32 caracteres, `prod`, tempo
+  constante) e a lista de IPs/CIDR no `ClientAddressTest`.
 - `WaitlistTest` (desde 2026-10-23): consentimento ausente ou `false` e e-mail inválido dão 400
   `validation.failed` sem chegar ao core; inscrição, confirmação e erro do core repassados; descadastro
   com o token no corpo, na query e no POST de formulário do botão de um clique; 5 por hora por IP

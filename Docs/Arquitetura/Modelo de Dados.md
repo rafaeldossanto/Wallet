@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, banco]
-atualizado: 2026-10-23
+atualizado: 2026-10-24
 ---
 
 # Modelo de Dados
@@ -134,11 +134,18 @@ seria carregada para a frente para sempre.
 **provider_calls** — a auditoria das chamadas à Pluggy, uma linha por requisição HTTP:
 `id`, `called_at`, `provider` (`PLUGGY`), `operation` (`FIND_ITEM`, `LIST_TRANSACTIONS`...),
 `reason` (`CONNECT`, `LINK`, `RENEW`, `UNLINK`, `ACCOUNT_DELETION`, `INITIAL_SYNC`, `SCHEDULED_SYNC`,
-`MANUAL_SYNC`, `WEBHOOK_SYNC`), `user_id`, `connection_id`, `provider_item_id`, `outcome`
+`MANUAL_SYNC`, `WEBHOOK_SYNC`, `WEBHOOK_SETUP`), `user_id`, `connection_id`, `provider_item_id`, `outcome`
 (`SUCCESS`/`FAILURE`), `http_status`, `error_code`, `duration_ms`. Índices em `called_at` e
 em (`connection_id`, `called_at`). **Sem chave estrangeira**, por isso fica fora do diagrama:
 o registro precisa sobreviver ao desvínculo e à exclusão do usuário. Nenhum dado financeiro,
 token ou credencial. Apagado depois de 180 dias. Ver [[Core#Auditoria das chamadas à Pluggy (desde 2026-10-18)]].
+
+**provider_webhook_events** (V14) — os avisos (webhooks) que a Pluggy mandou, uma linha por evento: `id`, `event_id`
+(`VARCHAR(100)`, **único**: um aviso repetido é ignorado com `INSERT ... ON CONFLICT DO NOTHING`), `event` (`item/updated`,
+`transactions/created`...), `provider_item_id`, `received_at`, `processed_at` e `outcome` (`SYNC_REQUESTED`, `SKIPPED_COOLDOWN`,
+`SKIPPED_BUSY`, `UNKNOWN_ITEM`, `ITEM_DELETED`, `CONSENT_EXPIRED` ou `FAILED`). **Sem chave estrangeira e sem usuário**, por isso fora do
+diagrama: o aviso é só uma dica não assinada, o Wallet guarda dele apenas esses três campos, e um item que ninguém vinculou também
+é registrado. Apagado depois de 30 dias. Ver [[Sincronização#Webhooks (desde 2026-10-24, achado A21)]].
 
 **fixed_expenses** — os gastos fixos do planejamento (o que não passa no cartão): `id`,
 `user_id` (FK `users`, cascata), `name` (**cifrado**, `VARCHAR(512)` desde a V14; ver [[#Criptografia de coluna]]), `amount` (maior que zero), `day_of_month` (1 a 31; nos

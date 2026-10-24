@@ -77,6 +77,8 @@ services:
       PLUGGY_CLIENT_SECRET: ${PLUGGY_CLIENT_SECRET:-}
       WALLET_CONNECTION_MODE: PLUGGY_CONNECT
       WALLET_SYNC_SCHEDULER_ENABLED: ${WALLET_SYNC_SCHEDULER_ENABLED:-true}
+      # Only the command that registers the webhooks at Pluggy reads it (docs: Deploy.md).
+      WALLET_PLUGGY_WEBHOOK_SECRET: ${WALLET_PLUGGY_WEBHOOK_SECRET:-}
     networks: [internal, egress]
     healthcheck:
       # The JRE image has neither curl nor wget: bash talks HTTP to /livez on its own.
@@ -114,6 +116,10 @@ services:
       # The app and the landing page, as the browser sends them in Origin.
       WALLET_WEB_ALLOWED_ORIGINS: https://${WALLET_DOMAIN},https://app.${WALLET_DOMAIN}
       WALLET_TRUSTED_PROXIES: ${WALLET_TRUSTED_PROXIES:-172.16.0.0/12}
+      # Pluggy's webhooks: off (404) unless enabled; the secret is then required (docs: Deploy.md).
+      WALLET_PLUGGY_WEBHOOKS_ENABLED: ${WALLET_PLUGGY_WEBHOOKS_ENABLED:-false}
+      WALLET_PLUGGY_WEBHOOK_SECRET: ${WALLET_PLUGGY_WEBHOOK_SECRET:-}
+      WALLET_PLUGGY_WEBHOOK_IPS: ${WALLET_PLUGGY_WEBHOOK_IPS:-}
     networks: [internal, edge]
     healthcheck:
       test:

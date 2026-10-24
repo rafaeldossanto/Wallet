@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, backend, core]
-atualizado: 2026-10-23
+atualizado: 2026-10-24
 porta: 8081
 repo: Work/Wallet/core
 ---
@@ -26,8 +26,8 @@ módulo usar a parte interna de outro.
 | `connection` | Conexões com bancos (items da Pluggy), vincular, desvincular | `provider`, `shared` |
 | `banking` | Contas, saldos, transações, cartões e faturas | `shared` |
 | `investment` | Posições de investimento | `shared` |
-| `sync` | Orquestra a leitura do provedor e grava nos módulos de dados | `provider`, `connection`, `banking`, `investment` |
-| `provider` | Porta `FinancialDataProvider`, o adaptador da Pluggy e a auditoria das chamadas | `shared` |
+| `sync` | Orquestra a leitura do provedor e grava nos módulos de dados e recebe os avisos (webhooks) do provedor como dicas para sincronizar logo, [[Sincronização#Webhooks (desde 2026-10-24, achado A21)]] | `provider`, `connection`, `banking`, `investment` |
+| `provider` | Porta `FinancialDataProvider`, o adaptador da Pluggy e a auditoria das chamadas e o comando que registra os webhooks no provedor | `shared` |
 | `insight` | Visão geral, patrimônio, gasto por categoria | `banking`, `investment` |
 | `planning` | Planejamento do mês: salário − faturas − gastos fixos, os gastos fixos e o salário esperado | `banking`, `shared` |
 | `privacy` | A exportação dos dados do usuário (LGPD, acesso e portabilidade): monta o arquivo só com as portas públicas dos outros módulos (`UserProfiles`, `ConnectionRegistry`, `BankingQueries`, `InvestmentQueries`, `PlanningExports`). Ver [[#Exportação dos dados (L9 e L10)]] | `identity`, `connection`, `banking`, `investment`, `planning`, `shared` |
@@ -334,6 +334,7 @@ a cada chamada. Desde 2026-10-22:
 | `WALLET_CONNECTION_MODE` | `wallet.provider.connection-mode`: `MEU_PLUGGY` (dev, padrão) ou `PLUGGY_CONNECT`. Com `SPRING_PROFILES_ACTIVE=prod`, qualquer coisa que não seja `PLUGGY_CONNECT` impede a subida, com a variável na mensagem (achado A6): o `MEU_PLUGGY` deixa qualquer usuário vincular item sem dono |
 | `wallet.provider.max-connections-per-user` | Teto de conexões por usuário (padrão 10). A seguinte responde 422 `connection.limit_reached` |
 | `wallet.provider.oauth-redirect-uri` | Para onde o banco devolve o usuário depois de autorizar no Pluggy Connect: o deep link do app Android (`com.wallet.wallet://pluggy-connect`) |
+| `wallet.webhooks.register`, `.secret`, `.base-url` | O comando que registra os webhooks na Pluggy ([[#Webhooks da Pluggy (desde 2026-10-24)]]): `register` só na linha de comando da execução (não está no `application.yaml`: o core que atende a API nunca registra), `secret` = `WALLET_PLUGGY_WEBHOOK_SECRET` (32+ caracteres, o mesmo do BFF) e `base-url` = `WALLET_PUBLIC_URL` |
 | `wallet.retention.banking.*`, `wallet.retention.sync.*`, `wallet.retention.identity.*` | Prazos da limpeza noturna: transações removidas pelo provedor 90 d, sincronizações terminadas 90 d (a última de cada conexão fica), tokens de renovação 30 d, mais o `cleanup-cron` de cada uma. Ver [[#Retenção (L8, desde 2026-10-24)]] |
 | `wallet.sync.interval` | Intervalo do polling (padrão 6 h) |
 | `wallet.sync.scheduler-enabled` | Liga o agendador nesta instância (padrão `true`) |
@@ -436,6 +437,31 @@ java -jar core.jar --spring.main.web-application-type=none \
 - Sem servidor web, as cadeias de filtros de segurança (`identity` e `ManagementSecurityConfig`) não são criadas
   (`@ConditionalOnWebApplication`); não há Tomcat nem porta aberta.
 
+## Webhooks da Pluggy (desde 2026-10-24)
+
+Fecham o achado A21: um aviso de "item atualizado" vira uma sincronização logo, em vez de esperar as 6 h. A Pluggy **não assina** o
+webhook, então ele é só uma **dica**: o core nunca confia no conteúdo e usa do corpo apenas `eventId`, `event` e `itemId`. O que
+cada evento faz, o cooldown e os resultados estão em [[Sincronização#Webhooks (desde 2026-10-24, achado A21)]]; o lado de fora
+(segredo, IPs, limite) em [[BFF#Webhooks da Pluggy]].
+
+- **Rota** `POST /internal/webhooks/pluggy` (módulo `sync`), liberada no `identity/config/SecurityConfig` como as de `/internal/auth/**`
+  (sem JWT; a chave do gateway continua valendo). **202** sempre, depois de gravar o evento; sem `eventId`, 400 `validation.failed`.
+- **Tabela** `provider_webhook_events` (V14, [[Modelo de Dados]]): `INSERT ... ON CONFLICT (event_id) DO NOTHING`, então um evento
+  repetido é 202 sem fazer nada. O tratamento é `WebhookProcessor`, num `@TransactionalEventListener` `@Async` (depois do commit, fora da
+  thread do pedido); a sincronização que ele pede passa por `ManualSyncService.request(..., WEBHOOK)`, as mesmas regras do botão.
+- **Registro** (módulo `provider`): `WebhookRegistration` fala com a Pluggy por uma porta nova, `ProviderWebhooks`
+  (`PluggyWebhooks`: `GET /webhooks`, `POST /webhooks`, `PATCH /webhooks/{id}`; auditado como `LIST_WEBHOOKS`, `CREATE_WEBHOOK`,
+  `UPDATE_WEBHOOK` com o motivo `WEBHOOK_SETUP`). `WebhookRegistrationRunner` é o `ApplicationRunner` do comando, que só liga com
+  `wallet.webhooks.register=true`, registra e sai:
+
+  ```bash
+  java -jar core.jar --spring.main.web-application-type=none --wallet.webhooks.register=true
+  ```
+
+  Sem `WALLET_PLUGGY_WEBHOOK_SECRET` (32+ caracteres) ou, em `prod`, sem `WALLET_PUBLIC_URL` em https, ele para antes de qualquer
+  chamada, dizendo a variável. Precisa das credenciais da Pluggy. No servidor: [[Deploy#Webhooks da Pluggy (opcional)]].
+- **Logs** `[WEBHOOK]`, só com ids (o do evento, nunca o conteúdo nem o item).
+
 ## Exportação dos dados (L9 e L10)
 
 Desde 2026-10-24. O direito de acesso e a portabilidade da LGPD (art. 18, II e V): `GET /internal/me/export`
@@ -507,6 +533,7 @@ padrão do `AccountHousekeeping`: um `SchedulingConfigurer` que registra um `Cro
 | `banking` | `BankingHousekeeping` | Transações com `deleted_at` (as que o provedor deixou de informar) há mais de 90 dias | `wallet.retention.banking.deleted-transactions-after` (90d) | `.cleanup-cron` (`0 50 4 * * *`) |
 | `sync` | `SyncRunHousekeeping` | `sync_runs` terminadas há mais de 90 dias, **menos a mais recente de cada conexão** (o cooldown do "Atualizar" conta dela); uma em andamento nunca | `wallet.retention.sync.finished-runs-after` (90d) | `.cleanup-cron` (`0 55 4 * * *`) |
 | `identity` | `AccountHousekeeping` (a tarefa que já existe, às 04:15) | `refresh_tokens` vencidos ou revogados há mais de 30 dias, e `access_records` com mais de 185 dias ([[#Registros de acesso (L13)]]). Os links de e-mail, as contas não confirmadas e os contadores de login já eram limpos ali | `wallet.retention.identity.refresh-tokens-after` (30d) e `.access-records-after` (185d) | o de `wallet.auth.cleanup-cron` |
+| `sync` | `WebhookEventHousekeeping` | `provider_webhook_events` recebidos há mais de 30 dias (o registro só serve para ignorar um aviso repetido e ver o que foi feito dele) | `wallet.retention.webhooks.events-after` (30d) | `.cleanup-cron` (`0 5 5 * * *`) |
 
 Já tinham limpeza própria: a auditoria das chamadas à Pluggy (180 dias, [[#Auditoria das chamadas à Pluggy (desde 2026-10-18)]]) e a lista
 de espera não confirmada (7 dias, [[#Lista de espera (módulo `waitlist`, desde 2026-10-23)]]).
@@ -628,6 +655,11 @@ criar o gasto fixo normalmente (o app abre o formulário preenchido); `DELETE ..
   token desconhecido é 204; limpeza dos `PENDING` com mais de 7 dias pelo caminho do agendador; comunicado só
   para `CONFIRMED` sem aquele id, marcação, segunda rodada sem reenvio e falha de envio sem marca),
   `AnnouncementFilesTest`, `WaitlistEmailsTest`, `QueuedEmailSenderTest` (`sendNow`) e `PublicUrlTest`.
+- Webhooks (desde 2026-10-24): `WebhookFlowIT` (evento novo pede a sincronização `WEBHOOK`; repetido não faz nada; dentro do
+  cooldown `SKIPPED_COOLDOWN`; sem vaga no bulkhead ou com uma já rodando `SKIPPED_BUSY`; item desconhecido; item apagado vira
+  `NEEDS_ATTENTION`; autorização vencida não sincroniza; o resto do corpo nunca é usado; corpo sem `eventId` é 400; sem a chave do
+  gateway é 403; limpeza pelo caminho do agendador), `WebhookRegistrationTest` (WireMock: cria os seis, atualiza e reativa, não mexe
+  em hook de outro endereço, rodar de novo não cria nada, segredo e endereço inválidos) e `WebhookOutcomesTest`.
 - Disponibilidade (desde 2026-10-22): `BulkheadTest` (parte do usuário, total, vaga devolvida uma
   vez, 20 requisições simultâneas de um usuário nunca passam de 2), `ReadApiIT` (busca paginada
   com total exato, janela de 93 dias, bulkheads `search` e `screens` nas rotas, histórico de

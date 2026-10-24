@@ -1,6 +1,6 @@
 ---
 tags: [arquitetura, deploy, infraestrutura]
-atualizado: 2026-10-23
+atualizado: 2026-10-24
 repo: Work/Wallet/deploy
 ---
 
@@ -207,6 +207,36 @@ docker compose up -d
 ```
 
 Para uma máquina nova: faça os passos 1 a 5, restaure o `.env` (a **mesma** `WALLET_DATA_KEY`), suba só o Postgres (`docker compose up -d postgres`), rode o `gunzip | psql` acima (sem o `DROP`) e depois `docker compose up -d`.
+
+## Webhooks da Pluggy (opcional)
+
+Sem webhook o Wallet lê a Pluggy a cada 6 h (e no botão "Atualizar"). Com ele, um aviso de "item atualizado" vira uma
+sincronização logo (A21). O webhook **não é assinado** pela Pluggy: o Wallet o trata como **dica** (lê só o id do evento,
+o nome e o id do item) e sempre pergunta à Pluggy o que mudou. Por isso a rota é fechada por um segredo.
+
+1. Gere o segredo e preencha no `.env` (o **mesmo** vale para o BFF, que confere, e para o core, que o manda à Pluggy):
+
+   ```bash
+   openssl rand -base64 48    # WALLET_PLUGGY_WEBHOOK_SECRET (mínimo 32 caracteres)
+   ```
+
+   Opcional: `WALLET_PLUGGY_WEBHOOK_IPS` com os IPs ou faixas CIDR de onde a Pluggy chama (vazio = não confere).
+2. Ligue: `WALLET_PLUGGY_WEBHOOKS_ENABLED=true` e `docker compose up -d` (o BFF recusa subir em produção ligado e sem
+   segredo; desligado, `/api/webhooks/pluggy` responde 404).
+3. Registre os webhooks na Pluggy, **uma vez** (o core sobe sem servidor web, registra e sai; pode rodar de novo, não duplica):
+
+   ```bash
+   docker compose run --rm core --spring.main.web-application-type=none --wallet.webhooks.register=true
+   ```
+
+   Ele lista o que já existe e cria ou atualiza (e reativa) os seis eventos, `item/updated`, `item/error`, `item/deleted`,
+   `transactions/created`, `transactions/updated` e `transactions/deleted`, com a URL `https://app.<domínio>/api/webhooks/pluggy`
+   e o header `X-Wallet-Webhook-Secret`. Um webhook seu que aponte para outro endereço não é tocado. Precisa de
+   `PLUGGY_CLIENT_ID`, `PLUGGY_CLIENT_SECRET` e `WALLET_PUBLIC_URL` (o compose já define); sai com código 0, e com erro
+   dizendo a variável se faltar o segredo.
+4. Troque o segredo quando quiser: mude no `.env`, `docker compose up -d` e rode o comando do passo 3 de novo (ele atualiza os hooks).
+
+O que o Wallet faz com cada aviso está em [[Sincronização#Webhooks (produção)]]. O limite é de 60 por minuto por IP.
 
 ## O que depende de você
 
