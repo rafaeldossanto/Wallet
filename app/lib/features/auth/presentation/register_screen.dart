@@ -3,7 +3,9 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/api/api_exception.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/l10n/l10n.dart';
+import '../../../core/legal/accept_terms_label.dart';
 import '../../../core/session/session_controller.dart';
 import 'auth_layout.dart';
 
@@ -23,6 +25,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _submitting = false;
+  bool _acceptedTerms = false;
   String? _error;
 
   /// The e-mail the link went to: the account only exists once it is opened.
@@ -37,7 +40,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _submit() async {
-    if (_submitting || !_form.currentState!.validate()) {
+    if (_submitting || !_acceptedTerms || !_form.currentState!.validate()) {
       return;
     }
     setState(() {
@@ -111,10 +114,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
+        // Unticked on purpose, and without it nothing is sent (L15).
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          value: _acceptedTerms,
+          onChanged: _submitting ? null : (value) => setState(() => _acceptedTerms = value ?? false),
+          title: AcceptTermsLabel(
+            termsUrl: AppConfig.termsUrl,
+            privacyUrl: AppConfig.privacyUrl,
+            onLinkFailed: () => setState(() => _error = l10n.legalLinkFailed),
+          ),
+        ),
+        const SizedBox(height: 8),
         if (_error != null) FormErrorText(_error!),
         FilledButton(
-          onPressed: _submitting ? null : _submit,
+          onPressed: _submitting || !_acceptedTerms ? null : _submit,
           child: _submitting
               ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
               : Text(l10n.registerAction),

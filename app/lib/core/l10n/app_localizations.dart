@@ -358,6 +358,60 @@ abstract class AppLocalizations {
   /// **'Criar conta'**
   String get registerAction;
 
+  /// No description provided for @legalAcceptPrefix.
+  ///
+  /// In pt, this message translates to:
+  /// **'Li e aceito os '**
+  String get legalAcceptPrefix;
+
+  /// No description provided for @legalTermsLink.
+  ///
+  /// In pt, this message translates to:
+  /// **'Termos de Uso'**
+  String get legalTermsLink;
+
+  /// No description provided for @legalAcceptAnd.
+  ///
+  /// In pt, this message translates to:
+  /// **' e a '**
+  String get legalAcceptAnd;
+
+  /// No description provided for @legalPrivacyLink.
+  ///
+  /// In pt, this message translates to:
+  /// **'Política de Privacidade'**
+  String get legalPrivacyLink;
+
+  /// No description provided for @legalLinkFailed.
+  ///
+  /// In pt, this message translates to:
+  /// **'Não foi possível abrir o texto agora. Tente de novo em instantes.'**
+  String get legalLinkFailed;
+
+  /// No description provided for @termsNoticeTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Atualizamos os Termos de Uso e a Política de Privacidade'**
+  String get termsNoticeTitle;
+
+  /// No description provided for @termsNoticeBody.
+  ///
+  /// In pt, this message translates to:
+  /// **'Leia os dois textos e aceite para continuar usando o Wallet.'**
+  String get termsNoticeBody;
+
+  /// No description provided for @termsNoticeAction.
+  ///
+  /// In pt, this message translates to:
+  /// **'Aceitar e continuar'**
+  String get termsNoticeAction;
+
+  /// No description provided for @errorTermsOutdated.
+  ///
+  /// In pt, this message translates to:
+  /// **'Os textos mudaram de novo. Leia a versão atual e aceite de novo.'**
+  String get errorTermsOutdated;
+
   /// No description provided for @registerGoToLogin.
   ///
   /// In pt, this message translates to:

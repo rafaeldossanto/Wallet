@@ -24,6 +24,10 @@ class UserProfile {
     required this.displayName,
     this.pendingEmail,
     this.twoFactorEnabled = false,
+    this.termsAcceptanceRequired = false,
+    this.termsVersion,
+    this.termsUrl,
+    this.privacyUrl,
   });
 
   factory UserProfile.fromJson(Json json) => UserProfile(
@@ -32,6 +36,10 @@ class UserProfile {
         displayName: json.string('displayName'),
         pendingEmail: json.stringOrNull('pendingEmail'),
         twoFactorEnabled: json.raw['twoFactorEnabled'] == true,
+        termsAcceptanceRequired: json.raw['termsAcceptanceRequired'] == true,
+        termsVersion: json.stringOrNull('termsVersion'),
+        termsUrl: json.stringOrNull('termsUrl'),
+        privacyUrl: json.stringOrNull('privacyUrl'),
       );
 
   final String id;
@@ -43,6 +51,14 @@ class UserProfile {
 
   /// Whether signing in asks for the authenticator app's code.
   final bool twoFactorEnabled;
+
+  /// The user has not accepted the current Terms of Use and Privacy Policy (never, or the texts changed):
+  /// the app asks before going on. [termsVersion] is the current one, which accepting sends back, and the
+  /// two URLs are where the texts are read.
+  final bool termsAcceptanceRequired;
+  final String? termsVersion;
+  final String? termsUrl;
+  final String? privacyUrl;
 
   String get firstName => displayName.trim().split(RegExp(r'\s+')).first;
 
@@ -88,8 +104,14 @@ class SessionApi {
       })));
 
   /// The same answer for every e-mail: the account exists only after the e-mailed link is opened.
+  /// [acceptTerms] is the box of the Terms of Use and the Privacy Policy; the server refuses a sign-up without it.
   Future<void> register({required String displayName, required String email, required String password}) =>
-      _api.post('/api/auth/register', body: {'displayName': displayName, 'email': email, 'password': password});
+      _api.post('/api/auth/register',
+          body: {'displayName': displayName, 'email': email, 'password': password, 'acceptTerms': true});
+
+  /// The current texts, read and accepted: [version] is the one `/api/me` brought. 409 `legal.terms_outdated`
+  /// when the texts changed meanwhile.
+  Future<void> acceptTerms(String version) => _api.post('/api/me/terms', body: {'version': version});
 
   Future<void> resendConfirmation(String email) => _api.post('/api/auth/email/resend', body: {'email': email});
 

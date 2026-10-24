@@ -51,6 +51,7 @@ extension ErrorMessages on AppLocalizations {
         'connection.needs_attention' => errorConnectionNeedsAttention,
         'connection.consent_expired' => errorConsentExpired,
         'connection.consent_not_renewed' => errorConsentNotRenewed,
+        'legal.terms_outdated' => errorTermsOutdated,
         'sync.too_soon' => errorSyncTooSoon,
         'sync.in_progress' => errorSyncInProgress,
         'account.not_found' => errorAccountNotFound,

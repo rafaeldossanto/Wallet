@@ -75,6 +75,24 @@ class SessionController extends ChangeNotifier {
   Future<void> register({required String displayName, required String email, required String password}) =>
       _api.register(displayName: displayName.trim(), email: email.trim(), password: password);
 
+  /// The user accepts the texts the profile brought (L15). When they changed meanwhile the server answers
+  /// `legal.terms_outdated`: the profile is reloaded, which asks again with the new version, and the error goes on.
+  Future<void> acceptTerms() async {
+    final version = _user?.termsVersion;
+    if (version == null) {
+      return;
+    }
+    try {
+      await _api.acceptTerms(version);
+    } on ApiException catch (error) {
+      if (error.code == 'legal.terms_outdated') {
+        await _reloadUser();
+      }
+      rethrow;
+    }
+    await _reloadUser();
+  }
+
   Future<void> resendConfirmation(String email) => _api.resendConfirmation(email.trim());
 
   /// The same answer for every e-mail; the link goes only to a confirmed account.

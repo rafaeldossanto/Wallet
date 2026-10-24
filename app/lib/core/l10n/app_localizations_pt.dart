@@ -175,6 +175,37 @@ class AppLocalizationsPt extends AppLocalizations {
   String get registerAction => 'Criar conta';
 
   @override
+  String get legalAcceptPrefix => 'Li e aceito os ';
+
+  @override
+  String get legalTermsLink => 'Termos de Uso';
+
+  @override
+  String get legalAcceptAnd => ' e a ';
+
+  @override
+  String get legalPrivacyLink => 'Política de Privacidade';
+
+  @override
+  String get legalLinkFailed =>
+      'Não foi possível abrir o texto agora. Tente de novo em instantes.';
+
+  @override
+  String get termsNoticeTitle =>
+      'Atualizamos os Termos de Uso e a Política de Privacidade';
+
+  @override
+  String get termsNoticeBody =>
+      'Leia os dois textos e aceite para continuar usando o Wallet.';
+
+  @override
+  String get termsNoticeAction => 'Aceitar e continuar';
+
+  @override
+  String get errorTermsOutdated =>
+      'Os textos mudaram de novo. Leia a versão atual e aceite de novo.';
+
+  @override
   String get registerGoToLogin => 'Já tenho conta';
 
   @override

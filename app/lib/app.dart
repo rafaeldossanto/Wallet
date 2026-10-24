@@ -13,6 +13,7 @@ import 'core/desktop/window_frame.dart';
 import 'core/files/device_file_saver.dart';
 import 'core/files/saved_file.dart';
 import 'core/l10n/l10n.dart';
+import 'core/legal/terms_gate.dart';
 import 'core/router/app_router.dart';
 import 'core/security/app_lock.dart';
 import 'core/security/idle_timeout.dart';
@@ -107,6 +108,7 @@ class AppDependencies {
         Provider(create: (_) => DataExportApi(api)),
         Provider.value(value: fileSaver),
         Provider.value(value: pluggyConnect),
+        Provider<OpenOutside>.value(value: pluggyConnect.openOutside),
       ];
 }
 
@@ -168,7 +170,7 @@ class _WalletAppState extends State<WalletApp> {
       localizationsDelegates: const [AppLocalizations.delegate, ...GlobalMaterialLocalizations.delegates],
       routerConfig: _router,
       builder: (context, child) {
-        final app = child ?? const SizedBox.shrink();
+        final app = TermsGate(child: child ?? const SizedBox.shrink());
         if (kIsWeb) {
           return IdleTimeout(session: dependencies.session, child: app);
         }

@@ -71,13 +71,15 @@ void main() {
       await tester.enterText(find.widgetWithText(TextFormField, 'Nome'), 'Rafael');
       await tester.enterText(find.widgetWithText(TextFormField, 'E-mail'), ' rafael@example.com ');
       await tester.enterText(find.widgetWithText(TextFormField, 'Senha'), 'certa1234');
+      await tester.tap(find.byType(Checkbox));
+      await tester.pump();
       await tester.tap(find.widgetWithText(FilledButton, 'Criar conta'));
       await tester.pumpAndSettle();
 
       expect(find.text('Confira seu e-mail'), findsOneWidget);
       expect(find.textContaining('Enviamos um link para rafael@example.com'), findsOneWidget);
       expect(bff.calls('POST', '/api/auth/register').single.data,
-          {'displayName': 'Rafael', 'email': 'rafael@example.com', 'password': 'certa1234'});
+          {'displayName': 'Rafael', 'email': 'rafael@example.com', 'password': 'certa1234', 'acceptTerms': true});
       expect(bff.calls('POST', '/api/auth/login'), isEmpty);
     });
 
@@ -90,6 +92,8 @@ void main() {
       await tester.enterText(find.widgetWithText(TextFormField, 'Nome'), 'Rafael');
       await tester.enterText(find.widgetWithText(TextFormField, 'E-mail'), 'rafael@example.com');
       await tester.enterText(find.widgetWithText(TextFormField, 'Senha'), 'certa1234');
+      await tester.tap(find.byType(Checkbox));
+      await tester.pump();
       await tester.tap(find.widgetWithText(FilledButton, 'Criar conta'));
       await tester.pumpAndSettle();
 
