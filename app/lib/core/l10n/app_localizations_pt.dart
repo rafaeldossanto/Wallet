@@ -1385,6 +1385,92 @@ class AppLocalizationsPt extends AppLocalizations {
   String get errorUnexpected => 'Algo deu errado. Tente de novo.';
 
   @override
+  String get errorConsentExpired =>
+      'A autorização deste banco venceu. Renove para voltar a atualizar.';
+
+  @override
+  String get errorConsentNotRenewed =>
+      'A renovação ainda não apareceu no banco. Tente de novo em instantes.';
+
+  @override
+  String get consentTitle => 'Antes de conectar';
+
+  @override
+  String get consentPurposeHeading => 'Para que';
+
+  @override
+  String get consentPurpose =>
+      'Mostrar seus saldos, extratos, cartões, faturas e investimentos no Wallet.';
+
+  @override
+  String get consentDataHeading => 'Dados que o Wallet lê';
+
+  @override
+  String get consentDataAccounts => 'Contas e saldos';
+
+  @override
+  String get consentDataTransactions =>
+      'Lançamentos (extrato) das contas e dos cartões';
+
+  @override
+  String get consentDataCards => 'Cartões de crédito e faturas';
+
+  @override
+  String get consentDataInvestments => 'Investimentos';
+
+  @override
+  String get consentReadOnly => 'O Wallet só lê: não movimenta dinheiro.';
+
+  @override
+  String get consentValidityHeading => 'Por quanto tempo';
+
+  @override
+  String get consentValidity =>
+      'Até você desconectar aqui ou no app do banco, ou até a autorização vencer.';
+
+  @override
+  String get consentRevokeHeading => 'Como revogar';
+
+  @override
+  String get consentRevoke =>
+      'Em Conexões, toque em Desvincular. Você também pode cancelar a autorização no app do banco.';
+
+  @override
+  String get consentCheckbox =>
+      'Autorizo o Wallet a ler esses dados para essa finalidade.';
+
+  @override
+  String get consentContinue => 'Continuar';
+
+  @override
+  String get connectionConsentExpired =>
+      'A autorização deste banco venceu. Renove para voltar a atualizar.';
+
+  @override
+  String connectionConsentExpiresIn(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'A autorização vence em $count dias.',
+      one: 'A autorização vence em 1 dia.',
+      zero: 'A autorização vence hoje.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get connectionRenew => 'Renovar';
+
+  @override
+  String get connectionRenewOnPhone => 'Renove pelo app no celular.';
+
+  @override
+  String get connectionRenewed => 'Autorização renovada.';
+
+  @override
+  String get connectionStatusConsentExpired => 'Autorização vencida';
+
+  @override
   String get loginForgotPassword => 'Esqueci minha senha';
 
   @override

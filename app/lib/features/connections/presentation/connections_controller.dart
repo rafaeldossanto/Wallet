@@ -59,6 +59,12 @@ class ConnectionsController extends LoadController<List<Connection>> {
         _changes?.changed();
       });
 
+  /// After Pluggy Connect renewed the authorization of [connectionId].
+  Future<ApiException?> renew(String connectionId) => _act(() async {
+        await _api.renew(connectionId);
+        _changes?.changed();
+      });
+
   Future<ApiException?> unlink(String connectionId) => _act(() async {
         await _api.unlink(connectionId);
         _changes?.changed();

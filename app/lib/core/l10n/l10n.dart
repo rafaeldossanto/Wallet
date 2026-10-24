@@ -49,6 +49,8 @@ extension ErrorMessages on AppLocalizations {
         'connection.limit_reached' => errorConnectionLimit,
         'connection.not_found' || 'connection.gone' => errorConnectionGone,
         'connection.needs_attention' => errorConnectionNeedsAttention,
+        'connection.consent_expired' => errorConsentExpired,
+        'connection.consent_not_renewed' => errorConsentNotRenewed,
         'sync.too_soon' => errorSyncTooSoon,
         'sync.in_progress' => errorSyncInProgress,
         'account.not_found' => errorAccountNotFound,

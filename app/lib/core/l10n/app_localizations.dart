@@ -2392,6 +2392,144 @@ abstract class AppLocalizations {
   /// **'Algo deu errado. Tente de novo.'**
   String get errorUnexpected;
 
+  /// No description provided for @errorConsentExpired.
+  ///
+  /// In pt, this message translates to:
+  /// **'A autorização deste banco venceu. Renove para voltar a atualizar.'**
+  String get errorConsentExpired;
+
+  /// No description provided for @errorConsentNotRenewed.
+  ///
+  /// In pt, this message translates to:
+  /// **'A renovação ainda não apareceu no banco. Tente de novo em instantes.'**
+  String get errorConsentNotRenewed;
+
+  /// No description provided for @consentTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Antes de conectar'**
+  String get consentTitle;
+
+  /// No description provided for @consentPurposeHeading.
+  ///
+  /// In pt, this message translates to:
+  /// **'Para que'**
+  String get consentPurposeHeading;
+
+  /// No description provided for @consentPurpose.
+  ///
+  /// In pt, this message translates to:
+  /// **'Mostrar seus saldos, extratos, cartões, faturas e investimentos no Wallet.'**
+  String get consentPurpose;
+
+  /// No description provided for @consentDataHeading.
+  ///
+  /// In pt, this message translates to:
+  /// **'Dados que o Wallet lê'**
+  String get consentDataHeading;
+
+  /// No description provided for @consentDataAccounts.
+  ///
+  /// In pt, this message translates to:
+  /// **'Contas e saldos'**
+  String get consentDataAccounts;
+
+  /// No description provided for @consentDataTransactions.
+  ///
+  /// In pt, this message translates to:
+  /// **'Lançamentos (extrato) das contas e dos cartões'**
+  String get consentDataTransactions;
+
+  /// No description provided for @consentDataCards.
+  ///
+  /// In pt, this message translates to:
+  /// **'Cartões de crédito e faturas'**
+  String get consentDataCards;
+
+  /// No description provided for @consentDataInvestments.
+  ///
+  /// In pt, this message translates to:
+  /// **'Investimentos'**
+  String get consentDataInvestments;
+
+  /// No description provided for @consentReadOnly.
+  ///
+  /// In pt, this message translates to:
+  /// **'O Wallet só lê: não movimenta dinheiro.'**
+  String get consentReadOnly;
+
+  /// No description provided for @consentValidityHeading.
+  ///
+  /// In pt, this message translates to:
+  /// **'Por quanto tempo'**
+  String get consentValidityHeading;
+
+  /// No description provided for @consentValidity.
+  ///
+  /// In pt, this message translates to:
+  /// **'Até você desconectar aqui ou no app do banco, ou até a autorização vencer.'**
+  String get consentValidity;
+
+  /// No description provided for @consentRevokeHeading.
+  ///
+  /// In pt, this message translates to:
+  /// **'Como revogar'**
+  String get consentRevokeHeading;
+
+  /// No description provided for @consentRevoke.
+  ///
+  /// In pt, this message translates to:
+  /// **'Em Conexões, toque em Desvincular. Você também pode cancelar a autorização no app do banco.'**
+  String get consentRevoke;
+
+  /// No description provided for @consentCheckbox.
+  ///
+  /// In pt, this message translates to:
+  /// **'Autorizo o Wallet a ler esses dados para essa finalidade.'**
+  String get consentCheckbox;
+
+  /// No description provided for @consentContinue.
+  ///
+  /// In pt, this message translates to:
+  /// **'Continuar'**
+  String get consentContinue;
+
+  /// No description provided for @connectionConsentExpired.
+  ///
+  /// In pt, this message translates to:
+  /// **'A autorização deste banco venceu. Renove para voltar a atualizar.'**
+  String get connectionConsentExpired;
+
+  /// No description provided for @connectionConsentExpiresIn.
+  ///
+  /// In pt, this message translates to:
+  /// **'{count, plural, =0{A autorização vence hoje.} =1{A autorização vence em 1 dia.} other{A autorização vence em {count} dias.}}'**
+  String connectionConsentExpiresIn(int count);
+
+  /// No description provided for @connectionRenew.
+  ///
+  /// In pt, this message translates to:
+  /// **'Renovar'**
+  String get connectionRenew;
+
+  /// No description provided for @connectionRenewOnPhone.
+  ///
+  /// In pt, this message translates to:
+  /// **'Renove pelo app no celular.'**
+  String get connectionRenewOnPhone;
+
+  /// No description provided for @connectionRenewed.
+  ///
+  /// In pt, this message translates to:
+  /// **'Autorização renovada.'**
+  String get connectionRenewed;
+
+  /// No description provided for @connectionStatusConsentExpired.
+  ///
+  /// In pt, this message translates to:
+  /// **'Autorização vencida'**
+  String get connectionStatusConsentExpired;
+
   /// No description provided for @loginForgotPassword.
   ///
   /// In pt, this message translates to:
