@@ -611,12 +611,68 @@ h3 {
 .footer-inner a { display: inline-block; padding-block: 8px; }
 .footer-inner a:hover { color: var(--text); }
 
-/* Placeholder pages (privacy, terms) */
+/* Legal pages (privacy, terms) */
 
-.legal { padding-block: clamp(48px, 10vw, 112px); }
-.legal h1 { margin-bottom: 16px; }
-.legal p { max-width: 36em; color: var(--muted); font-size: 1.125rem; }
-.legal .button { margin-top: 32px; }
+.doc { padding-block: clamp(32px, 6vw, 72px) clamp(48px, 8vw, 96px); }
+.doc-inner { max-width: 48rem; }
+.doc h1 { font-size: clamp(2rem, 6vw, 2.75rem); }
+.doc h2 {
+  margin-top: 40px;
+  font-size: clamp(1.25rem, 3.2vw, 1.5rem);
+  letter-spacing: -0.01em;
+}
+.doc p, .doc ul, .doc ol, .doc .table-wrap { margin-top: 14px; }
+.doc ul, .doc ol { padding-left: 1.4rem; }
+.doc ul { list-style: disc; }
+.doc ol { list-style: decimal; }
+.doc li + li { margin-top: 6px; }
+.doc li::marker { color: var(--muted); }
+
+.doc .notice {
+  margin-top: 20px;
+  padding: 14px 18px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--warning);
+  border-radius: 16px;
+}
+
+.doc .table-wrap {
+  overflow-x: auto;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.doc table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+.doc th, .doc td {
+  padding: 12px 14px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border);
+}
+.doc tr:last-child th, .doc tr:last-child td { border-bottom: 0; }
+.doc thead th { background: var(--card-high); font-weight: 700; }
+.doc tbody th { width: 28%; font-weight: 600; }
+
+/* On a phone a table with a header becomes a stack of cards: each cell says what it is. */
+@media (max-width: 599px) {
+  .doc table.stack thead { display: none; }
+  .doc table.stack tr { display: block; padding: 12px 14px; border-bottom: 1px solid var(--border); }
+  .doc table.stack tr:last-child { border-bottom: 0; }
+  .doc table.stack td { display: block; padding: 4px 0; border: 0; }
+  .doc table.stack td::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--muted);
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

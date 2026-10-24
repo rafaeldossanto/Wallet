@@ -64,9 +64,9 @@ A mensagem aparece numa região `aria-live="polite"`. E-mail inválido é barrad
 
 O navegador faz a chamada de outra origem, então a origem da página precisa estar em `WALLET_WEB_ALLOWED_ORIGINS` do BFF. Para o comando acima: `http://localhost:5181`. Sem isso o navegador bloqueia a chamada e o formulário mostra a mensagem de erro genérico. Em produção, vale a origem pública da página.
 
-## Provisório
+## Privacidade e termos
 
-`privacidade.html` e `termos.html` só dizem "Em preparação". Os textos legais de verdade ainda precisam ser escritos antes de abrir para outras pessoas.
+`privacidade.html` e `termos.html` trazem o **rascunho** da Política de Privacidade e dos Termos de Uso, com o aviso "Versão preliminar, em revisão jurídica" no topo e os dados da empresa como marcadores entre colchetes (em destaque na página). O texto vem de `Docs/Legal/Política de Privacidade.md` e `Docs/Legal/Termos de Uso.md`; ao mudar um `.md`, a página precisa ser gerada de novo. Os textos legais de verdade dependem da revisão do advogado antes de abrir para outras pessoas.
 
 ## Ver também
 
