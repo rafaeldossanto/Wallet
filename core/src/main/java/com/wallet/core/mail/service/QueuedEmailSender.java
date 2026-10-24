@@ -41,6 +41,12 @@ public class QueuedEmailSender implements EmailSender {
         }
     }
 
+    @Override
+    public void sendNow(OutgoingEmail email) {
+        transport.deliver(email);
+        log.info("[MAIL] Sent a {} e-mail", email.kind());
+    }
+
     private void dispatch(OutgoingEmail email) {
         executor.execute(() -> {
             try {

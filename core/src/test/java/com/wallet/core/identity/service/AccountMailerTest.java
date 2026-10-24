@@ -6,25 +6,9 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Where the e-mailed links point, and what the account e-mails say. */
+/** What the account e-mails say. */
 class AccountMailerTest {
-
-    @Test
-    void aDevelopmentMachineLinksToTheLocalBff() {
-        assertThat(AccountMailer.resolveBaseUrl(null, false)).isEqualTo("http://localhost:8080");
-        assertThat(AccountMailer.resolveBaseUrl("http://192.168.0.10:8080/", false)).isEqualTo("http://192.168.0.10:8080");
-    }
-
-    /** A link to localhost would leave every new account unconfirmed. */
-    @Test
-    void productionNeedsThePublicAddressOverHttps() {
-        assertThatThrownBy(() -> AccountMailer.resolveBaseUrl(" ", true)).hasMessageContaining("WALLET_PUBLIC_URL");
-        assertThatThrownBy(() -> AccountMailer.resolveBaseUrl("http://wallet.example.com", true)).hasMessageContaining("https");
-        assertThatThrownBy(() -> AccountMailer.resolveBaseUrl("wallet.example.com", true)).hasMessageContaining("absolute");
-        assertThat(AccountMailer.resolveBaseUrl("https://wallet.example.com//", true)).isEqualTo("https://wallet.example.com");
-    }
 
     @Test
     void theConfirmationCarriesTheLinkAndNothingAStrangerTyped() {

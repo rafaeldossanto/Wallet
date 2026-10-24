@@ -5,6 +5,7 @@ import com.wallet.core.identity.entity.EmailToken;
 import com.wallet.core.identity.entity.EmailTokenPurpose;
 import com.wallet.core.identity.mapper.EmailTokenMapper;
 import com.wallet.core.identity.repository.EmailTokenRepository;
+import com.wallet.core.shared.security.OpaqueTokens;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

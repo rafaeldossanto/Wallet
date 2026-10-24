@@ -2,6 +2,7 @@ package com.wallet.core.identity.service;
 
 import com.wallet.core.identity.config.AuthProperties;
 import com.wallet.core.identity.repository.LoginThrottles;
+import com.wallet.core.shared.security.OpaqueTokens;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

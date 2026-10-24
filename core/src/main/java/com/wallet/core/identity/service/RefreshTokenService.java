@@ -5,6 +5,7 @@ import com.wallet.core.identity.config.JwtProperties;
 import com.wallet.core.identity.entity.RefreshToken;
 import com.wallet.core.identity.mapper.RefreshTokenMapper;
 import com.wallet.core.identity.repository.RefreshTokenRepository;
+import com.wallet.core.shared.security.OpaqueTokens;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

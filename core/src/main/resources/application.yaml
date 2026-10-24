@@ -111,6 +111,21 @@ wallet:
     # At most one notice of each kind (sign-up attempt, lockout) per account in this interval.
     notice-interval: 1h
     cleanup-cron: "0 15 4 * * *"
+  waitlist:
+    # The BFF's public address: the e-mailed links open its waitlist pages. Empty =
+    # http://localhost:8080 (development); with SPRING_PROFILES_ACTIVE=prod it is required, https.
+    base-url: ${WALLET_PUBLIC_URL:}
+    confirm-ttl: 24h
+    # A sign-up repeated while unconfirmed gets a new link at most this often.
+    resend-interval: 1h
+    # Sign-ups nobody confirmed are deleted after this (nightly).
+    pending-ttl: 7d
+    cleanup-cron: "0 45 4 * * *"
+    # The opening announcement is a command, not a setting: wallet.waitlist.announce.id and .file
+    # are given on the command line (or WALLET_WAITLIST_ANNOUNCE_ID / _FILE) only for that run, and
+    # are deliberately not declared here. rate-per-second is the e-mails sent per second.
+    announce:
+      rate-per-second: ${WALLET_WAITLIST_ANNOUNCE_RATE_PER_SECOND:1}
   mail:
     # The sender the provider accepts (on Amazon SES, a verified address or domain).
     from: ${WALLET_MAIL_FROM:}

@@ -1,4 +1,4 @@
-package com.wallet.core.identity.service;
+package com.wallet.core.shared.security;
 
 import org.junit.jupiter.api.Test;
 

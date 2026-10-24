@@ -5,16 +5,13 @@ import com.wallet.core.identity.entity.User;
 import com.wallet.core.identity.repository.EmailNotices;
 import com.wallet.core.mail.EmailSender;
 import com.wallet.core.shared.security.ProductionProfile;
+import com.wallet.core.shared.web.PublicUrl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
-import java.net.URI;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Locale;
-
-import static org.springframework.util.StringUtils.hasText;
 
 /**
  * Sends the account e-mails through the mail module, and builds their links.
@@ -32,7 +29,6 @@ import static org.springframework.util.StringUtils.hasText;
 public class AccountMailer {
 
     static final String CONFIRMATION_PATH = "/email/confirm";
-    private static final String DEVELOPMENT_BASE_URL = "http://localhost:8080";
 
     private final EmailSender sender;
     private final EmailNotices notices;
@@ -46,7 +42,7 @@ public class AccountMailer {
         this.notices = notices;
         this.properties = properties;
         this.clock = clock;
-        this.baseUrl = resolveBaseUrl(properties.emailLinks().baseUrl(), ProductionProfile.isActive(environment));
+        this.baseUrl = PublicUrl.resolve(properties.emailLinks().baseUrl(), ProductionProfile.isActive(environment));
     }
 
     public void confirmAccount(User user, String rawToken) {
@@ -82,29 +78,5 @@ public class AccountMailer {
 
     private String link(String rawToken) {
         return baseUrl + CONFIRMATION_PATH + "#token=" + rawToken;
-    }
-
-    /**
-     * Required with the {@code prod} profile, and https there: a link to localhost, or one sent in the
-     * clear, would leave every new account unconfirmed or hand the token to the network.
-     */
-    static String resolveBaseUrl(String configured, boolean production) {
-        if (!hasText(configured)) {
-            if (production) {
-                throw new IllegalStateException("WALLET_PUBLIC_URL is required with the prod profile: the e-mails "
-                        + "link to the BFF's public address (e.g. https://wallet.example.com)");
-            }
-            return DEVELOPMENT_BASE_URL;
-        }
-        String url = configured.strip().replaceAll("/+$", "");
-        URI uri = URI.create(url);
-        if (!hasText(uri.getHost()) || !hasText(uri.getScheme())) {
-            throw new IllegalStateException("WALLET_PUBLIC_URL must be an absolute URL, e.g. https://wallet.example.com");
-        }
-        if (production && !"https".equals(uri.getScheme().toLowerCase(Locale.ROOT))) {
-            throw new IllegalStateException("WALLET_PUBLIC_URL must be https with the prod profile: "
-                    + "the e-mailed links carry one-time tokens");
-        }
-        return url;
     }
 }

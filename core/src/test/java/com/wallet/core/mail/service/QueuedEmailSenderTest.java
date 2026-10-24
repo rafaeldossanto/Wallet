@@ -14,6 +14,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class QueuedEmailSenderTest {
 
@@ -67,5 +68,30 @@ class QueuedEmailSenderTest {
         };
 
         assertThatCode(() -> new QueuedEmailSender(refusing, new SyncTaskExecutor()).send(EMAIL)).doesNotThrowAnyException();
+    }
+
+    /** For a process that exits when it is done (the announcement): queued, the JVM would be gone before the send. */
+    @Test
+    void sendNowDeliversOnTheCallersThread() {
+        Thread[] deliveredOn = new Thread[1];
+        QueuedEmailSender sender = new QueuedEmailSender(email -> deliveredOn[0] = Thread.currentThread(),
+                command -> {
+                    throw new AssertionError("sendNow must not use the executor");
+                });
+
+        sender.sendNow(EMAIL);
+
+        assertThat(deliveredOn[0]).isSameAs(Thread.currentThread());
+    }
+
+    /** Whoever sends now needs to know it did not go: it marks nobody as told. */
+    @Test
+    void sendNowThrowsWhenTheServerRefuses() {
+        MailTransport refusing = email -> {
+            throw new MailDeliveryException("SMTP did not take the test e-mail", new RuntimeException("rafael@example.com"));
+        };
+
+        assertThatThrownBy(() -> new QueuedEmailSender(refusing, new SyncTaskExecutor()).sendNow(EMAIL))
+                .isInstanceOf(MailDeliveryException.class);
     }
 }
