@@ -14,6 +14,7 @@ import java.util.UUID;
 import static java.util.Objects.isNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** The identity routes as the BFF calls them, and the account e-mails as their owner reads them. */
@@ -88,5 +89,25 @@ final class IdentityClient {
 
     static String refreshTokenOf(ResultActions result) throws Exception {
         return JsonPath.read(result.andReturn().getResponse().getContentAsString(), "$.refreshToken");
+    }
+
+    ResultActions forgotPassword(String email) throws Exception {
+        return json(post("/internal/auth/password/forgot"), "{\"email\":\"%s\"}".formatted(email));
+    }
+
+    ResultActions resetPassword(String token, String newPassword) throws Exception {
+        return resetPassword(token, newPassword, HOME_ADDRESS);
+    }
+
+    ResultActions resetPassword(String token, String newPassword, String clientAddress) throws Exception {
+        return json(post("/internal/auth/password/reset").header(ClientAddress.HEADER, clientAddress),
+                "{\"token\":\"%s\",\"newPassword\":\"%s\"}".formatted(token, newPassword));
+    }
+
+    ResultActions changePassword(String accessToken, String currentPassword, String newPassword, String clientAddress)
+            throws Exception {
+        return json(put("/internal/me/password").header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .header(ClientAddress.HEADER, clientAddress),
+                "{\"currentPassword\":\"%s\",\"newPassword\":\"%s\"}".formatted(currentPassword, newPassword));
     }
 }

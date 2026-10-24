@@ -1,5 +1,6 @@
 package com.wallet.core.identity.controller;
 
+import com.wallet.core.identity.dto.NewRecoveryCodesRequest;
 import com.wallet.core.identity.dto.RecoveryCodesResponse;
 import com.wallet.core.identity.dto.TwoFactorCodeRequest;
 import com.wallet.core.identity.dto.TwoFactorDisableRequest;
@@ -38,6 +39,14 @@ public class TwoFactorController {
     @PostMapping("/enable")
     public RecoveryCodesResponse enable(@CurrentUserId UUID userId, @Valid @RequestBody TwoFactorCodeRequest request) {
         return twoFactorService.enable(userId, request.code());
+    }
+
+    /** Ten new recovery codes for the old ones, with the password and a code. */
+    @PostMapping("/recovery-codes")
+    public RecoveryCodesResponse renewRecoveryCodes(@CurrentUserId UUID userId,
+                                                    @RequestHeader(name = ClientAddress.HEADER, required = false) String clientAddress,
+                                                    @Valid @RequestBody NewRecoveryCodesRequest request) {
+        return twoFactorService.renewRecoveryCodes(userId, request.password(), request.code(), ClientAddress.of(clientAddress));
     }
 
     @DeleteMapping

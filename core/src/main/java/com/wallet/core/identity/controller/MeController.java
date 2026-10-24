@@ -2,9 +2,11 @@ package com.wallet.core.identity.controller;
 
 import com.wallet.core.identity.dto.AccountDeletionRequest;
 import com.wallet.core.identity.dto.EmailChangeRequest;
+import com.wallet.core.identity.dto.PasswordChangeRequest;
 import com.wallet.core.identity.dto.ProfileRequest;
 import com.wallet.core.identity.dto.UserResponse;
 import com.wallet.core.identity.service.AccountDeletionService;
+import com.wallet.core.identity.service.PasswordService;
 import com.wallet.core.identity.service.UserService;
 import com.wallet.core.shared.security.CurrentUserId;
 import jakarta.validation.Valid;
@@ -29,6 +31,7 @@ public class MeController {
 
     private final UserService userService;
     private final AccountDeletionService accountDeletionService;
+    private final PasswordService passwordService;
 
     @GetMapping("/me")
     public UserResponse me(@CurrentUserId UUID userId) {
@@ -50,6 +53,18 @@ public class MeController {
                             @RequestHeader(name = ClientAddress.HEADER, required = false) String clientAddress,
                             @Valid @RequestBody EmailChangeRequest request) {
         userService.requestEmailChange(userId, request.newEmail(), request.password(), ClientAddress.of(clientAddress));
+    }
+
+    /**
+     * A new password, with the current one first. Every session of the account ends, the caller's
+     * included: the app signs in again. The notice goes to the owner.
+     */
+    @PutMapping("/me/password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void changePassword(@CurrentUserId UUID userId,
+                               @RequestHeader(name = ClientAddress.HEADER, required = false) String clientAddress,
+                               @Valid @RequestBody PasswordChangeRequest request) {
+        passwordService.change(userId, request.currentPassword(), request.newPassword(), ClientAddress.of(clientAddress));
     }
 
     /**

@@ -2,6 +2,7 @@ package com.wallet.core.identity.service;
 
 import com.wallet.core.identity.dto.EmailConfirmationResponse;
 import com.wallet.core.identity.entity.EmailToken;
+import com.wallet.core.identity.entity.EmailTokenPurpose;
 import com.wallet.core.identity.entity.User;
 import com.wallet.core.identity.repository.UserRepository;
 import com.wallet.core.shared.error.DomainException;
@@ -44,11 +45,13 @@ public class EmailConfirmationService {
 
     public EmailConfirmationResponse confirm(String rawToken) {
         Confirmed confirmed = transactions.execute(status -> {
-            EmailToken token = links.consume(rawToken).orElseThrow(EmailConfirmationService::linkInvalid);
+            EmailToken token = links.consume(rawToken, EmailTokenPurpose.CONFIRM_ACCOUNT, EmailTokenPurpose.CHANGE_EMAIL)
+                    .orElseThrow(EmailConfirmationService::linkInvalid);
             User user = users.findByIdForUpdate(token.getUserId()).orElseThrow(EmailConfirmationService::linkInvalid);
             return switch (token.getPurpose()) {
                 case CONFIRM_ACCOUNT -> confirmAccount(user);
                 case CHANGE_EMAIL -> changeEmail(user, token.getNewEmail());
+                case PASSWORD_RESET -> throw linkInvalid();
             };
         });
         if (EmailConfirmationResponse.Result.ACCOUNT_CONFIRMED.equals(confirmed.result())) {

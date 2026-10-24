@@ -65,6 +65,12 @@ public class RefreshTokenService {
                 .ifPresent(token -> repository.revokeFamily(token.getFamilyId(), clock.instant()));
     }
 
+    /** Ends every session of the account (a new password). Runs in the caller's transaction. */
+    @Transactional
+    public void revokeAllOf(UUID userId) {
+        repository.revokeAllOfUser(userId, clock.instant());
+    }
+
     private RotationResult rotateCurrent(RefreshToken current, Instant now) {
         UUID successorId = UUID.randomUUID();
         if (repository.markRotated(current.getId(), successorId, now) == 0) {

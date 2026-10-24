@@ -104,8 +104,11 @@ wallet:
       # http://localhost:8080 (development); with SPRING_PROFILES_ACTIVE=prod it is required, https.
       base-url: ${WALLET_PUBLIC_URL:}
       ttl: 24h
-      # Confirmation links per account per hour, the sign-up's included.
+      # Links of one kind per account per hour (confirmation, e-mail change, "Esqueci minha
+      # senha"), the sign-up's included.
       max-per-hour: 3
+      # The "Esqueci minha senha" link: shorter than ttl, because it opens the account.
+      password-reset-ttl: 1h
     # Accounts whose e-mail is never confirmed are deleted after this.
     unconfirmed-account-ttl: 7d
     # At most one notice of each kind (sign-up attempt, lockout) per account in this interval.

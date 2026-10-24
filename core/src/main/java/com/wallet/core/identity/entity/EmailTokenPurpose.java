@@ -6,5 +6,8 @@ public enum EmailTokenPurpose {
     CONFIRM_ACCOUNT,
 
     /** Sent to the new address of an account: opening it moves the account there. */
-    CHANGE_EMAIL
+    CHANGE_EMAIL,
+
+    /** Sent to a confirmed account that forgot its password: opening it, with a new password, replaces the old one. */
+    PASSWORD_RESET
 }

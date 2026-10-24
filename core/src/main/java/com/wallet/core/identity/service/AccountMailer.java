@@ -29,6 +29,7 @@ import java.time.Instant;
 public class AccountMailer {
 
     static final String CONFIRMATION_PATH = "/email/confirm";
+    static final String PASSWORD_RESET_PATH = "/password/reset";
 
     private final EmailSender sender;
     private final EmailNotices notices;
@@ -46,11 +47,21 @@ public class AccountMailer {
     }
 
     public void confirmAccount(User user, String rawToken) {
-        sender.send(AccountEmails.confirmAccount(user.getEmail(), link(rawToken)));
+        sender.send(AccountEmails.confirmAccount(user.getEmail(), link(CONFIRMATION_PATH, rawToken)));
     }
 
     public void confirmNewEmail(String newEmail, String rawToken) {
-        sender.send(AccountEmails.confirmNewEmail(newEmail, link(rawToken)));
+        sender.send(AccountEmails.confirmNewEmail(newEmail, link(CONFIRMATION_PATH, rawToken)));
+    }
+
+    /** The link of "Esqueci minha senha": {@code <WALLET_PUBLIC_URL>/password/reset#token=...}, the token after the {@code #} like the others. */
+    public void passwordReset(User user, String rawToken) {
+        sender.send(AccountEmails.passwordReset(user.getEmail(), link(PASSWORD_RESET_PATH, rawToken)));
+    }
+
+    /** After a password reset or change: no link, and it goes whatever the notice interval. */
+    public void passwordChanged(String email, Instant when) {
+        sender.send(AccountEmails.passwordChanged(email, when));
     }
 
     public void emailChanged(String oldEmail, String newEmail, Instant when) {
@@ -76,7 +87,7 @@ public class AccountMailer {
         return notices.claim(user.getId(), kind, now, now.minus(properties.noticeInterval()));
     }
 
-    private String link(String rawToken) {
-        return baseUrl + CONFIRMATION_PATH + "#token=" + rawToken;
+    private String link(String path, String rawToken) {
+        return baseUrl + path + "#token=" + rawToken;
     }
 }
