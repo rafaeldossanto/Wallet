@@ -23,7 +23,7 @@ class PlanningExportService implements PlanningExports {
     public PlanningExport export(UUID userId) {
         return new PlanningExport(
                 settings.findById(userId).map(PlanningSettings::getExpectedSalary).orElse(null),
-                fixedExpenses.findByUserIdOrderByDayOfMonthAscNameAsc(userId).stream()
+                fixedExpenses.findOrderedByDayThenName(userId).stream()
                         .map(expense -> new PlanningExport.FixedExpense(expense.getId(), expense.getName(),
                                 expense.getAmount(), expense.getDayOfMonth(), expense.getCategory()))
                         .toList());

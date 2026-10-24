@@ -1,7 +1,9 @@
 package com.wallet.core.planning.entity;
 
+import com.wallet.core.shared.crypto.LegacyAwareEncryptedStringConverter;
 import com.wallet.core.shared.money.Money;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -29,6 +31,11 @@ public class FixedExpense {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
+    /**
+     * Encrypted at rest: the name is free text and can say a lot ("Psicólogo"). Rows from before the
+     * encryption read as they are until the start-up backfill encrypts them.
+     */
+    @Convert(converter = LegacyAwareEncryptedStringConverter.class)
     @Column(nullable = false)
     private String name;
 

@@ -39,7 +39,7 @@ public class PlanningService {
                 banking.salaryPayments(userId, new DateRange(firstLookedAt.atDay(1), month.minusMonths(1).atEndOfMonth())),
                 expected,
                 banking.billsDueIn(userId, month),
-                fixedExpenses.findByUserIdOrderByDayOfMonthAscNameAsc(userId));
+                fixedExpenses.findOrderedByDayThenName(userId));
     }
 
     @Transactional
