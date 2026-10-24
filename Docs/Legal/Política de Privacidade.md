@@ -118,10 +118,10 @@ A LGPD (art. 18) dá a você estes direitos. Veja como cada um funciona hoje:
 
 | Direito | Como exercer hoje |
 |---|---|
-| Confirmar que tratamos seus dados e acessar | Os dados aparecem no aplicativo. A exportação completa em arquivo está **pendente** |
+| Confirmar que tratamos seus dados e acessar | Os dados aparecem no aplicativo. Em Ajustes, "Seus dados", "Baixar meus dados" gera um arquivo com tudo o que o Wallet guarda sobre você |
 | Corrigir dados | Em Ajustes (nome e e-mail) |
 | Eliminar dados | "Excluir conta", em Ajustes |
-| Portabilidade | **Pendente** |
+| Portabilidade | O mesmo arquivo, em JSON, que você pode levar para outro lugar [A CONFIRMAR: formato] |
 | Revogar o consentimento | Desvincular o banco no aplicativo; sair da lista de espera pelo link do e-mail; excluir a conta |
 | Saber com quem compartilhamos | Esta política, seção 6 |
 

@@ -54,7 +54,7 @@ Escala: probabilidade e impacto em **baixa**, **média** ou **alta**. O nível �
 | R8 | Nome dos gastos fixos exposto em claro | Média | Baixa | Médio | Banco em rede interna | Cifrar o nome dos gastos fixos (já anotado como pendente) |
 | R9 | Dado sensível revelado indiretamente pelas descrições ou nomes (farmácia, igreja, sindicato, plano de saúde) | Média | Média | Médio | Descrições cifradas; nada de publicidade nem análise de perfil de terceiros | Decidir se haverá regra especial para esse tipo de dado; refletir isso na política |
 | R10 | Registros de acesso do Marco Civil (art. 15) não guardados | Alta | Média | Alto | Os registros do servidor guardam só identificadores | Implementar os registros de acesso por 6 meses, com acesso restrito (pendente) |
-| R11 | Direitos do titular não atendidos por completo (exportação e portabilidade) | Alta | Média | Alto | Os dados aparecem no aplicativo; corrigir, excluir e revogar funcionam | Implementar a exportação dos dados; formalizar o canal e os prazos ([[Canal do Titular]]) |
+| R11 | Direitos do titular não atendidos por completo | Média | Média | Médio | Os dados aparecem no aplicativo; corrigir, excluir, revogar e baixar tudo em arquivo (acesso e portabilidade, até 3 por dia) funcionam | Formalizar o canal e os prazos ([[Canal do Titular]]); confirmar com o jurídico que o JSON basta como portabilidade |
 | R12 | Descobrir, por tentativa, quais e-mails têm conta ou estão na lista | Baixa | Baixa | Baixo | O cadastro responde sempre igual; o login recusa igual para senha errada e conta não confirmada | Conferir a mesma regra na lista de espera |
 | R13 | IP de usuários nos registros do limite de tentativas | Média | Baixa | Baixo | Só os registros do limite de tentativas trazem IP; sem dados financeiros nos registros | Definir o prazo de retenção desses registros |
 | R14 | Incidente não percebido ou comunicado fora do prazo | Média | Alta | Alto | Procedimento escrito em [[Incidentes]] | Definir responsáveis e monitoramento; treinar o fluxo |
@@ -63,8 +63,8 @@ Escala: probabilidade e impacto em **baixa**, **média** ou **alta**. O nível �
 
 ## 5. Conclusão
 
-- Os riscos **altos** são R1, R2, R10, R11 e R14. Os três últimos dependem de trabalho ainda pendente (registros de acesso, exportação de dados, procedimento de incidente em operação).
-- Antes de abrir para outras pessoas, recomenda-se **fechar R10 e R11**, confirmar a **transferência internacional (R5)** e definir os **prazos de retenção (R6)**.
+- Os riscos **altos** são R1, R2, R10 e R14. Os dois últimos dependem de trabalho ainda pendente (registros de acesso, procedimento de incidente em operação).
+- Antes de abrir para outras pessoas, recomenda-se **fechar R10**, formalizar o **R11**, confirmar a **transferência internacional (R5)** e definir os **prazos de retenção (R6)**.
 - [A CONFIRMAR: parecer do jurídico sobre a necessidade de consultar a ANPD ou de revisar este relatório com regularidade.]
 
 ## 6. Aprovação

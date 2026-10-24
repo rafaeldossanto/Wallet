@@ -1,6 +1,6 @@
 ---
 tags: [legal, lgpd, titular]
-atualizado: 2026-10-23
+atualizado: 2026-10-24
 status: rascunho
 ---
 
@@ -23,11 +23,11 @@ Como o Wallet atende hoje cada direito do art. 18 da LGPD. Ligado à [[Política
 
 | Direito (art. 18) | Como é atendido hoje | Situação |
 |---|---|---|
-| I. Confirmar que existe tratamento | Quem tem conta vê no aplicativo; para os outros casos, por e-mail ao encarregado | Parcial |
-| II. Acessar os dados | O aplicativo mostra a conta, os bancos, as contas, as transações, os cartões e os investimentos. Exportação completa em arquivo: ainda não existe | **Parcial** |
+| I. Confirmar que existe tratamento | Quem tem conta vê no aplicativo e baixa o arquivo com tudo (Ajustes → Seus dados → Baixar meus dados); para os outros casos, por e-mail ao encarregado | Atendido |
+| II. Acessar os dados | O aplicativo mostra tudo, e **Ajustes → Seus dados → Baixar meus dados** gera um arquivo JSON com o perfil, as conexões, as contas, as transações (com a descrição legível), os cartões e as faturas, os investimentos e o planejamento. Nunca traz senha, segredo do segundo fator nem token. Até 3 por dia | Atendido |
 | III. Corrigir dados incompletos, inexatos ou desatualizados | Em Ajustes, nome e e-mail. Os dados bancários vêm do banco: o titular corrige no banco | Atendido |
 | IV. Anonimizar, bloquear ou eliminar dados desnecessários ou excessivos | Por e-mail ao encarregado, caso a caso | Manual |
-| V. Portabilidade | Ainda não existe | **Pendente** |
+| V. Portabilidade | O mesmo arquivo: JSON legível por máquina, com versão do formato (`schemaVersion`). [A CONFIRMAR: se a ANPD ou o jurídico pedirem um formato de interoperabilidade específico] | Atendido [CONFIRMAR o formato] |
 | VI. Eliminar os dados tratados com consentimento | "Excluir conta", em Ajustes: apaga tudo e revoga a autorização na Pluggy. Na lista de espera, o link do e-mail | Atendido |
 | VII. Saber com quem os dados são compartilhados | A Política de Privacidade (Pluggy, AWS, GitHub) | Atendido |
 | VIII. Saber que pode não dar consentimento e o que acontece | A política e as telas de conexão explicam; sem o consentimento do Open Finance o Wallet não mostra dados dos bancos | Atendido [CONFIRMAR o texto das telas] |
@@ -61,8 +61,8 @@ Só quando a lei permitir, e sempre com a resposta justificada. Exemplos: dado q
 
 | # | O que falta | Direito |
 |---|---|---|
-| 1 | Exportar os dados em arquivo, num formato aberto | II e V |
-| 2 | Definir o e-mail do encarregado e quem atende o canal | Todos |
-| 3 | Definir o prazo interno dos demais pedidos | IV e oposição |
-| 4 | Conferir o texto das telas de conexão (item VIII) | VIII |
-| 5 | Registros de acesso do Marco Civil (para saber o que se pode apagar) | VI |
+| 1 | Definir o e-mail do encarregado e quem atende o canal | Todos |
+| 2 | Definir o prazo interno dos demais pedidos | IV e oposição |
+| 3 | Conferir o texto das telas de conexão (item VIII) | VIII |
+| 4 | Registros de acesso do Marco Civil (para saber o que se pode apagar) | VI |
+| 5 | Confirmar com o jurídico se o JSON basta como portabilidade | V |

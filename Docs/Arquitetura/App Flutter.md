@@ -416,6 +416,26 @@ Detalhes em [[Autenticação]].
 - **Servidor ocupado:** `service.busy` e `auth.busy` dizem a mesma frase, "O Wallet está com muito movimento
   agora. Tente de novo em alguns segundos." (antes caíam na genérica e no "Muita gente entrando agora").
 
+## Seus dados (desde 2026-10-24)
+
+Ajustes → **Seus dados** → **Baixar meus dados** (`DownloadDataTile`): o direito de acesso e a portabilidade da LGPD. Chama
+`GET /api/me/export` (`DataExportApi`, um minuto de espera) e grava o JSON onde a pessoa acha. A mensagem de sucesso traz
+o nome do arquivo e, no Windows, a pasta.
+
+| Plataforma | Onde o arquivo vai |
+|---|---|
+| Navegador | Download do navegador (um Blob atrás de um link que se clica; `dart:js_interop`, sem dependência nova) |
+| Windows | A pasta Downloads (`path_provider`); se já existe um com o nome, o novo ganha ` (2)`, ` (3)`... |
+| Android | O "Salvar como" do próprio Android (Storage Access Framework, `ACTION_CREATE_DOCUMENT` com `application/json`), por um canal de plataforma no padrão do instalador: `wallet/document_saver`, `DocumentSaver.kt` e `core/android/document_saver.dart`. A pessoa escolhe a pasta (Downloads, Drive...); os bytes vão direto, **sem cópia em cache nem em pasta temporária**, e o arquivo não passa pela folha de compartilhar |
+
+- **Cancelou o "Salvar como":** "Download cancelado." e nada é gravado. Falha ao gravar: "Não foi possível salvar o arquivo neste aparelho."
+- **Limite:** o BFF dá 3 por dia; passou, a mensagem é "Você já baixou seus dados várias vezes hoje. Tente de novo amanhã." (a frase geral
+  "Espere um minuto" seria o conselho errado).
+- **Nome:** o do `Content-Disposition` quando o app o lê; num navegador em outro endereço o CORS esconde o cabeçalho, e o app faz o mesmo
+  nome com a data de hoje. Um nome que não seja letras, números, ponto e traço nunca é usado.
+- Quem grava é um `FileSaver` que o `AppDependencies` entrega (nos testes, um em memória). O lado Dart do canal é testado com o canal
+  simulado (`android_document_saver_test.dart`); o Kotlin só compila, ninguém o executou num aparelho.
+
 ## Excluir conta (desde 2026-10-19)
 
 Ajustes → **Zona de perigo** (cartão com a borda e o título na cor de erro) → **Excluir conta**

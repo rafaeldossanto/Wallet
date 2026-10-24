@@ -58,6 +58,7 @@ bff/src/main/java/com/wallet/bff/
 | POST | `/api/auth/password/forgot` | `/internal/auth/password/forgot` com `{email}`: **202 sem corpo** para qualquer e-mail (o core manda o link só para conta confirmada) |
 | POST | `/api/auth/password/reset` | `/internal/auth/password/reset` com `{token, newPassword}`: **204**; link inválido, vencido ou usado é **400 `auth.link_invalid`**. Chamada pela página `/password/reset`; derruba todas as sessões da conta |
 | GET | `/password/reset` | Página estática do BFF (`static/password`) que o link de "Esqueci minha senha" abre: lê o token depois do `#`, pede a senha nova duas vezes e troca ao tocar no botão |
+| GET | `/api/me/export` | `/internal/me/export` (grupo `SCREENS`): o JSON do core, sem mexer nele, como download (`Content-Disposition: attachment; filename="wallet-meus-dados-AAAA-MM-DD.json"`, data de Brasília, e `Cache-Control: no-store`). **3 por dia por usuário** (`wallet.rate-limit.export-limit` e `export-window`): passou, 429 `rate_limit.exceeded`. LGPD, acesso e portabilidade; ver [[Core#Exportação dos dados (L9 e L10)]] |
 | PUT | `/api/me/password` | `/internal/me/password` com `{currentPassword, newPassword}`: **204** e todas as sessões caem (a atual também). Senha atual errada: 403 `auth.wrong_password`; nova igual à atual: 400 `validation.failed`. Conta no limite das rotas que pedem a senha de novo |
 | POST | `/api/me/two-factor/recovery-codes` | `/internal/me/two-factor/recovery-codes` com `{password, code}`: **200** `{recoveryCodes}` (10 novos, trocam os antigos, mostrados uma vez). 2FA desligado: 409 `two_factor.not_enabled`. Conta no limite das rotas que pedem a senha de novo |
 | GET | `/email/confirm` | Página estática do próprio BFF (`static/email`) que os links dos e-mails abrem: lê o token depois do `#` e confirma ao tocar no botão |
@@ -261,6 +262,7 @@ Achado A18, desde 2026-10-22: `/actuator/health` era público e ficava fora do r
 | `wallet.jwt.audience` | `aud` exigida nos tokens, `wallet-api` (a mesma do core) |
 | `wallet.rate-limit.link-limit` / `link-window` | `POST /api/connections` por usuário, além do geral: 10 por hora (cada vínculo faz o core ler até um ano do banco na Pluggy). Passou: 429 `rate_limit.connections` |
 | `wallet.rate-limit.connect-token-limit` / `connect-token-window` | `POST /api/connections/connect-token` por usuário, além do geral: 10 por hora (cada token é uma chamada à Pluggy). Passou: 429 `rate_limit.connections` |
+| `wallet.rate-limit.export-limit`, `.export-window` | A exportação dos dados (`GET /api/me/export`) por usuário, além do geral: 3 por 24 h (cada uma faz o core ler tudo o que o usuário tem). Passou: 429 `rate_limit.exceeded` |
 | `wallet.rate-limit.search-limit` | Busca por texto (`GET /api/transactions` com `q`) por usuário e janela, além do geral: 30 por minuto (cada busca faz o core decifrar o mês). Passou: 429 `rate_limit.exceeded` |
 | `wallet.rate-limit.waitlist-limit` / `waitlist-window` | `/api/waitlist/**` (inscrição, confirmação e descadastro, **juntos**) por **IP**, em vez do geral: 5 por hora. Rotas públicas, e cada inscrição manda um e-mail ao endereço digitado. Passou: 429 `rate_limit.exceeded` (o mesmo do auth), `Retry-After: 3600` |
 | `wallet.core.max-concurrent-calls.*` | Bulkhead de cada grupo de rotas (`auth` 16, `reads` 64, `screens` 32, `search` 16, `provider` 16). Ver [[#Grupos de rotas]] |
@@ -295,6 +297,19 @@ entrava no cache e ficava vazia por um minuto. Desde 2026-10-02:
 - Uma home com conexão sincronizando ou que nunca sincronizou não entra no cache.
 - Sincronização agendada (a cada 6 h) com o app fechado: no pior caso, a tela fica até 60 s
   velha.
+
+## Logs sem dado pessoal (L12)
+
+Desde 2026-10-24. Um IP é dado pessoal, e a mensagem de uma exceção pode citar o pedido ou a resposta do core.
+
+- **`[RATE-LIMIT]`:** o log não traz mais o IP. Traz o **pseudônimo** dele (`IpPseudonyms`): HMAC-SHA256 do endereço,
+  com uma chave derivada da `WALLET_GATEWAY_KEY` (por um propósito próprio, `wallet-ip-log-v1`), e só os 12 primeiros
+  caracteres hexadecimais. O mesmo IP dá o mesmo texto, então um abuso ainda se correlaciona entre as linhas, mas
+  sem a chave ninguém volta ao endereço. O limite em si conta o IP de verdade, na memória. Usuário continua pelo id.
+- **Erro inesperado:** o `GlobalExceptionHandler` grava o trace id e a classe e a pilha de cada exceção da cadeia, **sem
+  mensagem** (`ExceptionLog.describe`).
+- Testes: `IpPseudonymsTest`, `RateLimitTest#theLogNamesAnAddressByItsPseudonymNeverByTheAddress` e
+  `GlobalExceptionHandlerTest`.
 
 ## Custo que o BFF traz
 

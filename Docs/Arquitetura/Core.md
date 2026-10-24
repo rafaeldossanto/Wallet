@@ -30,6 +30,7 @@ módulo usar a parte interna de outro.
 | `provider` | Porta `FinancialDataProvider`, o adaptador da Pluggy e a auditoria das chamadas | `shared` |
 | `insight` | Visão geral, patrimônio, gasto por categoria | `banking`, `investment` |
 | `planning` | Planejamento do mês: salário − faturas − gastos fixos, os gastos fixos e o salário esperado | `banking`, `shared` |
+| `privacy` | A exportação dos dados do usuário (LGPD, acesso e portabilidade): monta o arquivo só com as portas públicas dos outros módulos (`UserProfiles`, `ConnectionRegistry`, `BankingQueries`, `InvestmentQueries`, `PlanningExports`). Ver [[#Exportação dos dados (L9 e L10)]] | `identity`, `connection`, `banking`, `investment`, `planning`, `shared` |
 | `shared` | Dinheiro, erros, paginação, criptografia de coluna, relógio, chaves de texto | — |
 
 Dentro de cada módulo, o mesmo layout do Trilha: `controller`, `service`,
@@ -167,6 +168,7 @@ sem uma `WALLET_GATEWAY_KEY` real.
 | POST | `/internal/me/two-factor/enable` | `{code}`: o primeiro código liga e devolve `{recoveryCodes}` (10, mostrados uma vez); código errado é 422 `two_factor.invalid_code` |
 | DELETE | `/internal/me/two-factor` | `{password, code}` (código do app ou de recuperação): desliga (204); código errado é 403 `auth.invalid_two_factor_code` e conta para o bloqueio |
 | DELETE | `/internal/me` | Exclui a conta e tudo dela (204; com o token de uma conta já excluída, 401 como qualquer rota), com `{"password"}` no corpo: senha errada é 403 `auth.wrong_password` e conta para o bloqueio. Revoga as conexões na Pluggy antes; ver [[Modelo de Dados#Exclusão]] |
+| GET | `/internal/me/export` | Tudo o que o Wallet guarda do usuário, num JSON (módulo `privacy`; ver [[#Exportação dos dados (L9 e L10)]]) |
 | GET | `/internal/connections` | Conexões do usuário e o estado de cada uma |
 | POST | `/internal/connections` | Vincula um item (`{ "providerItemId": "..." }`). Item de outra pessoa, vinculado ou não, responde como inexistente (404 `connection.item_not_found`); só o dono ouve 409 `connection.already_linked`. Até 10 conexões por usuário (422 `connection.limit_reached`). Ver [[Fluxo de Conexão#Limites]] |
 | POST | `/internal/connections/connect-token` | Token do widget Pluggy Connect para o usuário (`{ "connectToken": "..." }`, 30 min, uma conexão) |
@@ -432,6 +434,38 @@ java -jar core.jar --spring.main.web-application-type=none \
 - No fim loga os totais (`enviados`, `falhas`) e sai com `SpringApplication.exit`: código **0**, ou **1** se algum envio falhou.
 - Sem servidor web, as cadeias de filtros de segurança (`identity` e `ManagementSecurityConfig`) não são criadas
   (`@ConditionalOnWebApplication`); não há Tomcat nem porta aberta.
+
+## Exportação dos dados (L9 e L10)
+
+Desde 2026-10-24. O direito de acesso e a portabilidade da LGPD (art. 18, II e V): `GET /internal/me/export`
+devolve **um JSON com tudo o que o Wallet guarda do usuário**. O módulo `privacy` não lê tabela de ninguém:
+cada módulo dono expõe uma porta pública na raiz do seu pacote, e o `DataExportService` junta as partes
+numa transação só, de leitura (uma conexão, um momento).
+
+| Parte do arquivo | Porta | O que traz |
+|---|---|---|
+| `profile` | `identity.UserProfiles` | `id`, `email`, `displayName`, `createdAt`, `emailConfirmedAt`, `twoFactorEnabled` (sim ou não). **Nunca** hash de senha, segredo do segundo fator, códigos de recuperação nem token |
+| `connections` | `connection.ConnectionRegistry.summariesOf` | Instituição, status, quando vinculou, última sincronização, validade do consentimento. Sem o id do item na Pluggy |
+| `banking` | `banking.BankingQueries.export` | `accounts`, `balances` (saldo por dia), `transactions` (**descrição decifrada**; as que o provedor deixou de informar ficam de fora, como no app) e `bills` |
+| `investments` | `investment.InvestmentQueries.export` | `positions` (as encerradas também, com `closedAt`) e `balances` por dia |
+| `planning` | `planning.PlanningExports` | `expectedSalary` e `fixedExpenses` |
+
+- **`schemaVersion: 1`** e `exportedAt` no alto. Os nomes dos campos dos registros de exportação (`BankingExport`,
+  `InvestmentExport`, `PlanningExport`, `ConnectionSummary`, `UserProfile`) **são o esquema do arquivo**: acrescentar
+  campo mantém a versão; renomear ou tirar um sobe para 2.
+- Dinheiro como string (`"123.45"`), como no resto da API. Os ids são os do próprio Wallet, para o usuário ligar
+  conta, transação e fatura.
+- O arquivo é montado em memória. O BFF limita a 3 por dia por usuário ([[BFF]]), porque cada um lê tudo.
+- Testes: `DataExportIT` (dados de todas as áreas, descrição decifrada, nada que autentique, isolamento entre
+  usuários, usuário sem nada, sem token).
+
+## Logs sem dado pessoal (L12)
+
+Desde 2026-10-24. Dado pessoal não entra em log. No erro **inesperado**, o `GlobalExceptionHandler` grava só o trace id
+(o `X-Trace-Id` que o BFF manda) e a **classe e a pilha** de cada exceção da cadeia, **sem nenhuma mensagem**
+(`ExceptionLog.describe`): o driver do Postgres põe `Key (email)=(...)` na mensagem, e o leitor de JSON cita o corpo.
+Os avisos de corpo ilegível e de parâmetro inválido também logam só a classe. Teste:
+`GlobalExceptionHandlerTest#anUnexpectedErrorIsLoggedWithoutAnyMessage`, com uma exceção cuja mensagem tem um e-mail.
 
 ## Calendário de gastos (desde 2026-10-03)
 
