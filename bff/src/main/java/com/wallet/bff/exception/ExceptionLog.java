@@ -6,6 +6,8 @@ import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Set;
 
+import static java.util.Objects.nonNull;
+
 /**
  * An exception as a log can hold it without personal data: the class of each exception in the
  * chain and its stack, never its message. The messages are where the data is: a parser's quote of
@@ -24,7 +26,7 @@ public class ExceptionLog {
         StringBuilder text = new StringBuilder();
         Set<Throwable> seen = Collections.newSetFromMap(new IdentityHashMap<>());
         Throwable current = error;
-        for (int depth = 0; current != null && seen.add(current) && depth < MAX_CAUSES; depth++) {
+        for (int depth = 0; nonNull(current) && seen.add(current) && depth < MAX_CAUSES; depth++) {
             text.append(depth == 0 ? "" : "Caused by: ").append(current.getClass().getName()).append('\n');
             StackTraceElement[] frames = current.getStackTrace();
             for (int index = 0; index < Math.min(frames.length, MAX_FRAMES); index++) {

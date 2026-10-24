@@ -1,7 +1,7 @@
 package com.wallet.core.identity.service;
 
 import com.wallet.core.identity.entity.AccessEvent;
-import com.wallet.core.identity.entity.AccessRecord;
+import com.wallet.core.identity.mapper.AccessRecordMapper;
 import com.wallet.core.identity.repository.AccessRecordRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,12 +22,6 @@ class AccessRecords {
 
     /** @param clientAddress where the BFF saw the request come from; {@code unknown} without the header */
     void record(UUID userId, AccessEvent event, String clientAddress) {
-        repository.save(AccessRecord.builder()
-                .id(UUID.randomUUID())
-                .userId(userId)
-                .event(event)
-                .ip(clientAddress)
-                .occurredAt(clock.instant())
-                .build());
+        repository.save(AccessRecordMapper.toEntity(userId, event, clientAddress, clock.instant()));
     }
 }
