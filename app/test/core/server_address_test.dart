@@ -39,6 +39,10 @@ void main() {
   });
 
   testWidgets('the login screen points the phone at the PC, and the next request goes there', (tester) async {
+    // Tall enough for the whole sign-in column, "Esqueci minha senha" included.
+    tester.view.physicalSize = const Size(800, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     final bff = FakeBff();
     final server = await ServerAddress.load();
     final dependencies = AppDependencies.create(

@@ -1225,8 +1225,8 @@ class AppLocalizationsPt extends AppLocalizations {
       'Código incorreto. Confira o app autenticador; cada erro conta para o bloqueio.';
 
   @override
-  String get errorAuthBusy =>
-      'Muita gente entrando agora. Tente de novo em instantes.';
+  String get errorBusy =>
+      'O Wallet está com muito movimento agora. Tente de novo em alguns segundos.';
 
   @override
   String get errorTwoFactorSetupCode =>
@@ -1349,4 +1349,71 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get errorUnexpected => 'Algo deu errado. Tente de novo.';
+
+  @override
+  String get loginForgotPassword => 'Esqueci minha senha';
+
+  @override
+  String get loginPasswordChanged =>
+      'Senha trocada. Entre de novo com a senha nova.';
+
+  @override
+  String get forgotSubtitle => 'Vamos mandar um link para criar uma senha nova';
+
+  @override
+  String get forgotHelp => 'Digite o e-mail da sua conta.';
+
+  @override
+  String get forgotAction => 'Enviar o link';
+
+  @override
+  String get forgotSent =>
+      'Se houver uma conta com esse e-mail, enviamos um link para criar uma senha nova.';
+
+  @override
+  String get settingsChangePassword => 'Trocar senha';
+
+  @override
+  String get settingsChangePasswordHelp =>
+      'Pede a senha atual e tira todos os aparelhos da conta.';
+
+  @override
+  String get changePasswordHelp =>
+      'Depois de trocar, todos os aparelhos saem da conta, este também, e você entra de novo com a senha nova.';
+
+  @override
+  String get changePasswordAction => 'Trocar senha';
+
+  @override
+  String get fieldCurrentPassword => 'Senha atual';
+
+  @override
+  String get fieldNewPassword => 'Nova senha';
+
+  @override
+  String get fieldRepeatNewPassword => 'Repita a nova senha';
+
+  @override
+  String get validationPasswordsDiffer => 'As senhas não são iguais.';
+
+  @override
+  String get validationPasswordSame =>
+      'A nova senha precisa ser diferente da atual.';
+
+  @override
+  String get settingsNewRecoveryCodes => 'Gerar códigos novos';
+
+  @override
+  String get settingsNewRecoveryCodesHelp =>
+      'Os códigos de recuperação de agora deixam de valer.';
+
+  @override
+  String get newRecoveryCodesTitle => 'Gerar códigos de recuperação novos';
+
+  @override
+  String get newRecoveryCodesHelp =>
+      'Digite sua senha e um código do app autenticador. Os códigos de recuperação de agora deixam de valer.';
+
+  @override
+  String get newRecoveryCodesAction => 'Gerar';
 }

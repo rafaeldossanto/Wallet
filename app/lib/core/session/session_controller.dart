@@ -14,7 +14,7 @@ enum SessionStatus {
   signedIn,
 }
 
-enum SignOutReason { requested, expired, idle, accountDeleted }
+enum SignOutReason { requested, expired, idle, accountDeleted, passwordChanged }
 
 /// The signed-in user and the access token, in memory only.
 class SessionController extends ChangeNotifier {
@@ -77,6 +77,17 @@ class SessionController extends ChangeNotifier {
 
   Future<void> resendConfirmation(String email) => _api.resendConfirmation(email.trim());
 
+  /// The same answer for every e-mail; the link goes only to a confirmed account.
+  Future<void> forgotPassword(String email) => _api.forgotPassword(email.trim());
+
+  /// The core ends every session of the account with the change, this one included, so there is
+  /// nothing to log out of: the session ends here too and the sign-in says why. A refusal
+  /// ([ApiException]: wrong password, locked, offline) leaves the session as it was.
+  Future<void> changePassword(String currentPassword, String newPassword) async {
+    await _api.changePassword(currentPassword, newPassword);
+    await _end(SignOutReason.passwordChanged);
+  }
+
   Future<void> rename(String displayName) async {
     _setUser(await _api.rename(displayName.trim()));
   }
@@ -95,6 +106,10 @@ class SessionController extends ChangeNotifier {
     await _reloadUser();
     return recoveryCodes;
   }
+
+  /// Returns the ten new recovery codes, which only this answer carries; the old ones stop working.
+  Future<List<String>> renewRecoveryCodes(String password, String code) =>
+      _api.renewRecoveryCodes(password, code.trim());
 
   Future<void> disableTwoFactor(String password, String code) async {
     await _api.disableTwoFactor(password, code.trim());

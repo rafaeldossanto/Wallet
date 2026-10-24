@@ -11,6 +11,7 @@ import '../../../core/theme/theme_controller.dart';
 import '../../../core/updates/update_views.dart';
 import '../../../core/updates/updater.dart';
 import '../../../core/widgets/common.dart';
+import 'change_password_dialog.dart';
 import 'delete_account_dialog.dart';
 import 'profile_dialogs.dart';
 import 'two_factor_dialogs.dart';
@@ -114,6 +115,19 @@ class SettingsScreen extends StatelessWidget {
                         onChanged: user == null
                             ? null
                             : (on) => on ? showEnableTwoFactorDialog(context) : showDisableTwoFactorDialog(context),
+                      ),
+                      if (user?.twoFactorEnabled == true)
+                        ListTile(
+                          leading: const Icon(Icons.pin_outlined),
+                          title: Text(l10n.settingsNewRecoveryCodes),
+                          subtitle: Text(l10n.settingsNewRecoveryCodesHelp),
+                          onTap: () => showNewRecoveryCodesDialog(context),
+                        ),
+                      ListTile(
+                        leading: const Icon(Icons.password_outlined),
+                        title: Text(l10n.settingsChangePassword),
+                        subtitle: Text(l10n.settingsChangePasswordHelp),
+                        onTap: user == null ? null : () => showChangePasswordDialog(context),
                       ),
                       ListTile(
                         leading: const Icon(Icons.logout),

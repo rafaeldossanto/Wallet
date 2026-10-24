@@ -2134,11 +2134,11 @@ abstract class AppLocalizations {
   /// **'Código incorreto. Confira o app autenticador; cada erro conta para o bloqueio.'**
   String get errorInvalidTwoFactorCode;
 
-  /// No description provided for @errorAuthBusy.
+  /// No description provided for @errorBusy.
   ///
   /// In pt, this message translates to:
-  /// **'Muita gente entrando agora. Tente de novo em instantes.'**
-  String get errorAuthBusy;
+  /// **'O Wallet está com muito movimento agora. Tente de novo em alguns segundos.'**
+  String get errorBusy;
 
   /// No description provided for @errorTwoFactorSetupCode.
   ///
@@ -2337,6 +2337,126 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Algo deu errado. Tente de novo.'**
   String get errorUnexpected;
+
+  /// No description provided for @loginForgotPassword.
+  ///
+  /// In pt, this message translates to:
+  /// **'Esqueci minha senha'**
+  String get loginForgotPassword;
+
+  /// No description provided for @loginPasswordChanged.
+  ///
+  /// In pt, this message translates to:
+  /// **'Senha trocada. Entre de novo com a senha nova.'**
+  String get loginPasswordChanged;
+
+  /// No description provided for @forgotSubtitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Vamos mandar um link para criar uma senha nova'**
+  String get forgotSubtitle;
+
+  /// No description provided for @forgotHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Digite o e-mail da sua conta.'**
+  String get forgotHelp;
+
+  /// No description provided for @forgotAction.
+  ///
+  /// In pt, this message translates to:
+  /// **'Enviar o link'**
+  String get forgotAction;
+
+  /// No description provided for @forgotSent.
+  ///
+  /// In pt, this message translates to:
+  /// **'Se houver uma conta com esse e-mail, enviamos um link para criar uma senha nova.'**
+  String get forgotSent;
+
+  /// No description provided for @settingsChangePassword.
+  ///
+  /// In pt, this message translates to:
+  /// **'Trocar senha'**
+  String get settingsChangePassword;
+
+  /// No description provided for @settingsChangePasswordHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Pede a senha atual e tira todos os aparelhos da conta.'**
+  String get settingsChangePasswordHelp;
+
+  /// No description provided for @changePasswordHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Depois de trocar, todos os aparelhos saem da conta, este também, e você entra de novo com a senha nova.'**
+  String get changePasswordHelp;
+
+  /// No description provided for @changePasswordAction.
+  ///
+  /// In pt, this message translates to:
+  /// **'Trocar senha'**
+  String get changePasswordAction;
+
+  /// No description provided for @fieldCurrentPassword.
+  ///
+  /// In pt, this message translates to:
+  /// **'Senha atual'**
+  String get fieldCurrentPassword;
+
+  /// No description provided for @fieldNewPassword.
+  ///
+  /// In pt, this message translates to:
+  /// **'Nova senha'**
+  String get fieldNewPassword;
+
+  /// No description provided for @fieldRepeatNewPassword.
+  ///
+  /// In pt, this message translates to:
+  /// **'Repita a nova senha'**
+  String get fieldRepeatNewPassword;
+
+  /// No description provided for @validationPasswordsDiffer.
+  ///
+  /// In pt, this message translates to:
+  /// **'As senhas não são iguais.'**
+  String get validationPasswordsDiffer;
+
+  /// No description provided for @validationPasswordSame.
+  ///
+  /// In pt, this message translates to:
+  /// **'A nova senha precisa ser diferente da atual.'**
+  String get validationPasswordSame;
+
+  /// No description provided for @settingsNewRecoveryCodes.
+  ///
+  /// In pt, this message translates to:
+  /// **'Gerar códigos novos'**
+  String get settingsNewRecoveryCodes;
+
+  /// No description provided for @settingsNewRecoveryCodesHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Os códigos de recuperação de agora deixam de valer.'**
+  String get settingsNewRecoveryCodesHelp;
+
+  /// No description provided for @newRecoveryCodesTitle.
+  ///
+  /// In pt, this message translates to:
+  /// **'Gerar códigos de recuperação novos'**
+  String get newRecoveryCodesTitle;
+
+  /// No description provided for @newRecoveryCodesHelp.
+  ///
+  /// In pt, this message translates to:
+  /// **'Digite sua senha e um código do app autenticador. Os códigos de recuperação de agora deixam de valer.'**
+  String get newRecoveryCodesHelp;
+
+  /// No description provided for @newRecoveryCodesAction.
+  ///
+  /// In pt, this message translates to:
+  /// **'Gerar'**
+  String get newRecoveryCodesAction;
 }
 
 class _AppLocalizationsDelegate

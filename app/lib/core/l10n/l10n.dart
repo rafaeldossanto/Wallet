@@ -29,7 +29,7 @@ extension ErrorMessages on AppLocalizations {
         'auth.email_taken' => errorEmailTaken,
         'auth.email_unchanged' => errorEmailUnchanged,
         'auth.link_invalid' => errorLinkInvalid,
-        'auth.busy' => errorAuthBusy,
+        'auth.busy' || 'service.busy' => errorBusy,
         'auth.two_factor_required' => errorTwoFactorRequired,
         'auth.invalid_two_factor_code' => errorInvalidTwoFactorCode,
         'two_factor.invalid_code' => errorTwoFactorSetupCode,

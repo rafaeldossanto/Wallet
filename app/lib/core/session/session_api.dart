@@ -93,6 +93,18 @@ class SessionApi {
 
   Future<void> resendConfirmation(String email) => _api.post('/api/auth/email/resend', body: {'email': email});
 
+  /// The same answer for every e-mail: the link goes only to a confirmed account.
+  Future<void> forgotPassword(String email) => _api.post('/api/auth/password/forgot', body: {'email': email});
+
+  /// The core checks [currentPassword], changes it and ends every session, this one included.
+  Future<void> changePassword(String currentPassword, String newPassword) =>
+      _api.put('/api/me/password', body: {'currentPassword': currentPassword, 'newPassword': newPassword});
+
+  /// Ten new recovery codes for the old ones, with the password and a code; only this answer carries them.
+  Future<List<String>> renewRecoveryCodes(String password, String code) async =>
+      Json.of(await _api.post('/api/me/two-factor/recovery-codes', body: {'password': password, 'code': code}))
+          .strings('recoveryCodes');
+
   /// Mobile sends the stored token; the web sends nothing and the browser adds the cookie.
   Future<SessionTokens> refresh(String? refreshToken) async => SessionTokens.fromJson(Json.of(
       await _api.post('/api/auth/refresh', body: refreshToken == null ? null : {'refreshToken': refreshToken})));
