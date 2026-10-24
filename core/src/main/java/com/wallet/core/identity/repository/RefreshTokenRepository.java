@@ -45,6 +45,11 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
     @Query("update RefreshToken t set t.revokedAt = :now where t.familyId = :familyId and t.revokedAt is null")
     int revokeFamily(@Param("familyId") UUID familyId, @Param("now") Instant now);
 
+    /** Tokens that expired, or were revoked, before {@code before}: they open nothing. */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("delete from RefreshToken t where t.expiresAt < :before or t.revokedAt < :before")
+    int deleteEndedBefore(@Param("before") Instant before);
+
     /** Every login of the account, the families all at once: a new password ends all sessions. */
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("update RefreshToken t set t.revokedAt = :now where t.userId = :userId and t.revokedAt is null")

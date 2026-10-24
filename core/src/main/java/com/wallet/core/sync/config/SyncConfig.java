@@ -9,6 +9,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @Configuration(proxyBeanMethods = false)
 @EnableAsync
 @EnableScheduling
-@EnableConfigurationProperties(SyncProperties.class)
+@EnableConfigurationProperties({SyncProperties.class, SyncRetentionProperties.class})
 public class SyncConfig {
 }

@@ -146,6 +146,22 @@ wallet:
     # base64 of 32 random bytes (openssl rand -base64 32). Empty = ephemeral, development only;
     # with SPRING_PROFILES_ACTIVE=prod an empty key stops the boot.
     data-key: ${WALLET_DATA_KEY:}
+  retention:
+    # What each module deletes by itself every night, so personal data is kept only while it serves.
+    # Balance history, investment snapshots and closed investments are not here on purpose: they are the
+    # history the product shows, and stay while the account exists.
+    banking:
+      # A transaction the provider stopped reporting (soft-deleted) is deleted for good this long after.
+      deleted-transactions-after: 90d
+      cleanup-cron: "0 50 4 * * *"
+    sync:
+      # A sync that ended this long ago is deleted, except the latest of each connection (the manual
+      # sync cooldown counts from it).
+      finished-runs-after: 90d
+      cleanup-cron: "0 55 4 * * *"
+    identity:
+      # A refresh token that expired or was revoked this long ago is deleted (with wallet.auth.cleanup-cron).
+      refresh-tokens-after: 30d
   sync:
     interval: 6h
     initial-delay: 1m
