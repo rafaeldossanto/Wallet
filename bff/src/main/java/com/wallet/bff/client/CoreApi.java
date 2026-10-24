@@ -3,6 +3,10 @@ package com.wallet.bff.client;
 import com.wallet.bff.model.dto.request.AccountDeletionRequest;
 import com.wallet.bff.model.dto.request.EmailChangeRequest;
 import com.wallet.bff.model.dto.request.EmailTokenRequest;
+import com.wallet.bff.model.dto.request.NewRecoveryCodesRequest;
+import com.wallet.bff.model.dto.request.PasswordChangeRequest;
+import com.wallet.bff.model.dto.request.PasswordResetRequest;
+import com.wallet.bff.model.dto.request.ForgotPasswordRequest;
 import com.wallet.bff.model.dto.request.ExpectedSalaryRequest;
 import com.wallet.bff.model.dto.request.FixedExpenseRequest;
 import com.wallet.bff.model.dto.request.LinkConnectionRequest;
@@ -68,6 +72,24 @@ public class CoreApi {
 
     public void resendConfirmation(ResendConfirmationRequest request) {
         client.post(CoreRouteGroup.AUTH, "/internal/auth/email/resend", request);
+    }
+
+    /** 202 and no body, whatever the e-mail: the link goes only to a confirmed account, and nobody learns which. */
+    public void forgotPassword(ForgotPasswordRequest request) {
+        client.post(CoreRouteGroup.AUTH, "/internal/auth/password/forgot", request);
+    }
+
+    public void resetPassword(PasswordResetRequest request) {
+        client.post(CoreRouteGroup.AUTH, "/internal/auth/password/reset", request);
+    }
+
+    /** Checks the current password again (a BCrypt), so it is in the AUTH group like the e-mail change. */
+    public void changePassword(PasswordChangeRequest request) {
+        client.put(CoreRouteGroup.AUTH, "/internal/me/password", request);
+    }
+
+    public RecoveryCodesResponse newRecoveryCodes(NewRecoveryCodesRequest request) {
+        return client.post(CoreRouteGroup.AUTH, "/internal/me/two-factor/recovery-codes", request, new ParameterizedTypeReference<>() {});
     }
 
     /** 202 and no body, whatever the e-mail: the core never tells whether it was already on the list. */

@@ -4,6 +4,8 @@ import com.wallet.bff.auth.ClientType;
 import com.wallet.bff.auth.SecurityConfig;
 import com.wallet.bff.client.CoreApi;
 import com.wallet.bff.model.dto.request.EmailTokenRequest;
+import com.wallet.bff.model.dto.request.ForgotPasswordRequest;
+import com.wallet.bff.model.dto.request.PasswordResetRequest;
 import com.wallet.bff.model.dto.request.LoginRequest;
 import com.wallet.bff.model.dto.request.RefreshRequest;
 import com.wallet.bff.model.dto.request.RegisterRequest;
@@ -50,6 +52,20 @@ public class AuthController {
     @ResponseStatus(HttpStatus.ACCEPTED)
     public void resendConfirmation(@RequestBody ResendConfirmationRequest request) {
         coreApi.resendConfirmation(request);
+    }
+
+    /** 202 for every e-mail, like the sign-up; the core mails the link only to a confirmed account. */
+    @PostMapping("/password/forgot")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public void forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        coreApi.forgotPassword(request);
+    }
+
+    /** Called by the reset page ({@code /password/reset}) with the token of the e-mailed link and the new password. */
+    @PostMapping("/password/reset")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resetPassword(@RequestBody PasswordResetRequest request) {
+        coreApi.resetPassword(request);
     }
 
     @PostMapping("/login")

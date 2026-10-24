@@ -29,7 +29,7 @@ import static org.springframework.util.StringUtils.hasText;
  * their own, low and over a longer window ({@link RateLimitProperties}), on top of the general one.
  * So does the statement's text search, over the general window: the core decrypts the period to
  * answer each one. So do the routes that ask for the password or a second-factor code again
- * (changing the e-mail, the second factor, deleting the account): per user, with the sign-in's
+ * (changing the e-mail or the password, the second factor and its recovery codes, deleting the account): per user, with the sign-in's
  * limit, so an open session is no way around it to guess a password. The waitlist's public routes
  * ({@code /api/waitlist}) count per IP too, all together, against a low limit over a long window:
  * each sign-up sends an e-mail to an address the caller picked. The health checks never get
@@ -119,6 +119,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static boolean isCredentialRoute(String method, String path) {
         return path.startsWith("/api/me/two-factor")
                 || "/api/me/email".equals(path) && HttpMethod.POST.matches(method)
+                || "/api/me/password".equals(path) && HttpMethod.PUT.matches(method)
                 || "/api/me".equals(path) && HttpMethod.DELETE.matches(method);
     }
 

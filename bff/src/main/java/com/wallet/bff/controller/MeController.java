@@ -4,6 +4,7 @@ import com.wallet.bff.auth.CurrentUserId;
 import com.wallet.bff.client.CoreApi;
 import com.wallet.bff.model.dto.request.AccountDeletionRequest;
 import com.wallet.bff.model.dto.request.EmailChangeRequest;
+import com.wallet.bff.model.dto.request.PasswordChangeRequest;
 import com.wallet.bff.model.dto.request.ProfileRequest;
 import com.wallet.bff.model.dto.response.UserResponse;
 import com.wallet.bff.service.AuthService;
@@ -43,6 +44,17 @@ public class MeController {
     @ResponseStatus(HttpStatus.ACCEPTED)
     public void changeEmail(@RequestBody EmailChangeRequest request) {
         coreApi.changeEmail(request);
+    }
+
+    /**
+     * 204: the core checks the current password (403 {@code auth.wrong_password}), changes it and
+     * ends every session, this one included; the app signs in again. Counts per user against the
+     * sign-in limit ({@code RateLimitFilter}).
+     */
+    @PutMapping("/api/me/password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void changePassword(@RequestBody PasswordChangeRequest request) {
+        coreApi.changePassword(request);
     }
 
     /**

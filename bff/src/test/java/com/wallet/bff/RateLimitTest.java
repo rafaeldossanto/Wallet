@@ -14,9 +14,11 @@ import java.util.UUID;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.putRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -128,6 +130,37 @@ class RateLimitTest extends BffTestSupport {
         login("203.0.113.9", "198.51.100.3")
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.code").value("rate_limit.exceeded"));
+    }
+
+    /** Changing the password and renewing the recovery codes ask for the password again: same budget as the others. */
+    @Test
+    void thePasswordChangeAndTheNewRecoveryCodesHaveTheSignInLimitPerUser() throws Exception {
+        CORE.stubFor(WireMock.put(urlEqualTo("/internal/me/password")).willReturn(aResponse().withStatus(403)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"code\":\"auth.wrong_password\",\"message\":\"no\"}")));
+        CORE.stubFor(WireMock.post(urlEqualTo("/internal/me/two-factor/recovery-codes")).willReturn(aResponse().withStatus(403)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"code\":\"auth.wrong_password\",\"message\":\"no\"}")));
+        String guesser = bearer(UUID.randomUUID());
+
+        changePassword(guesser).andExpect(status().isForbidden());
+        newRecoveryCodes(guesser).andExpect(status().isForbidden());
+        changePassword(guesser)
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.code").value("rate_limit.exceeded"));
+
+        changePassword(bearer(UUID.randomUUID())).andExpect(status().isForbidden());
+        CORE.verify(2, putRequestedFor(urlEqualTo("/internal/me/password")));
+    }
+
+    private ResultActions changePassword(String bearer) throws Exception {
+        return mockMvc.perform(put("/api/me/password").header(HttpHeaders.AUTHORIZATION, bearer)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"currentPassword\":\"guess\",\"newPassword\":\"a brand new password\"}"));
+    }
+
+    private ResultActions newRecoveryCodes(String bearer) throws Exception {
+        return mockMvc.perform(post("/api/me/two-factor/recovery-codes").header(HttpHeaders.AUTHORIZATION, bearer)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"password\":\"guess\",\"code\":\"123456\"}"));
     }
 
     private ResultActions login(String address, String forwardedFor) throws Exception {

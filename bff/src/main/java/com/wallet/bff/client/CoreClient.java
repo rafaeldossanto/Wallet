@@ -67,6 +67,17 @@ public class CoreClient {
                 .body(type));
     }
 
+    /** A PUT whose answer has no body (204). */
+    public void put(CoreRouteGroup group, String path, Object body) {
+        guards.call(group, () -> restClient.put()
+                .uri(path)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .onStatus(HttpStatusCode::isError, RELAY_ERRORS)
+                .toBodilessEntity());
+    }
+
     /** @param uriVariables fill {@code {name}} placeholders in {@code path}, encoded strictly: a client's id may hold a {@code /} */
     public void delete(CoreRouteGroup group, String path, Object... uriVariables) {
         guards.call(group, () -> restClient.delete()
