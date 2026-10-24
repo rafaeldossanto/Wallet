@@ -66,6 +66,10 @@ services:
       WALLET_JWT_PUBLIC_KEY: ${WALLET_JWT_PUBLIC_KEY:-}
       WALLET_DATA_KEY: ${WALLET_DATA_KEY:-}
       WALLET_PUBLIC_URL: https://app.${WALLET_DOMAIN:?WALLET_DOMAIN is required (deploy/.env)}
+      # The texts the user accepts: the landing pages, unless the .env says otherwise.
+      WALLET_TERMS_VERSION: ${WALLET_TERMS_VERSION:-2026-10-preliminar}
+      WALLET_TERMS_URL: ${WALLET_TERMS_URL:-https://${WALLET_DOMAIN}/termos.html}
+      WALLET_PRIVACY_URL: ${WALLET_PRIVACY_URL:-https://${WALLET_DOMAIN}/privacidade.html}
       WALLET_SMTP_HOST: ${WALLET_SMTP_HOST:-}
       WALLET_SMTP_PORT: ${WALLET_SMTP_PORT:-587}
       WALLET_SMTP_USERNAME: ${WALLET_SMTP_USERNAME:-}

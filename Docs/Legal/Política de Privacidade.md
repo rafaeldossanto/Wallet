@@ -37,7 +37,7 @@ O Wallet é uma carteira financeira pessoal **somente de leitura**. Ele junta sa
 
 | Grupo | Quais dados | Observação |
 |---|---|---|
-| Conta | E-mail, nome, senha, data em que você confirmou o e-mail | A senha nunca é guardada: guardamos só um código irreversível dela (hash BCrypt) |
+| Conta | E-mail, nome, senha, data em que você confirmou o e-mail, versão dos Termos de Uso e desta política que você aceitou e quando | A senha nunca é guardada: guardamos só um código irreversível dela (hash BCrypt) |
 | Segundo fator | Segredo do segundo fator (TOTP) e códigos de recuperação | O segredo é guardado cifrado; os códigos de recuperação, só como hash |
 | Proteção do login | Contadores de tentativas de entrada, por e-mail (em hash) e por endereço IP | Servem para bloquear quem tenta adivinhar senhas |
 | Sessões | Chaves de renovação do login (refresh tokens) | Guardadas só como hash |

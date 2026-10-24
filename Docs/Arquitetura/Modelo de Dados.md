@@ -36,7 +36,9 @@ erDiagram
 (último passo de 30 s aceito: cada código vale uma vez), `created_at`. Desde a V10 o bloqueio
 saiu daqui (`failed_login_count` e `locked_until` foram removidos) e foi para `login_throttles`.
 Conta não confirmada é apagada depois de 7 dias. `password_changed_at` (V13) é quando a senha mudou pela última
-vez (redefinição ou troca; vazio = nunca): os access tokens emitidos antes são recusados.
+vez (redefinição ou troca; vazio = nunca): os access tokens emitidos antes são recusados. `terms_version` e `terms_accepted_at` (V16) são a
+versão dos Termos de Uso e da Política de Privacidade que a pessoa aceitou e quando (L15); vazios nas contas de antes, que aceitam no
+próximo acesso ([[Autenticação#Aceite dos Termos de Uso e da Política de Privacidade (L15, desde 2026-10-24)]]).
 
 **email_tokens** (V10) — os links mandados por e-mail: `id`, `user_id` (FK `users`, cascata),
 `purpose` (`CONFIRM_ACCOUNT`, `CHANGE_EMAIL` ou, desde a V12, `PASSWORD_RESET`: o link de "Esqueci minha

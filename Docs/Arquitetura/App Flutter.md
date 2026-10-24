@@ -436,6 +436,20 @@ o nome do arquivo e, no Windows, a pasta.
 - Quem grava é um `FileSaver` que o `AppDependencies` entrega (nos testes, um em memória). O lado Dart do canal é testado com o canal
   simulado (`android_document_saver_test.dart`); o Kotlin só compila, ninguém o executou num aparelho.
 
+## Aceite dos Termos de Uso e da Política de Privacidade (L15, desde 2026-10-24)
+
+- **Cadastro:** uma caixa **desmarcada**, "Li e aceito os Termos de Uso e a Política de Privacidade" (`AcceptTermsLabel`), com os dois nomes como links
+  que abrem no navegador (`url_launcher`, pelo `OpenOutside` do `PluggyConnectHost`). Sem marcar, o botão "Criar conta" fica desligado e nada é
+  enviado; marcada, o pedido leva `acceptTerms: true`. O endereço dos textos vem de `AppConfig.termsUrl` e `privacyUrl`: `WALLET_SITE_URL` (define),
+  ou, sem ele, o do BFF sem o `app.` (`https://app.exemplo.com` leva a `https://exemplo.com`), ou os de desenvolvimento (`localhost:5181`; no emulador
+  Android, `10.0.2.2:5181`). Com o endereço do BFF no padrão do deploy, nada a configurar.
+- **Aviso que não fecha** (`TermsGate`, por cima do app, na raiz do `MaterialApp`): enquanto `GET /api/me` traz `termsAcceptanceRequired`, o app mostra
+  "Atualizamos os Termos de Uso e a Política de Privacidade", os links (os do servidor, no `/me`), a caixa desmarcada e o botão
+  "Aceitar e continuar". Não tem como fechar sem aceitar; sob ele, nada recebe toque, foco nem leitura de tela. Aceitar chama
+  `POST /api/me/terms` com a `termsVersion` do `/me` e recarrega o perfil; o aviso some. `legal.terms_outdated` (os textos mudaram de novo)
+  recarrega o perfil, desmarca a caixa e diz "Os textos mudaram de novo. Leia a versão atual e aceite de novo."
+- Só o app obriga, por enquanto: o servidor não bloqueia rotas (ver [[Autenticação#Aceite dos Termos de Uso e da Política de Privacidade (L15, desde 2026-10-24)]]).
+
 ## Excluir conta (desde 2026-10-19)
 
 Ajustes → **Zona de perigo** (cartão com a borda e o título na cor de erro) → **Excluir conta**

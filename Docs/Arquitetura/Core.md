@@ -155,13 +155,14 @@ sem uma `WALLET_GATEWAY_KEY` real.
 
 | Método | Rota | O que faz |
 |---|---|---|
-| POST | `/internal/auth/register` | **202 sem corpo** para qualquer e-mail: e-mail novo vira conta não confirmada e recebe o link; e-mail com conta recebe um aviso ao dono. Ver [[Autenticação#Cadastro com confirmação por e-mail (achado A16, desde 2026-10-22)]] |
+| POST | `/internal/auth/register` | Corpo com `acceptTerms: true` (sem ele, 400 `validation.failed`). **202 sem corpo** para qualquer e-mail: e-mail novo vira conta não confirmada e recebe o link; e-mail com conta recebe um aviso ao dono. Ver [[Autenticação#Cadastro com confirmação por e-mail (achado A16, desde 2026-10-22)]] |
 | POST | `/internal/auth/login` | `{email, password, code?}` → `{ accessToken, expiresIn, refreshToken }`. Lê `X-Wallet-Client-Address` (do BFF) para o bloqueio por endereço. Conta não confirmada responde como senha errada; com 2FA, sem `code` é `401 auth.two_factor_required` |
 | POST | `/internal/auth/email/confirm` | `{token}` do link: `{result: ACCOUNT_CONFIRMED}` ou `{result: EMAIL_CHANGED}`; link desconhecido, vencido, usado ou trocado por outro é `422 auth.link_invalid`; endereço tomado no meio do caminho é `409 auth.email_taken` |
 | POST | `/internal/auth/email/resend` | `{email}`: outro link para conta não confirmada (até 3 por hora); 202 para qualquer e-mail |
 | POST | `/internal/auth/refresh` | Troca o refresh por um par novo |
 | POST | `/internal/auth/logout` | Revoga a família do refresh |
-| GET | `/internal/me` | Usuário logado: `{id, email, displayName, createdAt, pendingEmail, twoFactorEnabled}` |
+| GET | `/internal/me` | Usuário logado: `{id, email, displayName, createdAt, pendingEmail, twoFactorEnabled, termsAcceptanceRequired, termsVersion, termsUrl, privacyUrl}` |
+| POST | `/internal/me/terms` | `{version}`: o aceite dos Termos de Uso e da Política de Privacidade (L15). 204; versão que não é a corrente é 409 `legal.terms_outdated` |
 | PUT | `/internal/me` | `{displayName}`: troca o nome |
 | POST | `/internal/me/email` | `{newEmail, password}`: 202; manda o link ao novo endereço e a conta só muda quando ele é aberto (o antigo recebe aviso). Senha errada é 403 `auth.wrong_password` |
 | POST | `/internal/me/two-factor/setup` | `{password}`: segredo novo, ainda desligado → `{secret, otpauthUri}` |
@@ -335,6 +336,7 @@ a cada chamada. Desde 2026-10-22:
 | `wallet.provider.max-connections-per-user` | Teto de conexões por usuário (padrão 10). A seguinte responde 422 `connection.limit_reached` |
 | `wallet.provider.oauth-redirect-uri` | Para onde o banco devolve o usuário depois de autorizar no Pluggy Connect: o deep link do app Android (`com.wallet.wallet://pluggy-connect`) |
 | `wallet.webhooks.register`, `.secret`, `.base-url` | O comando que registra os webhooks na Pluggy ([[#Webhooks da Pluggy (desde 2026-10-24)]]): `register` só na linha de comando da execução (não está no `application.yaml`: o core que atende a API nunca registra), `secret` = `WALLET_PLUGGY_WEBHOOK_SECRET` (32+ caracteres, o mesmo do BFF) e `base-url` = `WALLET_PUBLIC_URL` |
+| `WALLET_TERMS_VERSION`, `WALLET_TERMS_URL`, `WALLET_PRIVACY_URL` | `wallet.legal.*`: a versão dos Termos de Uso e da Política de Privacidade que a pessoa aceita (padrão `2026-10-preliminar`; mudou o texto, mude a versão e todo mundo aceita de novo) e onde os dois textos são lidos (padrão `http://localhost:5181/termos.html` e `/privacidade.html`; no deploy, as páginas da landing). Em branco volta ao padrão. Ver [[Autenticação#Aceite dos Termos de Uso e da Política de Privacidade (L15, desde 2026-10-24)]] |
 | `wallet.retention.banking.*`, `wallet.retention.sync.*`, `wallet.retention.identity.*` | Prazos da limpeza noturna: transações removidas pelo provedor 90 d, sincronizações terminadas 90 d (a última de cada conexão fica), tokens de renovação 30 d, mais o `cleanup-cron` de cada uma. Ver [[#Retenção (L8, desde 2026-10-24)]] |
 | `wallet.sync.interval` | Intervalo do polling (padrão 6 h) |
 | `wallet.sync.scheduler-enabled` | Liga o agendador nesta instância (padrão `true`) |

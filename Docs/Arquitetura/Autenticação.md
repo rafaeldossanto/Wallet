@@ -21,6 +21,8 @@ dos e-mails abrem.
 
 ## Cadastro com confirmação por e-mail (achado A16, desde 2026-10-22)
 
+O pedido leva `acceptTerms: true` (L15, abaixo); sem isso, 400 `validation.failed`, o único desvio da resposta neutra.
+
 O cadastro responde **sempre igual**: `202` sem corpo ("enviamos um link para seu e-mail"). O
 que acontece por trás depende do e-mail, e só o dono descobre, na caixa de entrada:
 
@@ -205,6 +207,27 @@ passkey porque funciona igual no Flutter web, no Android e no Windows, sem WebAu
   O, U) e ficam só como SHA-256.
 - Se a `WALLET_DATA_KEY` mudar, o segredo não abre mais: só os códigos de recuperação entram.
 
+## Aceite dos Termos de Uso e da Política de Privacidade (L15, desde 2026-10-24)
+
+O mecanismo não depende do texto final: o que se guarda é a **versão** dos textos e o momento.
+
+- **No cadastro:** `acceptTerms` é obrigatório e precisa ser `true` (`@NotNull @AssertTrue`); sem isso, 400 `validation.failed` e nenhuma conta
+  nasce. O core grava `users.terms_version` (a versão corrente) e `users.terms_accepted_at`. O cadastro mais recente de um e-mail ainda
+  não confirmado vence, e leva o seu aceite junto. No app a caixa nasce **desmarcada** e sem ela o botão fica desligado.
+- **Versão e textos:** `wallet.legal.terms-version` (padrão `2026-10-preliminar`, `WALLET_TERMS_VERSION`), `wallet.legal.terms-url` e
+  `wallet.legal.privacy-url` (`WALLET_TERMS_URL`, `WALLET_PRIVACY_URL`; no deploy saem da landing, `https://<WALLET_DOMAIN>/termos.html` e
+  `/privacidade.html`). Valor em branco volta ao padrão. Quando o advogado mudar os textos, muda-se a versão e todo mundo aceita de novo.
+- **Quem tem versão antiga ou nula** (as contas de antes do L15, e todas quando os textos mudam): `GET /me` traz
+  `termsAcceptanceRequired` (true quando a versão da pessoa não é a corrente), `termsVersion` (a corrente), `termsUrl` e `privacyUrl`. Depois de
+  entrar, o app cobre a tela com um aviso que não fecha sem aceitar: "Atualizamos os Termos de Uso e a Política de Privacidade", com os links,
+  a caixa desmarcada e o botão "Aceitar e continuar".
+- **`POST /me/terms`** `{version}` (BFF: `/api/me/terms`) → **204** e grava a versão e o momento (aceitar duas vezes é inofensivo e guarda o
+  primeiro momento). Versão diferente da corrente → **409 `legal.terms_outdated`** (os textos mudaram enquanto a pessoa lia): nada é gravado e o
+  app recarrega o `/me`, que traz a versão nova.
+- **Só o app obriga, por enquanto, e é uma decisão consciente:** o servidor informa se o aceite é necessário e **não bloqueia nenhuma rota**.
+  Quem usar a API sem o app não é barrado. Bloquear no servidor é um passo a decidir.
+- Log `[LEGAL]` só com o id do usuário e a versão, nunca o e-mail.
+
 ## Perfil (LGPD L11, desde 2026-10-22)
 
 - `PUT /api/me` troca o nome.
@@ -243,6 +266,7 @@ core não sobe sem SMTP, sem `WALLET_MAIL_FROM` ou sem `WALLET_PUBLIC_URL` (http
 | `auth.invalid_two_factor_code` | 401 no login, 403 ao desligar e ao pedir códigos novos | Código do app ou de recuperação errado (conta para o bloqueio) | "Código incorreto..." |
 | `auth.locked` | 423 | E-mail travado (de um endereço ou de todos), com `lockedUntil` | "Tente de novo às 17:15" |
 | `auth.busy` | 429 | Verificações de senha demais ao mesmo tempo | "O Wallet está com muito movimento agora. Tente de novo em alguns segundos." (a mesma frase do `service.busy`) |
+| `legal.terms_outdated` | 409 | `POST /me/terms` com uma versão que não é a corrente | "Os textos mudaram de novo. Leia a versão atual e aceite de novo." |
 | `auth.wrong_password` | 403 | Senha pedida de novo (excluir, trocar e-mail, trocar senha, 2FA, códigos novos) errada | "Senha incorreta..." |
 | `auth.link_invalid` | 422 (confirmação de e-mail e redefinição de senha) | Link desconhecido, vencido, já usado, trocado por um mais novo ou de outra finalidade | A página do link explica |
 | `auth.email_taken` | 409 | Ao abrir o link de troca, o novo endereço já ganhou conta | A página do link explica |

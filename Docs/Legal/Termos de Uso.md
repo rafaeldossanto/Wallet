@@ -18,7 +18,7 @@ O Wallet é oferecido por [RAZÃO SOCIAL], CNPJ [CNPJ], com sede em [ENDEREÇO].
 
 ## 2. Aceite e quem pode usar
 
-- Ao criar a conta e usar o Wallet, você concorda com estes termos e com a Política de Privacidade. [A CONFIRMAR: como o aceite é registrado no cadastro.]
+- Ao criar a conta, você marca a caixa "Li e aceito os Termos de Uso e a Política de Privacidade" (a caixa começa desmarcada, e sem marcá-la não dá para criar a conta). O Wallet guarda qual versão destes termos você aceitou e quando. Se os termos mudarem, a versão muda e o aplicativo pede o seu aceite de novo antes de você continuar.
 - O Wallet é **só para maiores de 18 anos**.
 - Você declara que os dados que informa são verdadeiros e que as contas bancárias que conecta são suas.
 

@@ -51,7 +51,7 @@ bff/src/main/java/com/wallet/bff/
 
 | Método | Rota | Chama no core |
 |---|---|---|
-| POST | `/api/auth/register` | `/internal/auth/register`: **202 sem corpo** para qualquer e-mail (o core manda o link de confirmação ou um aviso ao dono) |
+| POST | `/api/auth/register` | `/internal/auth/register` (corpo com `acceptTerms: true`; sem ele o core responde 400 `validation.failed`): **202 sem corpo** para qualquer e-mail (o core manda o link de confirmação ou um aviso ao dono) |
 | POST | `/api/auth/login` | `/internal/auth/login` e entrega por plataforma. Corpo `{email, password, code?}`: `code` só depois de `401 auth.two_factor_required` |
 | POST | `/api/auth/email/confirm` | `/internal/auth/email/confirm` com `{token}`: chamada pela página `/email/confirm`; responde `{result: ACCOUNT_CONFIRMED \| EMAIL_CHANGED}` ou `422 auth.link_invalid` |
 | POST | `/api/auth/email/resend` | `/internal/auth/email/resend` com `{email}`: 202 para qualquer e-mail |
@@ -59,6 +59,7 @@ bff/src/main/java/com/wallet/bff/
 | POST | `/api/auth/password/reset` | `/internal/auth/password/reset` com `{token, newPassword}`: **204**; link inválido, vencido ou usado é **400 `auth.link_invalid`**. Chamada pela página `/password/reset`; derruba todas as sessões da conta |
 | GET | `/password/reset` | Página estática do BFF (`static/password`) que o link de "Esqueci minha senha" abre: lê o token depois do `#`, pede a senha nova duas vezes e troca ao tocar no botão |
 | GET | `/api/me/export` | `/internal/me/export` (grupo `SCREENS`): o JSON do core, sem mexer nele, como download (`Content-Disposition: attachment; filename="wallet-meus-dados-AAAA-MM-DD.json"`, data de Brasília, e `Cache-Control: no-store`). **3 por dia por usuário** (`wallet.rate-limit.export-limit` e `export-window`): passou, 429 `rate_limit.exceeded`. LGPD, acesso e portabilidade; ver [[Core#Exportação dos dados (L9 e L10)]] |
+| POST | `/api/me/terms` | `/internal/me/terms` com `{version}`: **204**; versão que não é a corrente, **409 `legal.terms_outdated`**, relayado. O aceite dos Termos de Uso e da Política de Privacidade (L15); ver [[Autenticação#Aceite dos Termos de Uso e da Política de Privacidade (L15, desde 2026-10-24)]]. Só o app obriga: nenhuma rota do BFF exige o aceite |
 | PUT | `/api/me/password` | `/internal/me/password` com `{currentPassword, newPassword}`: **204** e todas as sessões caem (a atual também). Senha atual errada: 403 `auth.wrong_password`; nova igual à atual: 400 `validation.failed`. Conta no limite das rotas que pedem a senha de novo |
 | POST | `/api/me/two-factor/recovery-codes` | `/internal/me/two-factor/recovery-codes` com `{password, code}`: **200** `{recoveryCodes}` (10 novos, trocam os antigos, mostrados uma vez). 2FA desligado: 409 `two_factor.not_enabled`. Conta no limite das rotas que pedem a senha de novo |
 | GET | `/email/confirm` | Página estática do próprio BFF (`static/email`) que os links dos e-mails abrem: lê o token depois do `#` e confirma ao tocar no botão |
@@ -69,7 +70,7 @@ bff/src/main/java/com/wallet/bff/
 | POST | `/api/webhooks/pluggy` | `/internal/webhooks/pluggy` com o corpo cru: **202** sem corpo. Pública, sem token, só com `wallet.webhooks.enabled` (senão 404) e o segredo em `X-Wallet-Webhook-Secret` (senão 401); lista de IPs opcional (403); 60 por minuto por IP. Ver [[#Webhooks da Pluggy]] |
 | POST | `/api/auth/refresh` | `/internal/auth/refresh` (web: lê o cookie) |
 | POST | `/api/auth/logout` | `/internal/auth/logout` e apaga o cookie |
-| GET | `/api/me` | `/internal/me`: `{id, email, displayName, createdAt, pendingEmail, twoFactorEnabled}` |
+| GET | `/api/me` | `/internal/me`: `{id, email, displayName, createdAt, pendingEmail, twoFactorEnabled, termsAcceptanceRequired, termsVersion, termsUrl, privacyUrl}` |
 | PUT | `/api/me` | `/internal/me` com `{displayName}` |
 | POST | `/api/me/email` | `/internal/me/email` com `{newEmail, password}`: 202; a troca só vale depois do link mandado ao novo endereço |
 | POST | `/api/me/two-factor/setup` | `/internal/me/two-factor/setup` com `{password}`: `{secret, otpauthUri}` |
