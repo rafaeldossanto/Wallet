@@ -59,6 +59,16 @@ public class User {
     @Column(name = "password_changed_at")
     private Instant passwordChangedAt;
 
+    /**
+     * The version of the Terms of Use and the Privacy Policy the user accepted, and when (L15).
+     * {@code null} for an account from before the acceptance existed: asked at the next sign-in.
+     */
+    @Column(name = "terms_version")
+    private String termsVersion;
+
+    @Column(name = "terms_accepted_at")
+    private Instant termsAcceptedAt;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 

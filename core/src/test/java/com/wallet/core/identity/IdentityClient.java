@@ -45,7 +45,7 @@ final class IdentityClient {
 
     ResultActions register(String email, String password) throws Exception {
         return json(post("/internal/auth/register"),
-                "{\"email\":\"%s\",\"password\":\"%s\",\"displayName\":\"Rafael\"}".formatted(email, password));
+                "{\"email\":\"%s\",\"password\":\"%s\",\"displayName\":\"Rafael\",\"acceptTerms\":true}".formatted(email, password));
     }
 
     ResultActions login(String email, String password) throws Exception {

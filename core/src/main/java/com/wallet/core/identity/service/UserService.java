@@ -1,5 +1,6 @@
 package com.wallet.core.identity.service;
 
+import com.wallet.core.identity.config.LegalProperties;
 import com.wallet.core.identity.dto.UserResponse;
 import com.wallet.core.identity.entity.EmailTokenPurpose;
 import com.wallet.core.identity.entity.User;
@@ -27,27 +28,29 @@ public class UserService {
     private final EmailLinkTokens links;
     private final PasswordConfirmation passwordConfirmation;
     private final AccountMailer mailer;
+    private final LegalProperties legal;
     private final TransactionTemplate transactions;
 
     public UserService(UserRepository userRepository, EmailLinkTokens links, PasswordConfirmation passwordConfirmation,
-                       AccountMailer mailer, PlatformTransactionManager transactionManager) {
+                       AccountMailer mailer, LegalProperties legal, PlatformTransactionManager transactionManager) {
         this.userRepository = userRepository;
         this.links = links;
         this.passwordConfirmation = passwordConfirmation;
         this.mailer = mailer;
+        this.legal = legal;
         this.transactions = new TransactionTemplate(transactionManager);
     }
 
     @Transactional(readOnly = true)
     public UserResponse findById(UUID userId) {
-        return UserMapper.toResponse(existing(userId), links.pendingEmail(userId).orElse(null));
+        return UserMapper.toResponse(existing(userId), links.pendingEmail(userId).orElse(null), legal);
     }
 
     @Transactional
     public UserResponse rename(UUID userId, String displayName) {
         User user = userRepository.findByIdForUpdate(userId).orElseThrow(UserService::unauthenticated);
         user.setDisplayName(displayName.strip());
-        return UserMapper.toResponse(user, links.pendingEmail(userId).orElse(null));
+        return UserMapper.toResponse(user, links.pendingEmail(userId).orElse(null), legal);
     }
 
     /**

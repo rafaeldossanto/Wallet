@@ -4,9 +4,11 @@ import com.wallet.core.identity.dto.AccountDeletionRequest;
 import com.wallet.core.identity.dto.EmailChangeRequest;
 import com.wallet.core.identity.dto.PasswordChangeRequest;
 import com.wallet.core.identity.dto.ProfileRequest;
+import com.wallet.core.identity.dto.TermsAcceptanceRequest;
 import com.wallet.core.identity.dto.UserResponse;
 import com.wallet.core.identity.service.AccountDeletionService;
 import com.wallet.core.identity.service.PasswordService;
+import com.wallet.core.identity.service.TermsService;
 import com.wallet.core.identity.service.UserService;
 import com.wallet.core.shared.security.CurrentUserId;
 import jakarta.validation.Valid;
@@ -32,10 +34,21 @@ public class MeController {
     private final UserService userService;
     private final AccountDeletionService accountDeletionService;
     private final PasswordService passwordService;
+    private final TermsService termsService;
 
     @GetMapping("/me")
     public UserResponse me(@CurrentUserId UUID userId) {
         return userService.findById(userId);
+    }
+
+    /**
+     * The user accepts the current Terms of Use and Privacy Policy (L15), after the app showed them. 409
+     * {@code legal.terms_outdated} when {@code version} is not the current one. 204, also if already accepted.
+     */
+    @PostMapping("/me/terms")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void acceptTerms(@CurrentUserId UUID userId, @Valid @RequestBody TermsAcceptanceRequest request) {
+        termsService.accept(userId, request.version());
     }
 
     @PutMapping("/me")

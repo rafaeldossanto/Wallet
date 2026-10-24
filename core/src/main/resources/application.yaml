@@ -146,6 +146,12 @@ wallet:
     # base64 of 32 random bytes (openssl rand -base64 32). Empty = ephemeral, development only;
     # with SPRING_PROFILES_ACTIVE=prod an empty key stops the boot.
     data-key: ${WALLET_DATA_KEY:}
+  legal:
+    # The Terms of Use and the Privacy Policy the user accepts (L15). Change terms-version when the texts change:
+    # everyone is asked to accept again. The URLs are the pages of the landing site.
+    terms-version: ${WALLET_TERMS_VERSION:2026-10-preliminar}
+    terms-url: ${WALLET_TERMS_URL:http://localhost:5181/termos.html}
+    privacy-url: ${WALLET_PRIVACY_URL:http://localhost:5181/privacidade.html}
   retention:
     # What each module deletes by itself every night, so personal data is kept only while it serves.
     # Balance history, investment snapshots and closed investments are not here on purpose: they are the

@@ -22,7 +22,8 @@ import org.springframework.security.web.SecurityFilterChain;
  * routes below included.
  */
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties({JwtProperties.class, AuthProperties.class, IdentityRetentionProperties.class})
+@EnableConfigurationProperties({JwtProperties.class, AuthProperties.class, IdentityRetentionProperties.class,
+        LegalProperties.class})
 public class SecurityConfig {
 
     /** Only a web application has a filter chain: the announcement command runs without one. */
