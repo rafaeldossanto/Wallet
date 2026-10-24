@@ -15,6 +15,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.config.ScheduledTaskRegistrar;
 import org.springframework.web.context.WebApplicationContext;
@@ -88,7 +89,7 @@ class SyncRunHousekeepingIT {
         assertThat(exists(runningConnectionsLastFinished)).isTrue();
         // What the cooldown reads is still there for every connection.
         for (UUID connection : new UUID[] {busy, quiet, onlyOneOld, running}) {
-            assertThat(runs.findFirstByConnectionIdAndStatusNotOrderByStartedAtDesc(connection, SyncRunStatus.RUNNING)).isPresent();
+            assertThat(runs.findLatestOver(connection, PageRequest.of(0, 1))).isNotEmpty();
         }
         assertThat(output.getAll()).contains("[RETENTION] Sync deleted 3 runs that ended more than 90 days ago");
     }
